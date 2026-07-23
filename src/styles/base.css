@@ -1,0 +1,122 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* ROUVIÈRE — couche de base.
+   Un seul régime : --encre. Pas de mode clair, pas de bascule. */
+
+@layer base {
+  html {
+    background-color: var(--color-encre);
+    color: var(--color-craie);
+    font-family: var(--font-sans);
+    font-size: 100%;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-size: var(--text-corps);
+    line-height: 1.55;
+    /* Lenis pilote le défilement ; le natif reste le repli. */
+    overscroll-behavior-y: none;
+  }
+
+  /* Rayon de bordure global : 0. Partout. */
+  *,
+  *::before,
+  *::after {
+    border-radius: 0;
+  }
+
+  ::selection {
+    background-color: var(--color-laiton);
+    color: var(--color-encre);
+  }
+
+  /* Liseré laiton de 1 px, décalage 3 px. */
+  :focus-visible {
+    outline: 1px solid var(--color-laiton);
+    outline-offset: 3px;
+  }
+
+  /* La barre de défilement native est stylée, jamais supprimée. */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background-color: var(--color-encre);
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-plomb);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-zinc);
+  }
+  html {
+    scrollbar-color: var(--color-plomb) var(--color-encre);
+    scrollbar-width: thin;
+  }
+}
+
+@layer components {
+  /* La couche technique : signature d'atelier.
+     Petites capitales Switzer, données brutes dans les marges. */
+  .technique {
+    font-family: var(--font-sans);
+    font-size: var(--text-technique);
+    letter-spacing: var(--tracking-technique);
+    text-transform: uppercase;
+    line-height: 1.4;
+    color: var(--color-zinc);
+  }
+
+  /* Gambetta ne descend jamais sous 40 px. */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    line-height: 0.92;
+    letter-spacing: var(--tracking-titre);
+  }
+
+  .display-monument {
+    font-family: var(--font-display);
+    font-weight: 400;
+    line-height: 0.84;
+    letter-spacing: var(--tracking-monument);
+  }
+
+  /* Lien d'évitement en tête de document. */
+  .evitement {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    padding: var(--spacing) calc(var(--spacing) * 2);
+    background-color: var(--color-craie);
+    color: var(--color-encre);
+    transform: translateY(-120%);
+    transition: transform var(--duree-micro) var(--ease-seche);
+  }
+  .evitement:focus-visible {
+    transform: translateY(0);
+  }
+
+  /* Grille de douze colonnes, gouttière 24 px, marge latérale fluide. */
+  .grille {
+    display: grid;
+    grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
+    column-gap: var(--gouttiere);
+    padding-inline: var(--marge);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

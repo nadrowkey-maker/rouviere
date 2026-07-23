@@ -1,0 +1,71 @@
+/* Feuille propre au styleguide. Elle ne sert nulle part ailleurs. */
+
+/* Colonnes rendues visibles : un aplat pierre très faible par colonne. */
+.sg-colonnes {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
+  column-gap: var(--gouttiere);
+  min-height: 160px;
+}
+
+.sg-colonne {
+  background-color: color-mix(in srgb, var(--color-pierre) 12%, transparent);
+  border-top: 1px solid var(--color-plomb);
+  padding-top: 8px;
+}
+
+/* ------------------------------------------------------------------
+   Comparaison des trois courbes.
+   Le déplacement occupe exactement --duree-objet ; le cycle complet
+   l'encadre de deux temps d'arrêt pour qu'on voie le départ et l'arrivée.
+   ------------------------------------------------------------------ */
+.sg-piste {
+  container-type: inline-size;
+  position: relative;
+  height: 48px;
+  border-top: 1px solid var(--color-plomb);
+  border-bottom: 1px solid var(--color-plomb);
+}
+
+/* Repère d'arrivée, pour lire le dépassement et le freinage. */
+.sg-piste::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  background-color: var(--color-laiton);
+}
+
+.sg-carre {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 48px;
+  height: 48px;
+  background-color: var(--color-craie);
+  animation-name: sg-glisse;
+  animation-duration: calc(var(--duree-objet) / 0.4);
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+@keyframes sg-glisse {
+  0%,
+  30% {
+    transform: translateX(0);
+  }
+  70%,
+  100% {
+    transform: translateX(calc(100cqi - 48px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-carre {
+    animation: none;
+    transform: translateX(calc(100cqi - 48px));
+  }
+}

@@ -1,0 +1,80 @@
+/* ROUVIÈRE — jetons de design
+   Source unique de vérité. Toute valeur ici provient de CLAUDE.md, Livre I.
+   Aucune couleur, aucune durée, aucune courbe ne doit exister ailleurs. */
+
+@theme {
+  /* ------------------------------------------------------------------
+     On vide les échelles par défaut de Tailwind avant de poser les
+     nôtres : plus de text-gray-500, plus de rounded-lg, plus de
+     shadow-md, plus de paliers typographiques.
+     ------------------------------------------------------------------ */
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --blur-*: initial;
+  --ease-*: initial;
+  --animate-*: initial;
+
+  /* Ligne de base 8 px : toute unité d'espacement est un multiple de 8. */
+  --spacing: 0.5rem;
+
+  /* ---- Les gris de Paris — 90 % de la surface du site ---- */
+  --color-encre: #0d1216; /* zinc à l'ombre, presque noir, sous-ton bleu */
+  --color-plomb: #2a3238; /* ciel de novembre */
+  --color-zinc: #767f85; /* toiture */
+  --color-pierre: #b4b0a6; /* pierre de taille lavée */
+  --color-craie: #e7e5de; /* enduit sec, JAMAIS un crème chaud */
+
+  /* ---- Les mondes — un par projet, plein écran, jamais en accent ---- */
+  --color-sel: #a8b8bc; /* Villa Ostréa */
+  --color-laque: #8e1a16; /* Hôtel Sévigné */
+  --color-ocre: #b26a24; /* Maison Cyprès */
+  --color-vert-paris: #1f4237; /* Appartement Cinq Heures */
+  --color-outremer: #0f2fa8; /* La Bergerie */
+
+  /* ---- Métal — liserés fins uniquement, jamais un aplat ---- */
+  --color-laiton: #9a7b4f;
+
+  /* ---- Typographie : deux familles, pas trois ---- */
+  /* Chaque variable porte la pile complète posée par next/font :
+     police réelle, repli ajusté métriquement, générique. */
+  --font-display: var(--police-gambetta, serif);
+  --font-sans: var(--police-switzer, sans-serif);
+
+  /* ---- Échelle fluide, pas de paliers ---- */
+  --text-monument: clamp(4.5rem, 18vw, 22rem); /* un mot, une fois par chapitre max */
+  --text-titre: clamp(2.5rem, 7vw, 7.5rem);
+  --text-chapo: clamp(1.25rem, 2.2vw, 2rem);
+  --text-corps: clamp(1rem, 1.05vw, 1.125rem); /* mesure max 58 caractères */
+  --text-technique: 0.6875rem; /* 11 px, capitales, +0.14em */
+
+  /* ---- Interlettrage ---- */
+  --tracking-monument: -0.03em; /* au-delà de 120 px */
+  --tracking-titre: -0.015em; /* entre 40 et 120 px */
+  --tracking-technique: 0.14em;
+
+  /* ---- Mouvement : codifié, pas improvisé ---- */
+  --ease-sortie: cubic-bezier(0.16, 1, 0.3, 1); /* out-expo : entrées d'objets */
+  --ease-douce: cubic-bezier(0.65, 0.05, 0.36, 1); /* in-out : déplacements */
+  --ease-seche: cubic-bezier(0.22, 1, 0.36, 1); /* micro-interactions */
+
+  --duree-micro: 0.24s; /* survol, curseur, focus */
+  --duree-objet: 0.72s; /* une image, un titre qui arrive */
+  --duree-chapitre: 1.15s; /* un changement de monde */
+}
+
+/* ------------------------------------------------------------------
+   Grille et composition. Douze colonnes, gouttière 24 px,
+   marge latérale fluide. Hors @theme : ce sont des variables de mise
+   en page, pas des utilitaires Tailwind.
+   ------------------------------------------------------------------ */
+:root {
+  --colonnes: 12;
+  --gouttiere: 24px;
+  --marge: clamp(1.5rem, 4vw, 5rem);
+  --mesure: 58ch; /* longueur de ligne maximale du corps de texte */
+}
