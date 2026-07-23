@@ -1,0 +1,97 @@
+/* Le logotype. Le fil rouge du site : toute la hardiesse est dépensée ici.
+
+   Deux placements sur un seul nœud, et Flip anime le passage de l'un à l'autre.
+   Aucun des deux n'utilise `transform` ni `translate` : ces propriétés restent
+   libres pour Flip, qui s'en sert pour faire voler le logo du centre au coin.
+   Le repos se cale au top-left ; le seuil centre par la technique du bloc
+   absolu (`inset: 0; margin: auto`), qui ne coûte pas un transform. */
+
+.logo {
+  /* Repos : coin haut-gauche, à la place de la future barre de navigation.
+     La mission « Le chrome » viendra poser la barre autour ; cette position
+     est déjà la bonne. */
+  position: fixed;
+  top: clamp(1.1rem, 1.5vw, 1.6rem);
+  left: var(--marge);
+  z-index: 50;
+
+  font-family: var(--font-display);
+  font-size: clamp(0.95rem, 1.1vw, 1.15rem);
+  /* Un seul poids du repos au seuil : Flip anime la géométrie, pas la graisse. */
+  font-weight: 400;
+  line-height: 1;
+  color: var(--color-craie);
+  text-decoration: none;
+
+  /* Le négatif exact de ce qu'il traverse — vidéo d'intro, encre, mondes. */
+  mix-blend-mode: difference;
+  /* Force une couche de composition : sur Safari, `difference` sur du fixe
+     au-dessus d'une vidéo scintille sans elle. Le hint vit sur le mot, pas
+     sur `.logo`, dont le transform appartient à Flip. */
+  will-change: transform;
+}
+
+/* Le blend n'est pas supporté (très vieux moteur) : on abandonne l'inversion
+   plutôt que d'afficher un logo invisible. Le repli Safari par calque
+   `backdrop-filter: invert(1)` appartient à la variante SVG du Livre V. */
+@supports not (mix-blend-mode: difference) {
+  .logo {
+    mix-blend-mode: normal;
+  }
+}
+
+.logo__mot {
+  display: inline-flex;
+  align-items: flex-end;
+  letter-spacing: 0.18em;
+  /* Le dernier interlettrage déborde à droite ; on le rend au mot. */
+  padding-left: 0.18em;
+  transform: translateZ(0);
+}
+
+.logo__masque {
+  display: inline-block;
+  overflow: hidden;
+}
+
+.logo__lettre {
+  display: inline-block;
+  /* De l'air pour l'accent du È en haut et les jambages en bas, sans que le
+     glyphe soit rogné par le masque au repos. */
+  padding: 0.16em 0 0.08em;
+  /* Position de départ du reveal : la lettre attend sous l'arête du masque.
+     GSAP reprend la main dès le seuil ; ceci n'existe que pour le premier
+     cadre, avant que la timeline ne démarre. */
+  transform: translateY(120%);
+}
+
+/* Hors seuil, les lettres sont posées : aucun masquage résiduel. */
+.logo__lettre {
+  transform: translateY(0);
+}
+
+/* -------- Pendant le seuil -------- */
+
+/* Le logo garde sa mise en page de repos du début à la fin : c'est la clé du
+   CLS à zéro. Son passage du centre géant au coin n'est pas un changement de
+   layout mais une transformation pure (échelle + translation, posée par le
+   seuil en JS), qui n'entraîne aucun recalcul de flux — donc aucun décalage. */
+.seuil-a-jouer .logo {
+  /* Pas de navigation accidentelle pendant l'intro : le clic ne compte pas. */
+  pointer-events: none;
+}
+
+/* État de départ du reveal, avant que le JS ne prenne la main : les lettres
+   attendent sous l'arête. Le seuil épingle ensuite `y: 0` pour que GSAP ne lise
+   pas ces 120 % comme un décalage de base (voir Seuil.tsx). */
+.seuil-a-jouer .logo__lettre {
+  transform: translateY(120%);
+}
+
+/* Mouvement réduit : les lettres ne se cachent jamais sous l'arête — le seuil
+   se compose sans les faire monter une à une. */
+@media (prefers-reduced-motion: reduce) {
+  .seuil-a-jouer .logo__lettre {
+    transform: translateY(0);
+  }
+}

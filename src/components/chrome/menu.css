@@ -1,0 +1,145 @@
+/* Le menu : une pièce qui s'ouvre. Plein cadre, sous le logo (qui continue de
+   l'inverser) et sous la barre de nav (dont le burger le referme).
+
+   Fermé, il est `inert` : ni focusable, ni cliquable, et ses masques sont
+   refermés — donc rien n'est peint. Aucun `overflow: hidden` nulle part :
+   le défilement est tenu par `lenis.stop()`. */
+
+.menu {
+  --monde-menu: var(--color-encre);
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+}
+
+/* Les deux surfaces masquées couvrent le cadre et n'interceptent pas le
+   pointeur : seul le contenu est interactif. */
+.menu__store,
+.menu__monde {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.menu__store {
+  z-index: 0;
+}
+.menu__monde {
+  z-index: 1;
+}
+
+/* La surface qui descend est l'encre du site. Le monde chromatique se peint
+   par-dessus, révélé cellule par cellule. */
+.menu__store rect {
+  fill: var(--color-encre);
+}
+.menu__monde rect {
+  fill: var(--monde-menu);
+}
+
+.menu__contenu {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(1.5rem, 4vh, 3rem);
+  min-height: 100%;
+  /* Calé à gauche, jamais centré. De l'air pour le logo en haut, la nav à
+     droite, la couche technique en bas. */
+  padding: clamp(6rem, 14vh, 12rem) var(--marge) clamp(4rem, 10vh, 8rem);
+}
+
+.menu__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu__liste--parcours {
+  margin-top: clamp(1rem, 3vh, 2.5rem);
+}
+
+.menu__item {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(1rem, 3vw, 3rem);
+}
+
+.menu__ligne {
+  display: block;
+  overflow: hidden;
+  /* De l'air pour les jambages : le masque ne rogne pas les lettres. */
+  padding: 0.08em 0;
+}
+
+.menu__lien {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: var(--tracking-titre);
+  color: var(--color-craie);
+  text-decoration: none;
+  /* Position de départ du reveal, avant la reprise par GSAP : sous l'arête. */
+  transform: translateY(110%);
+  will-change: transform;
+  transition: opacity var(--duree-micro) var(--ease-seche);
+}
+
+.menu__liste--projets .menu__lien {
+  font-size: clamp(2.2rem, 7vw, 6rem);
+}
+
+.menu__liste--parcours .menu__lien {
+  font-size: clamp(1.4rem, 3vw, 2.4rem);
+  color: var(--color-pierre);
+}
+
+.menu__lien:hover,
+.menu__lien:focus-visible {
+  color: var(--color-craie);
+}
+
+/* Le détail décroché dans la marge, en couche technique. Il n'apparaît qu'une
+   fois la ligne posée.
+
+   Les liens du menu sont cachés, menu fermé, par leur `translateY(110%)` sous
+   l'arête de `.menu__ligne`. Ces deux-là n'ont pas d'arête : sans règle propre,
+   ils restaient peints en permanence par-dessus tout le site — le menu est
+   `position: fixed` et couvre le cadre entier. On les tient donc à l'opacité,
+   sur l'état porté par le conteneur lui-même. */
+.menu__detail,
+.menu__pied {
+  color: var(--color-zinc);
+  opacity: 0;
+  transition: opacity var(--duree-micro) var(--ease-seche);
+}
+
+.menu__detail {
+  white-space: nowrap;
+}
+
+.menu__pied {
+  margin-top: auto;
+}
+
+/* Ouvert : le détail arrive après la ligne, jamais avant elle. */
+.menu[aria-hidden="false"] .menu__detail,
+.menu[aria-hidden="false"] .menu__pied {
+  opacity: 1;
+  transition-delay: 0.38s;
+}
+
+@media (max-width: 720px) {
+  .menu__item {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .menu__detail {
+    white-space: normal;
+  }
+}

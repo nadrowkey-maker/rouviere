@@ -1,0 +1,27 @@
+/* La barre de progression du parcours. Une ligne de 1 px sur le bord gauche.
+   La jauge se remplit du haut vers le bas ; sa couleur est une variable pour
+   que le monde d'un projet puisse la repeindre. */
+
+.progression {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 55;
+  width: 1px;
+  height: 100vh;
+  background-color: var(--color-plomb);
+  pointer-events: none;
+}
+
+.progression__jauge {
+  width: 100%;
+  height: 100%;
+  /* Dans une chambre, la barre prend le monde du projet : `--monde` est posé
+     sur <html> et monte en 1,15 s. Hors chambre, la variable n'existe pas et
+     la craie reprend la main — sans bascule, sans classe à poser. */
+  background-color: var(--progression-couleur, var(--monde, var(--color-craie)));
+  transform: scaleY(0);
+  transform-origin: top;
+  /* Pas de transition : la valeur vient déjà lissée de Lenis via ScrollTrigger.
+     Une transition par-dessus ajouterait un retard mou. */
+}

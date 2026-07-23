@@ -193,6 +193,28 @@ public/
 
 ---
 
+## Bibliothèque d'effets
+
+Les seize effets du casting existent en code réel sur ce disque. Ils ne sont **jamais** réécrits de mémoire.
+
+**Où ils sont.** `references/github/` — dix dépôts clonés. `references/zip/` — six exports CodePen extraits. Le dossier `references/` n'est pas versionné (`.gitignore`) : il vit sur la machine, pas dans le dépôt.
+
+**Comment on les trouve.** `references/CATALOGUE.md` est l'index, et le seul point d'entrée. Pour chacun des seize : la source, la description du mécanisme, **les fichiers clés avec la ligne où se trouve le cœur de l'effet**, la pile réelle, et le coût d'adaptation à Next. On ne cherche pas un effet en fouillant l'arborescence : on ouvre le catalogue, on lit l'entrée, on ouvre les fichiers qu'elle nomme.
+
+**La règle, non négociable.** Toute mission qui convoque un effet commence par lire son entrée dans `CATALOGUE.md`, puis **lit le code source réel** des fichiers désignés. Écrire un effet à partir de son nom, de son résumé ou du souvenir qu'on en a est un échec de mission, même si le résultat tourne. Ces effets ont été choisis pour leurs détails d'implémentation — le jacobien des caustiques, la mesure par Range API, la dé-tendance de la sinusoïde de bourrasque, les offsets doublants du filtre SVG. Ce sont précisément ces détails qu'une réécriture perd.
+
+**Ce qu'on lit et ce qu'on ignore.** Uniquement `src/`. Les `dist/` des zips sont des builds générés, ils ne prouvent rien et n'apprennent rien. `references/zip/shadow/src/index.html` fait 371 ko sur onze lignes — Three.js inliné et deux textures en base64 : ne jamais l'ouvrir en entier, en extraire ce qui est nommé au catalogue.
+
+**Ce qu'on garde du code d'origine.** Le mécanisme, les shaders, les constantes réglées à la main, et les motifs d'accessibilité déjà corrects (`gsap-wind-blown-text` a le bon : span visuellement caché doublé d'un overlay `aria-hidden`). Le PRNG à graine de ce même effet est gardé tel quel : c'est lui qui rend l'animation identique après un redimensionnement.
+
+**Ce qu'on jette systématiquement.** Les imports par CDN — `esm.sh`, `jsdelivr`, import maps — remplacés par les paquets npm du projet. Les panneaux de contrôle de démo : dat.GUI, lil-gui, Tweakpane, `Debug.js`, les sélecteurs de couleur maison. Les `console.log` oubliés. Les libs vendorées dans `js/`. Toute boucle `requestAnimationFrame` propre à l'effet, réécrite en abonnement au ticker. Tout second contexte WebGL, remplacé par une inscription au rig. Tout ce qui est écrit en OGL est porté dans Three ou abandonné.
+
+**Quand la source manque.** Si un fichier nommé par le catalogue est introuvable, la mission s'arrête et le signale. Elle n'improvise pas un effet de remplacement.
+
+**La bibliothèque est en lecture seule.** On n'y écrit rien, on n'y corrige rien, on ne la lint pas, on ne la compile pas — `eslint.config.mjs` et `tsconfig.json` l'excluent déjà.
+
+---
+
 ## Budget de performance
 
 Ces chiffres sont des seuils d'échec, pas des objectifs.

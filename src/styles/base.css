@@ -19,6 +19,41 @@
     line-height: 1.55;
     /* Lenis pilote le défilement ; le natif reste le repli. */
     overscroll-behavior-y: none;
+    /* Le blend `difference` du logo a besoin d'un fond de référence : sans ce
+       contexte d'isolation, il inverserait le chrome du navigateur, pas la
+       page. C'est ce qui fait du logo le négatif exact du site, et de lui
+       seul — vidéo d'intro, encre du parcours, mondes des projets. */
+    isolation: isolate;
+  }
+
+  /* Le canvas du rig est fixe en z-index 0 ; le contenu se pose au-dessus.
+     Un chapitre qui veut passer sous le WebGL descend son propre z-index,
+     il ne remonte pas celui du canvas. */
+  main {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* La scène du parcours. Elle recule derrière le menu : un seul scalaire
+     `--recul` (0 → 1, animé par GSAP) commande à la fois l'échelle, le flou et
+     la désaturation. Trois propriétés composites tenues par une valeur — pas de
+     `filter: blur()` interpolé à la main, pas de scène WebGL à repeindre. */
+  .scene-page {
+    position: relative;
+    z-index: 1;
+    --recul: 0;
+    transform: scale(calc(1 - 0.06 * var(--recul)));
+    transform-origin: 50% 42%;
+    filter: blur(calc(6px * var(--recul)))
+      saturate(calc(1 - 0.55 * var(--recul)))
+      brightness(calc(1 - 0.22 * var(--recul)));
+  }
+
+  /* Pendant l'ouverture du menu : la scène est mise à distance et rendue
+     inerte au pointeur, sans jamais bloquer le défilement par `overflow`. */
+  html.menu-ouvert .scene-page {
+    will-change: transform, filter;
+    pointer-events: none;
   }
 
   /* Rayon de bordure global : 0. Partout. */

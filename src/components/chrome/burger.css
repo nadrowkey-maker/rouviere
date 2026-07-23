@@ -1,0 +1,75 @@
+/* Le burger : trois dalles fines. À l'ouverture elles s'écartent et pivotent
+   chacune de son côté, décalées de 40 ms. Ce n'est pas une croix — c'est un
+   store qu'on entrouvre. */
+
+.burger {
+  --dalle: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dalle);
+  height: var(--dalle);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-craie);
+  cursor: pointer;
+}
+
+.burger__dalles {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  height: 100%;
+}
+
+.burger__dalle {
+  height: 1.5px;
+  width: 100%;
+  background-color: currentColor;
+  transform-origin: center;
+  /* Le décalage de 40 ms est porté par les délais indexés plus bas. */
+  transition:
+    transform var(--duree-micro) var(--ease-seche),
+    width var(--duree-micro) var(--ease-seche);
+}
+
+/* Au survol, les dalles se resserrent légèrement — la barre respire avant même
+   qu'on l'ouvre. */
+.burger:hover .burger__dalle:nth-child(1),
+.burger:focus-visible .burger__dalle:nth-child(1) {
+  width: 70%;
+}
+.burger:hover .burger__dalle:nth-child(3),
+.burger:focus-visible .burger__dalle:nth-child(3) {
+  width: 85%;
+}
+
+/* Ouvert : chaque dalle s'écarte et pivote de son propre angle, avec un délai
+   croissant de 40 ms. La fermeture reprend les délais dans l'ordre inverse
+   pour que la dalle du bas se referme la première. */
+.burger[data-ouvert="true"] .burger__dalle:nth-child(1) {
+  transform: translateY(6.5px) rotate(-17deg);
+  transition-delay: 0ms;
+}
+.burger[data-ouvert="true"] .burger__dalle:nth-child(2) {
+  transform: rotate(9deg) scaleX(0.6);
+  transition-delay: 40ms;
+}
+.burger[data-ouvert="true"] .burger__dalle:nth-child(3) {
+  transform: translateY(-6.5px) rotate(-7deg);
+  transition-delay: 80ms;
+}
+
+.burger[data-ouvert="false"] .burger__dalle:nth-child(1) {
+  transition-delay: 80ms;
+}
+.burger[data-ouvert="false"] .burger__dalle:nth-child(2) {
+  transition-delay: 40ms;
+}
+.burger[data-ouvert="false"] .burger__dalle:nth-child(3) {
+  transition-delay: 0ms;
+}

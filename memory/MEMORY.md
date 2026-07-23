@@ -1,0 +1,2 @@
+- [Seuil — état](seuil-etat.md) — logo persistant, vol en transform (pas Flip), vidéo placeholder à remplacer (Livre V)
+- [Mission chrome — état](mission-chrome.md) — nav/burger/menu/curseur/son/progression/chapitre ; recul de page en CSS (pas WebGL), z-index, cibles de liens provisoires

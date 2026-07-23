@@ -1,0 +1,20 @@
+/* Le nom du chapitre courant, en bas à gauche, en couche technique. */
+
+.chapitre-courant {
+  position: fixed;
+  bottom: clamp(1.1rem, 1.5vw, 1.6rem);
+  left: var(--marge);
+  z-index: 55;
+  margin: 0;
+  pointer-events: none;
+  color: var(--color-zinc);
+}
+
+.chapitre-courant__mot {
+  display: inline-block;
+  transition: opacity var(--duree-objet) var(--ease-sortie);
+}
+
+.chapitre-courant__mot[data-vide="true"] {
+  opacity: 0;
+}

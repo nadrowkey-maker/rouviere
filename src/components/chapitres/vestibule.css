@@ -1,0 +1,103 @@
+/* Le Vestibule — le manifeste qui se reconstitue.
+   Rien n'est centré : chaque temps a sa colonne, sa hauteur et son aplomb. */
+
+.vestibule {
+  position: relative;
+  /* Les lettres arrivent de loin, jusqu'à 620 px hors de leur ligne. Sans
+     marge, la dernière d'une phrase déclencherait une barre de défilement
+     horizontale le temps de son vol. */
+  overflow-x: clip;
+  padding-block: clamp(8rem, 18vh, 14rem) clamp(10rem, 22vh, 18rem);
+  row-gap: 0;
+}
+
+/* La couche technique, dans la marge droite, qui accompagne le chapitre. */
+.vestibule__marge {
+  grid-column: 11 / span 2;
+  grid-row: 1 / span 3;
+  position: sticky;
+  top: calc(var(--spacing) * 20);
+  align-self: start;
+  /* Décrochée dans la marge, pas alignée sur le texte : c'est une donnée qui
+     traîne, pas une légende. */
+  text-align: right;
+  display: grid;
+  row-gap: calc(var(--spacing) * 2);
+  /* Sous les lettres en vol, jamais devant. */
+  z-index: 0;
+}
+
+/* Chaque temps du manifeste occupe sa propre fenêtre de défilement. */
+.vestibule__temps {
+  display: grid;
+  position: relative;
+  z-index: 1;
+}
+
+/* Premier temps : colonne 2, calé bas. La phrase la plus sèche du site. */
+.vestibule__temps--un {
+  grid-column: 2 / span 7;
+  grid-row: 1;
+  min-height: 68vh;
+  align-content: end;
+}
+
+/* Deuxième temps : décalé vers la droite et débordant hors du cadre — une
+   image sur trois sort du cadre, une phrase sur trois aussi. */
+.vestibule__temps--deux {
+  grid-column: 4 / span 9;
+  grid-row: 2;
+  min-height: 92vh;
+  align-content: center;
+  margin-right: calc(var(--marge) * -1);
+}
+
+/* Troisième temps : retour colonne 2, calé haut. Celle qui reste. */
+.vestibule__temps--trois {
+  grid-column: 2 / span 8;
+  grid-row: 3;
+  min-height: 76vh;
+  align-content: start;
+  padding-top: clamp(4rem, 10vh, 9rem);
+}
+
+.vestibule__phrase {
+  font-size: var(--text-titre);
+  color: var(--color-craie);
+  /* Mesure retenue : la phrase se casse là où on veut qu'elle se casse. */
+  max-width: 20ch;
+}
+
+.vestibule__temps--deux .vestibule__phrase {
+  max-width: 26ch;
+}
+
+.vestibule__signature {
+  margin-top: calc(var(--spacing) * 5);
+  color: var(--color-zinc);
+}
+
+/* Le manifeste est bien plus large qu'un écran de téléphone : on rend les
+   colonnes à la mise en page et on garde les décrochages verticaux. */
+@media (max-width: 48rem) {
+  .vestibule__marge {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    position: static;
+    text-align: left;
+    margin-bottom: calc(var(--spacing) * 6);
+  }
+
+  .vestibule__temps--un,
+  .vestibule__temps--deux,
+  .vestibule__temps--trois {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    margin-right: 0;
+  }
+
+  .vestibule__phrase,
+  .vestibule__temps--deux .vestibule__phrase {
+    max-width: none;
+  }
+}

@@ -1,0 +1,44 @@
+/* Panneau de contrôle du rig — développement seulement.
+   Il emprunte la couche technique du site : mêmes capitales, même
+   interlettrage, mêmes jetons. Aucun style inventé pour l'occasion. */
+
+.rig-debug {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  min-width: 232px;
+  background-color: color-mix(in srgb, var(--color-encre) 88%, transparent);
+  border-top: 1px solid var(--color-plomb);
+  border-left: 1px solid var(--color-plomb);
+  color: var(--color-zinc);
+}
+
+.rig-debug-bascule {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-plomb);
+  color: var(--color-pierre);
+  text-align: left;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.rig-debug-liste {
+  padding: 8px 16px 16px;
+}
+
+.rig-debug-ligne {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 2px;
+}
+
+.rig-debug-ligne dd {
+  color: var(--color-craie);
+  font-variant-numeric: tabular-nums;
+}

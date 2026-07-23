@@ -1,0 +1,43 @@
+/* Feuille propre à l'épreuve du rig. Elle ne sert nulle part ailleurs. */
+
+.epreuve-bloc {
+  grid-column: 2 / span 9;
+  /* Trois écrans entre les blocs : de quoi les faire sortir du cadre un par
+     un et regarder le compteur de scènes actives tomber. */
+  margin-block-end: 120vh;
+}
+
+.epreuve-titre {
+  margin-block-end: 8px;
+}
+
+.epreuve-paire {
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+  height: 40vh;
+  min-height: 240px;
+}
+
+/* Le même jeton posé en CSS, pour comparer à l'aplat du shader. */
+.epreuve-temoin {
+  width: 96px;
+  flex: none;
+}
+
+/* L'ancre. Aucun fond : le plan WebGL est dessous, le liseré laiton est posé
+   en `outline`, donc à l'extérieur de la boîte, et n'est jamais recouvert. */
+.epreuve-cadre {
+  flex: 1;
+  outline: 1px solid var(--color-laiton);
+  outline-offset: 0;
+}
+
+.epreuve-legende,
+.epreuve-etat {
+  margin-block-start: 8px;
+}
+
+.epreuve-etat {
+  color: var(--color-pierre);
+}

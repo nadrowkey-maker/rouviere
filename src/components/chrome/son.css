@@ -1,0 +1,77 @@
+/* Le bouton de son. Trois barres fines qui se lèvent en vague quand le son est
+   actif. L'animation vit en CSS : aucune frame JS pour un décor qui pulse. */
+
+.son {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--spacing) * 1.25);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-craie);
+  cursor: pointer;
+}
+
+.son__barres {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.son__barre {
+  width: 2px;
+  height: 3px;
+  background-color: currentColor;
+  transform-origin: bottom;
+  transition: height var(--duree-micro) var(--ease-seche);
+}
+
+/* Coupé : trois traits couchés, à peine visibles. Actif : la vague monte et
+   respire, chaque barre à son propre tempo. */
+.son[data-actif="true"] .son__barre {
+  animation: son-vague 1.1s var(--ease-douce) infinite alternate;
+}
+.son[data-actif="true"] .son__barre:nth-child(1) {
+  animation-delay: 0s;
+}
+.son[data-actif="true"] .son__barre:nth-child(2) {
+  animation-delay: 0.22s;
+}
+.son[data-actif="true"] .son__barre:nth-child(3) {
+  animation-delay: 0.44s;
+}
+
+@keyframes son-vague {
+  from {
+    height: 3px;
+  }
+  to {
+    height: 14px;
+  }
+}
+
+.son__label {
+  color: var(--color-zinc);
+  transition: color var(--duree-micro) var(--ease-seche);
+}
+
+.son:hover .son__label,
+.son:focus-visible .son__label {
+  color: var(--color-craie);
+}
+
+/* Mouvement réduit : la vague ne s'agite pas. L'état actif se lit alors sur la
+   hauteur figée des barres, pas sur leur mouvement. */
+@media (prefers-reduced-motion: reduce) {
+  .son[data-actif="true"] .son__barre {
+    animation: none;
+    height: 14px;
+  }
+  .son[data-actif="true"] .son__barre:nth-child(1) {
+    height: 8px;
+  }
+  .son[data-actif="true"] .son__barre:nth-child(3) {
+    height: 6px;
+  }
+}

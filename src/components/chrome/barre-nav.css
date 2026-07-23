@@ -1,0 +1,28 @@
+/* La barre de navigation. Fixe, sans fond, au-dessus de tout — y compris du
+   menu ouvert, pour que le burger reste saisissable et referme la pièce.
+
+   Repère des couches du chrome (z-index) :
+     0    canvas du rig            50   logo (négatif, geste signature)
+     1    parcours (.scene-page)   55   progression, chapitre courant
+     45   overlay du menu          60   barre de nav (burger, son)
+     100  lien d'évitement         9000 curseur */
+
+.barre-nav {
+  position: fixed;
+  top: clamp(1.1rem, 1.5vw, 1.6rem);
+  right: var(--marge);
+  left: var(--marge);
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  /* La barre ne capte pas le pointeur sur toute sa largeur : seuls ses boutons
+     le font, sinon elle masquerait le parcours sur toute la ligne du haut. */
+  pointer-events: none;
+}
+
+.barre-nav__droite {
+  display: flex;
+  align-items: center;
+  gap: clamp(1rem, 2vw, 2rem);
+  pointer-events: auto;
+}

@@ -1,0 +1,79 @@
+/* Le curseur. Un anneau de 28 px en négatif de ce qu'il traverse, qui grossit
+   sur l'interactif et devient une pastille pleine, portant un mot, sur un
+   média. Le seul arrondi autorisé de tout le site vit ici. */
+
+/* Le natif s'efface : l'anneau prend le relais. Désactivé sur pointeur
+   grossier — la classe n'est alors jamais posée. */
+html.curseur-actif,
+html.curseur-actif * {
+  cursor: none;
+}
+
+.curseur {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9000;
+  pointer-events: none;
+  will-change: transform;
+  opacity: 0;
+  transition: opacity var(--duree-micro) var(--ease-seche);
+}
+
+.curseur[data-visible="true"] {
+  opacity: 1;
+}
+
+.curseur__forme {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  /* Centré sur le point de la transformation portée par `.curseur`. */
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--color-craie);
+  border-radius: 50%;
+  /* Le négatif exact du fond, comme le logo. */
+  mix-blend-mode: difference;
+  transition:
+    width var(--duree-micro) var(--ease-seche),
+    height var(--duree-micro) var(--ease-seche),
+    background-color var(--duree-micro) var(--ease-seche);
+}
+
+/* Sur un élément interactif : l'anneau s'ouvre. */
+.curseur[data-forme="actif"] .curseur__forme {
+  width: 44px;
+  height: 44px;
+}
+
+/* Sur un média : une pastille pleine qui porte le mot. */
+.curseur[data-forme="pastille"] .curseur__forme {
+  width: 76px;
+  height: 76px;
+  background-color: var(--color-craie);
+}
+
+.curseur__mot {
+  font-family: var(--font-sans);
+  font-size: var(--text-technique);
+  letter-spacing: var(--tracking-technique);
+  text-transform: uppercase;
+  color: var(--color-encre);
+  opacity: 0;
+  transition: opacity var(--duree-micro) var(--ease-seche);
+}
+
+.curseur[data-forme="pastille"] .curseur__mot {
+  opacity: 1;
+}
+
+@supports not (mix-blend-mode: difference) {
+  .curseur__forme {
+    mix-blend-mode: normal;
+  }
+}

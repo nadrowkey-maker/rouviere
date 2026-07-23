@@ -1,0 +1,201 @@
+/* L'Enfilade — un couloir, pas une galerie.
+   Le HTML tient la mise en page ; le rig peint les médias par-dessous. */
+
+.enfilade {
+  position: relative;
+  /* La scène est épinglée : la hauteur de la section est celle d'un écran,
+     ScrollTrigger fabrique lui-même la course de défilement. */
+  height: 100vh;
+}
+
+.enfilade__scene {
+  position: relative;
+  height: 100vh;
+  /* Ce qui sort du couloir sort de l'écran, sans jamais fabriquer de barre
+     horizontale. `clip` plutôt que `hidden` : aucun ancêtre défilant parasite. */
+  overflow: clip;
+}
+
+.enfilade__couloir {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  /* Le couloir commence dans la marge et finit dedans : la première pièce
+     n'est pas collée au bord, la dernière ne bute pas contre lui. */
+  padding-inline: var(--marge) 45vw;
+  column-gap: clamp(6rem, 14vw, 18rem);
+  width: max-content;
+  will-change: transform;
+}
+
+.enfilade__piece {
+  position: relative;
+  flex: 0 0 auto;
+  /* Les pièces n'ont pas toutes la même largeur : un couloir régulier est un
+     couloir de gabarit. La variation est portée par le rang, pas par le
+     hasard — elle est donc stable d'une visite à l'autre. */
+  width: clamp(18rem, 34vw, 34rem);
+}
+
+.enfilade__piece:nth-child(2n) {
+  width: clamp(15rem, 26vw, 27rem);
+}
+
+.enfilade__piece:nth-child(3n) {
+  width: clamp(20rem, 40vw, 40rem);
+}
+
+/* Le nom, dans la marge haute, en Gambetta énorme, coupé par le bord de
+   l'écran. Il ne se lit entier qu'au moment où sa pièce passe au centre. */
+.enfilade__nom {
+  position: absolute;
+  bottom: calc(100% + clamp(1.5rem, 4vh, 3.5rem));
+  left: 50%;
+  /* Le centrage sert ici de repère de calcul, pas de parti pris de
+     composition : c'est la contre-parallaxe qui décale le nom presque tout le
+     temps, et il n'est aligné qu'à l'instant du passage au centre. */
+  translate: -50% 0;
+  white-space: nowrap;
+  font-size: var(--text-titre);
+  color: var(--color-craie);
+  pointer-events: none;
+  will-change: transform;
+  /* Au-dessus des médias peints par le rig, sous le chrome. */
+  z-index: 2;
+}
+
+.enfilade__lien {
+  display: block;
+  position: relative;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Le cadre du média. Vide : c'est le rig qui peint dedans, en dessous du DOM.
+   L'image reste là pour le mode dégradé et pour le temps du chargement. */
+.enfilade__media {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 4 / 5;
+  overflow: clip;
+}
+
+.enfilade__piece:nth-child(2n) .enfilade__media {
+  aspect-ratio: 1 / 1;
+}
+
+.enfilade__piece:nth-child(3n) .enfilade__media {
+  aspect-ratio: 3 / 2;
+}
+
+.enfilade__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Une transition franche : l'image DOM cède la place au plan WebGL dès qu'il
+     est prêt. Sans durée intermédiaire, on ne voit jamais les deux. */
+  transition: opacity var(--duree-micro) var(--ease-seche);
+}
+
+/* Le WebGL a pris la main : l'image DOM s'efface, le plan la remplace au
+   pixel près. Elle reste dans le flux — c'est elle qui donne sa hauteur au
+   cadre, donc au rect que lit le rig. */
+.enfilade__media[data-webgl="true"] .enfilade__image {
+  opacity: 0;
+}
+
+.enfilade__legende {
+  margin-top: calc(var(--spacing) * 2);
+  color: var(--color-zinc);
+}
+
+/* La couche technique, au troisième rythme, calée en bas du cadre. */
+.enfilade__bandeau {
+  position: absolute;
+  bottom: clamp(1.5rem, 5vh, 3.5rem);
+  left: 0;
+  display: flex;
+  column-gap: clamp(8rem, 22vw, 26rem);
+  padding-inline: var(--marge);
+  width: max-content;
+  white-space: nowrap;
+  will-change: transform;
+  color: var(--color-zinc);
+  z-index: 2;
+}
+
+.enfilade__consigne {
+  position: absolute;
+  top: clamp(1.5rem, 5vh, 3.5rem);
+  right: var(--marge);
+  color: var(--color-zinc);
+  z-index: 2;
+}
+
+/* ------------------------------------------------------------------
+   Mouvement réduit — le couloir n'est plus épinglé ni converti : il se
+   parcourt latéralement, à la main ou au clavier. La composition est la
+   même, le mouvement forcé disparaît. C'est une version, pas une punition.
+   ------------------------------------------------------------------ */
+.enfilade[data-reduit="true"] {
+  height: auto;
+}
+
+.enfilade[data-reduit="true"] .enfilade__scene {
+  height: auto;
+  overflow: visible;
+  padding-block: clamp(6rem, 14vh, 11rem);
+}
+
+.enfilade[data-reduit="true"] .enfilade__couloir {
+  /* La hauteur d'écran et le centrage vertical servaient la scène épinglée.
+     Ici le couloir n'occupe plus que ce que son contenu demande, et les pièces
+     s'alignent en haut : le nom, redevenu statique, coiffe son image. */
+  height: auto;
+  align-items: start;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-block: 0 calc(var(--spacing) * 3);
+  padding-inline: var(--marge);
+  column-gap: clamp(3rem, 8vw, 8rem);
+  scroll-snap-type: x proximity;
+}
+
+.enfilade[data-reduit="true"] .enfilade__piece {
+  scroll-snap-align: center;
+}
+
+.enfilade[data-reduit="true"] .enfilade__nom {
+  position: static;
+  translate: none;
+  display: block;
+  margin-bottom: calc(var(--spacing) * 2);
+  white-space: normal;
+  /* Plus de contre-parallaxe pour le décaler : il tient dans la colonne de sa
+     pièce, donc il se cale sur la largeur de celle-ci. */
+  font-size: clamp(2.5rem, 3.4vw, 4rem);
+}
+
+.enfilade[data-reduit="true"] .enfilade__bandeau {
+  position: static;
+  flex-wrap: wrap;
+  row-gap: calc(var(--spacing) * 2);
+  column-gap: clamp(2rem, 6vw, 5rem);
+  width: auto;
+  margin-top: calc(var(--spacing) * 6);
+  white-space: normal;
+}
+
+@media (max-width: 48rem) {
+  .enfilade__couloir {
+    padding-inline-end: 70vw;
+    column-gap: clamp(3rem, 12vw, 8rem);
+  }
+
+  .enfilade__piece,
+  .enfilade__piece:nth-child(2n),
+  .enfilade__piece:nth-child(3n) {
+    width: 78vw;
+  }
+}

@@ -1,0 +1,18 @@
+/* Le canvas du rig. Fixe, plein cadre, transparent, inerte au pointeur.
+   Il ne bouge jamais : c'est ce qui permet aux meshes de se caler sur des
+   rects viewport sans compensation de défilement.
+
+   Sa taille CSS est tenue ici et seulement ici — `renderer.setSize` est appelé
+   avec `updateStyle = false` pour ne pas la contredire. `inset: 0` sur un
+   élément fixe donne exactement l'espace de coordonnées de
+   `getBoundingClientRect`, barre de défilement exclue. */
+
+.rig-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

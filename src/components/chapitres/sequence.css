@@ -1,0 +1,25 @@
+/* La séquence de frames — l'approche.
+   Le canvas occupe le cadre entier ; c'est lui qui porte l'image. */
+
+.sequence {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background-color: var(--color-encre);
+  overflow: clip;
+}
+
+.sequence__toile {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Le cadrage « cover » est calculé au dessin, pas par le CSS : le tampon a
+     exactement la taille de la boîte, en pixels de l'appareil. */
+  opacity: 0;
+  transition: opacity var(--duree-objet) var(--ease-sortie);
+}
+
+/* Le premier tiers des frames est arrivé : on peut peindre. */
+.sequence[data-prete="true"] .sequence__toile {
+  opacity: 1;
+}
