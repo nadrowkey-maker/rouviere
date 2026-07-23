@@ -1,0 +1,9 @@
+# Bibliothèque de références locale — ne doit jamais être commitée
+references/
+
+# Dépendances
+node_modules/
+
+# Système
+.DS_Store
+Thumbs.db
