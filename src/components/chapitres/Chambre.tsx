@@ -1,71 +1,70 @@
 "use client";
 
 import { useRef } from "react";
-import dynamic from "next/dynamic";
+import Image from "next/image";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
-import type { Projet } from "@/data/projets";
+import { rangDe, type Projet } from "@/data/projets";
 import { visuelsDe } from "@/data/visuels";
-import type { EtatProfondeur } from "@/components/gl/materiaux/profondeur";
 import { useRevele } from "@/components/motion/useRevele";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useSon } from "@/components/chrome/SonProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { lireCouleur, lireDuree } from "@/lib/jetons";
-import { SequenceCanvas } from "./SequenceCanvas";
 import "./chambre.css";
 
 /**
- * La Chambre — un chapitre par projet.
+ * La page projet — plein cadre.
  *
- * Le monde bascule : dès l'entrée, la couleur du projet prend tout. Puis trois
- * temps, sans coupure visible entre eux.
+ * Le monde bascule dès l'entrée : la couleur du projet, extraite de la
+ * dominante réelle de ses médias, prend le curseur, la barre de progression et
+ * les liserés en 1,15 s.
  *
- *   *L'approche* — une traversée en séquence de frames, redessinée sur un
- *   canvas 2D et pilotée au défilement. Voir `SequenceCanvas`.
+ * Trois temps, sans jamais mettre une image dans un cadre plus petit que
+ * l'écran :
  *
- *   *La profondeur* — on cesse de traverser, on entre dans la scène : les
- *   images avancent vers la caméra et le fond réagit. Voir `profondeur.ts`.
+ *   *Le hero* — la vidéo du projet ouvre en plein cadre, sans texte, comme le
+ *   hero du site.
  *
- *   *La fiche* — le seul moment sobre du site. Du texte, calé, sec, et rien
- *   d'autre qu'un reveal de lignes retenu.
+ *   *Les vues* — les trois photographies se traversent une par une, chacune en
+ *   `object-fit: cover` sur 100 vh, avec une parallaxe interne et un
+ *   enchaînement par masque (un store qui descend). Le titre monumental arrive
+ *   en Gambetta sur la première ; la couche technique court en bas.
  *
- * Grammaire de mouvement : **l'avancée dans l'axe**. L'enfilade qui précède
- * traverse latéralement ; ici on entre. Les deux ne se ressemblent pas.
+ *   *La fiche* — le seul moment sobre. Du texte calé, sec, et une grille
+ *   d'étiquettes dissoute en une seule ligne de données décrochée colonne 2.
+ *
+ * Grammaire de mouvement : **le masque qui descend**. L'enfilade qui précède
+ * traverse latéralement ; ici les plans se recouvrent par le haut, plein cadre.
  */
-
-/** Vitesse au-delà de laquelle la traînée du fond est à son maximum, en px/frame. */
-const VELOCITE_PLEINE = 60;
-
-/* Comme pour l'enfilade : Three.js reste hors de la première charge et hors du
-   rendu serveur. La fiche, elle, est du HTML rendu par le serveur. */
-const SceneProfondeur = dynamic(
-  () => import("@/components/gl/SceneProfondeur"),
-  { ssr: false },
-);
-
 export function Chambre({ projet }: { projet: Projet }) {
   const { mouvementReduit } = useMouvement();
-  const visuels = visuelsDe(projet.slug);
+  const { entrerProjet, quitterProjet } = useSon();
+  const { video, planches } = visuelsDe(projet.slug);
 
-  const profondeurRef = useRef<HTMLDivElement>(null);
-  const ancreGL = useRef<HTMLDivElement>(null);
+  /* ---- La nappe du projet ----
+     Le monde chromatique bascule à l'entrée ; la nappe fait de même. Celle du
+     site cède la place en 1,2 s et la reprend à la sortie, là où le parcours en
+     était resté — c'est le pendant sonore exact du fond qui se recolore. */
+  useEffetVisuel(() => {
+    entrerProjet(rangDe(projet.slug));
+    return () => quitterProjet();
+  }, [projet.slug, entrerProjet, quitterProjet]);
+
+  const heroRef = useRef<HTMLElement>(null);
+  const vuesRef = useRef<HTMLElement>(null);
   const ficheRef = useRef<HTMLDivElement>(null);
-
-  const etat = useRef<EtatProfondeur>({ progression: 0, velocite: 0 });
 
   useRevele(ficheRef, ".chambre__revele");
 
   /* ---- La bascule de monde ---- */
   useEffetVisuel(() => {
     const html = document.documentElement;
-    const depuis = lireCouleur("craie");
+    const depuis = lireCouleur("encre");
     const vers = lireCouleur(projet.monde);
     const relais = { t: 0 };
 
-    /* La couleur du projet ne se pose pas d'un coup : elle monte en 1,15 s —
-       la durée d'un changement de monde — et elle repeint du même geste le
-       curseur, la barre de progression et les liserés, qui lisent tous
-       `--monde`. Le fond, lui, est un dégradé calculé en GLSL : voir le
-       shader de `profondeur.ts`. */
+    /* La couleur du projet monte en 1,15 s et repeint du même geste le curseur,
+       la barre de progression et les liserés, qui lisent tous `--monde`. */
     const tween = gsap.to(relais, {
       t: 1,
       duration: mouvementReduit ? 0 : lireDuree("chapitre"),
@@ -84,107 +83,171 @@ export function Chambre({ projet }: { projet: Projet }) {
     };
   }, [projet.monde, mouvementReduit]);
 
-  /* ---- Le temps de la profondeur ---- */
+  /* ---- Le hero : la vidéo monte très légèrement en échelle et s'assombrit à
+     mesure qu'on la quitte. Un scrub, donc réversible. ---- */
   useEffetVisuel(() => {
-    const section = profondeurRef.current;
-    if (section === null) return;
+    const hero = heroRef.current;
+    if (hero === null || mouvementReduit) return;
 
-    if (mouvementReduit) {
-      /* Une image posée, pas une traversée : on montre le premier plan et on
-         laisse le chapitre se lire en défilement natif. */
-      etat.current.progression = 0;
-      return;
-    }
+    const declencheur = gsap.timeline({
+      scrollTrigger: {
+        trigger: hero,
+        start: "top top",
+        end: "bottom top",
+        scrub: true,
+      },
+    });
+    declencheur
+      .to(hero.querySelector(".chambre__media"), { scale: 1.06, ease: "none" }, 0)
+      .to(hero.querySelector(".chambre__voile"), { opacity: 0.55, ease: "none" }, 0);
 
-    let precedent = 0;
+    return () => {
+      declencheur.scrollTrigger?.kill();
+      declencheur.kill();
+    };
+  }, [mouvementReduit]);
 
-    const declencheur = ScrollTrigger.create({
-      trigger: section,
-      start: "top top",
-      end: () => `+=${innerHeight * 2.6}`,
-      pin: true,
-      /* Comme partout : `.scene-page` porte un `transform` permanent, donc un
-         `position: fixed` s'y calerait au lieu du viewport. */
-      pinType: "transform",
-      scrub: 0.8,
-      invalidateOnRefresh: true,
-      /* `self`, et non la constante `declencheur` : ScrollTrigger appelle
-         `onUpdate` pendant `create`, donc avant que l'affectation ne soit
-         faite. Lire la constante ici lève une erreur de zone morte — et elle
-         ne se voyait que sur les projets sans séquence, dont la profondeur
-         commence en haut de page et se met donc à jour dès sa création. */
-      onUpdate: (self) => {
-        etat.current.progression = self.progress;
-        /* La vélocité alimente la traînée du fond et le grain des plans. */
-        const brut = self.progress - precedent;
-        precedent = self.progress;
-        etat.current.velocite =
-          (brut * (self.end - self.start)) / VELOCITE_PLEINE;
+  /* ---- Les vues : masque qui descend + parallaxe interne ---- */
+  useEffetVisuel(() => {
+    const section = vuesRef.current;
+    if (section === null || mouvementReduit) return;
+
+    const vues = Array.from(
+      section.querySelectorAll<HTMLElement>(".chambre__vue"),
+    );
+    const images = vues.map(
+      (v) => v.querySelector<HTMLElement>(".chambre__parallaxe")!,
+    );
+    const n = vues.length;
+    if (n === 0) return;
+
+    /* Au départ, seule la première est visible ; les suivantes sont masquées
+       par le haut, prêtes à descendre. */
+    gsap.set(vues.slice(1), { clipPath: "inset(0 0 100% 0)" });
+
+    const HOLD = 0.55;
+    const WIPE = 1;
+
+    const tl = gsap.timeline({
+      defaults: { ease: "none" },
+      scrollTrigger: {
+        trigger: section,
+        start: "top top",
+        end: () => `+=${innerHeight * (n + 1)}`,
+        pin: true,
+        /* `.scene-page` porte un transform permanent : `position: fixed` s'y
+           calerait au lieu du viewport. On épingle donc en transform. */
+        pinType: "transform",
+        scrub: 0.8,
+        invalidateOnRefresh: true,
       },
     });
 
-    return () => declencheur.kill();
-  }, [mouvementReduit]);
+    let t = 0;
+    /* Le premier plan respire pendant qu'il tient. */
+    tl.fromTo(images[0]!, { yPercent: -6 }, { yPercent: 6, duration: HOLD }, t);
+    t += HOLD;
 
-  const sequence = visuels.sequence;
+    for (let i = 1; i < n; i += 1) {
+      const vue = vues[i]!;
+      const image = images[i]!;
+      /* Le store descend : la vue entrante se dévoile du haut vers le bas. */
+      tl.fromTo(
+        vue,
+        { clipPath: "inset(0 0 100% 0)" },
+        { clipPath: "inset(0 0 0% 0)", ease: "power2.inOut", duration: WIPE },
+        t,
+      );
+      /* Sa photographie glisse pendant tout le temps où elle est à l'écran. */
+      tl.fromTo(image, { yPercent: -6 }, { yPercent: 6, duration: WIPE + HOLD }, t);
+      t += WIPE + HOLD;
+    }
+
+    return () => {
+      tl.scrollTrigger?.kill();
+      tl.kill();
+      ScrollTrigger.refresh();
+    };
+    /* `projet.slug` : si la même instance sert un autre projet, la timeline
+       doit se reconstruire sur les nouvelles photographies. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mouvementReduit, projet.slug]);
 
   return (
-    <article className="chambre" data-monde={projet.monde}>
-      {/* ---- Premier temps : l'approche ---- */}
-      {sequence === null ? null : (
-        <section
-          className="chambre__approche"
-          data-chapitre={`${projet.nom} — l'approche`}
-          aria-label={`${projet.nom}, traversée`}
-        >
-          <SequenceCanvas
-            sequence={sequence}
-            description={`Traversée de ${projet.nom}, ${projet.lieu}. La lumière parcourt les pièces d'un bout à l'autre du plan.`}
-          />
-          <p className="chambre__coordonnees technique">
-            {projet.coordonnees} — {projet.surface} m² — livraison{" "}
-            {projet.livraison}
-          </p>
-        </section>
-      )}
-
-      {/* ---- Deuxième temps : la profondeur ---- */}
+    <article
+      className="chambre"
+      data-monde={projet.monde}
+      data-reduit={mouvementReduit ? "" : undefined}
+    >
+      {/* ---- Le hero : la vidéo du projet, plein cadre, sans texte ---- */}
       <section
-        className="chambre__profondeur"
-        ref={profondeurRef}
-        data-chapitre={projet.nom}
-        aria-label={`${projet.nom}, les vues`}
+        className="chambre__hero"
+        ref={heroRef}
+        aria-label={`${projet.nom}, ${projet.lieu}`}
       >
-        {/* L'ancre du rig : une boîte plein cadre, vide. Le WebGL peint
-            dessous, le HTML garde la mise en page. */}
-        <div className="chambre__scene" ref={ancreGL} aria-hidden="true" />
-        <SceneProfondeur
-          ancre={ancreGL}
-          sources={visuels.planches.map((planche) => planche.src)}
-          monde={projet.monde}
-          etat={etat}
-          cle={projet.slug}
-        />
-
-        <h1 className="chambre__titre display">{projet.nom}</h1>
-        <p className="chambre__lieu technique">
-          {projet.lieu} · {projet.coordonnees} · {projet.annee}
-        </p>
-
-        {/* Ce que peint le WebGL, en équivalent lisible. */}
-        <ul className="sr-only">
-          {visuels.planches.map((planche) => (
-            <li key={planche.src}>{planche.alt}</li>
-          ))}
-        </ul>
+        <div className="chambre__media">
+          {mouvementReduit ? (
+            <Image
+              src={video.poster}
+              width={video.largeur}
+              height={video.hauteur}
+              alt=""
+              className="chambre__image"
+              priority
+              sizes="100vw"
+            />
+          ) : (
+            <video
+              className="chambre__image"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              poster={video.poster}
+            >
+              <source src={video.webm} type="video/webm" />
+              <source src={video.mp4} type="video/mp4" />
+            </video>
+          )}
+        </div>
+        <div className="chambre__voile" aria-hidden="true" />
       </section>
 
-      {/* ---- Troisième temps : la fiche ---- */}
-      <section
-        className="chambre__fiche grille"
-        ref={ficheRef}
-        data-chapitre={`${projet.nom} — la fiche`}
-      >
+      {/* ---- Les vues : trois photographies plein cadre ---- */}
+      <section className="chambre__vues" ref={vuesRef}>
+        {planches.map((planche, i) => (
+          <figure
+            className="chambre__vue"
+            key={planche.src}
+            style={{ zIndex: i }}
+          >
+            <div className="chambre__parallaxe">
+              <Image
+                src={planche.src}
+                fill
+                alt={planche.alt}
+                className="chambre__photo"
+                sizes="100vw"
+                priority={i === 0}
+              />
+            </div>
+
+            {i === 0 ? (
+              <h1 className="chambre__titre display-monument">{projet.nom}</h1>
+            ) : null}
+          </figure>
+        ))}
+
+        {/* La couche technique court en bas, au-dessus des plans, tout du long. */}
+        <p className="chambre__technique technique">
+          {projet.lieu} · {projet.coordonnees} · {projet.surface} m² ·{" "}
+          {projet.annee}
+        </p>
+      </section>
+
+      {/* ---- La fiche : sobre, dernière ---- */}
+      <section className="chambre__fiche grille" ref={ficheRef}>
         <div className="chambre__programme">
           <p className="technique">Programme</p>
           <p className="chambre__revele chambre__chapo">{projet.programme}</p>
@@ -198,28 +261,14 @@ export function Chambre({ projet }: { projet: Projet }) {
           ))}
         </div>
 
-        <dl className="chambre__donnees technique">
-          <div>
-            <dt>Lieu</dt>
-            <dd>{projet.lieu}</dd>
-          </div>
-          <div>
-            <dt>Surface</dt>
-            <dd>{projet.surface} m²</dd>
-          </div>
-          <div>
-            <dt>Livraison</dt>
-            <dd>{projet.livraison}</dd>
-          </div>
-          <div>
-            <dt>Matières</dt>
-            <dd>{projet.matieres.join(", ")}</dd>
-          </div>
-          <div>
-            <dt>Photographie</dt>
-            <dd>{projet.photographe}</dd>
-          </div>
-        </dl>
+        {/* La grille d'étiquettes, dissoute en une seule ligne décrochée. */}
+        <p className="chambre__ligne chambre__revele technique">
+          <span>{projet.lieu}</span>
+          <span>{projet.surface} m²</span>
+          <span>livraison {projet.livraison}</span>
+          <span>{projet.matieres.join(" / ")}</span>
+          <span>{projet.photographe}</span>
+        </p>
       </section>
     </article>
   );

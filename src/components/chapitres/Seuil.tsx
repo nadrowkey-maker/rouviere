@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { gsap } from "@/lib/gsap";
+import { EcranEntree } from "./EcranEntree";
 import { useLogo } from "@/components/chrome/LogoProvider";
+import { useSon } from "@/components/chrome/SonProvider";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
@@ -11,230 +13,334 @@ import "./seuil.css";
 /**
  * Le Seuil.
  *
- * Écran noir, une vidéo plein cadre dans une villa vide. Le logotype apparaît
- * au centre, énorme, en `difference` sur la vidéo, ses lettres montant une à
- * une derrière une arête. Trois secondes. Puis le même nœud logo se déplace de
- * lui-même vers la barre de navigation, pendant que la vidéo se rétracte en
- * bande horizontale puis à rien, découvrant le vestibule.
+ * Trois temps, et non plus un overlay qui disparaît.
  *
- * Le déplacement du logo est une transformation pure — échelle et translation,
- * jamais un changement de mise en page. C'est délibéré : le logo garde sa boîte
- * de repos du début à la fin, si bien que son vol du centre au coin n'entraîne
- * aucun recalcul de flux et le CLS reste à zéro. (GSAP Flip ferait le même
- * geste plus court à écrire, mais son échange de layout reflue le sous-arbre
- * des lettres et se compte, lui, comme un décalage — mesuré à ~0,29.)
+ *   1. **L'écran d'entrée** (voir `EcranEntree`) : un plein cadre noir, le
+ *      logotype en petit, deux choix — avec le son, ou en silence. Il sert de
+ *      sas audio (le clic débloque Web Audio) et de préchargeur (les boutons ne
+ *      s'activent qu'une fois la vidéo du hero et sa poster prêtes).
  *
- * La séquence ne joue qu'une fois par session : un script en tête de `<body>`
- * pose la classe `seuil-a-jouer` sur `<html>` avant la première peinture, et
- * seulement si `sessionStorage` ne l'a pas déjà vue. Au rechargement, la classe
- * est absente : l'overlay est masqué et le logo est déjà dans la nav, sans le
- * moindre clignotement.
+ *   2. **L'apparition.** À la sortie de l'écran d'entrée, la vidéo du hero
+ *      occupe seule le plein cadre 2,5 s, sans rien. Puis ROUVIÈRE paraît au
+ *      centre, d'un seul bloc — jamais lettre par lettre — en générique de
+ *      film : opacité, échelle et flou se résorbent sur 1,8 s. Il tient 1,5 s,
+ *      puis vole en haut à gauche. Une fois posé, le son et le burger arrivent.
+ *
+ *   3. **La sortie du hero.** Le hero reste dans le DOM. Au défilement il est
+ *      épinglé et un voile noir monte en scrub pendant que la vidéo grandit à
+ *      peine ; voile plein, le vestibule est là. Tout est réversible : on
+ *      remonte, le voile se lève, la vidéo revient. Un clic sur le logotype
+ *      ramène en haut sans rejouer l'apparition.
+ *
+ * Le logo est un nœud partagé (monté dans le layout) : c'est le même qui paraît
+ * au centre et se range dans la barre. Son placement « centre géant » est une
+ * transformation pure (échelle + translation) qui n'entraîne aucun reflux —
+ * CLS à zéro. La séquence ne joue qu'une fois par session : un script en tête de
+ * `<body>` pose `seuil-a-jouer` sur `<html>` tant que `sessionStorage` ne l'a
+ * pas vue. Au rechargement, la classe est absente : ni écran d'entrée, ni
+ * apparition, le logo est déjà dans la barre et le hero est là.
  */
 
 const CLE_SESSION = "rouviere:seuil-vu";
+const CLE_CHOIX = "rouviere:entree-son";
+
+const HERO_VIDEO = "/media/hero/hero.mp4";
+const HERO_POSTER = "/media/hero/hero-poster.avif";
 
 export function Seuil() {
   const { ref: logoRef } = useLogo();
+  const { activerSon, reglerSortieHero } = useSon();
   const { arreter, reprendre } = useDefilement();
   const { mouvementReduit } = useMouvement();
 
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const [pret, setPret] = useState(false);
+
+  const heroRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  /* Le bouton d'évitement, rendu par React, déclenche une fonction créée dans
-     l'effet une fois les polices prêtes : elle transite par cette ref. */
-  const sauterRef = useRef<(() => void) | null>(null);
-  /* `MotionProvider` corrige `mouvementReduit` dans son propre effet de layout,
-     qui s'exécute après celui, enfant, du seuil. L'effet ci-dessous ne le lit
-     donc pas directement — il le lirait avant correction — mais par cette ref,
-     tenue à jour à chaque rendu et consultée seulement une fois les polices
-     prêtes, bien après que le provider a tranché. */
+  const voileRef = useRef<HTMLDivElement>(null);
+  const ecranRef = useRef<HTMLDivElement>(null);
+  /* La fonction qui lance l'apparition, créée dans l'effet une fois la scène
+     prête, appelée par le clic d'un des deux boutons de l'écran d'entrée. */
+  const entrerRef = useRef<((avecSon: boolean) => void) | null>(null);
+
+  /* `MotionProvider` corrige `mouvementReduit` dans son propre effet, qui court
+     après celui, enfant, du seuil. On lit donc la préférence par ref, au moment
+     du clic — bien après que le provider a tranché — jamais dans l'effet même. */
   const mouvementReduitRef = useRef(mouvementReduit);
   mouvementReduitRef.current = mouvementReduit;
 
+  /* Le geste de clic : c'est lui qui autorise le son (Web Audio n'ouvre que dans
+     un geste utilisateur). « Avec le son » arme la nappe, « en silence » la
+     laisse coupée, puis on lance l'apparition. */
+  const handleEntrer = (avecSon: boolean) => {
+    /* `activerSon` pose l'état, il ne le bascule pas : le choix de l'écran
+       d'entrée doit valoir quelle que soit la préférence retenue de la visite
+       précédente. Une bascule rendrait le silence à qui vient de demander le
+       son. */
+    activerSon(avecSon);
+    entrerRef.current?.(avecSon);
+  };
+
+  /* --- La sortie du hero : voile en scrub, réversible. Indépendante de
+     l'intro, montée dans tous les cas. --- */
+  useEffetVisuel(() => {
+    const hero = heroRef.current;
+    const video = videoRef.current;
+    const voile = voileRef.current;
+    if (hero === null || voile === null) return;
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: hero,
+        start: "top top",
+        end: "+=100%",
+        pin: true,
+        scrub: true,
+        invalidateOnRefresh: true,
+        /* Le son sort du hero exactement comme l'image : sur la même
+           progression, dans le même sens, réversible de la même façon. C'est
+           la seule commande du fondu croisé hero → site — il n'y a nulle part
+           de minuterie qui compterait les secondes passées en haut de page. */
+        onUpdate: (self) => reglerSortieHero(self.progress),
+      },
+    });
+    /* Le voile passe de 0 à 1 pendant que la vidéo monte très légèrement en
+       échelle. Un scrub, jamais une durée fixe : la progression suit la main. */
+    tl.to(voile, { opacity: 1, ease: "none" }, 0);
+    if (video !== null) tl.to(video, { scale: 1.06, ease: "none" }, 0);
+
+    return () => {
+      tl.scrollTrigger?.kill();
+      tl.kill();
+      /* Le seuil se démonte à la navigation : le parcours n'est plus dans le
+         hero, la nappe du site prend toute la place. */
+      reglerSortieHero(1);
+    };
+  }, [reglerSortieHero]);
+
+  /* --- L'intro : préchargeur, puis apparition sur choix. --- */
   useEffetVisuel(() => {
     const html = document.documentElement;
-    /* Rechargement dans la même session : rien à jouer. Le logo est déjà posé,
-       l'overlay est masqué par CSS. On ne verrouille même pas le défilement. */
+    /* Rechargement dans la même session : ni écran d'entrée, ni apparition. Le
+       logo est déjà posé, le hero est là, le défilement n'est pas verrouillé. */
     if (!html.classList.contains("seuil-a-jouer")) return;
 
     const logo = logoRef.current;
-    const overlay = overlayRef.current;
+    const mot = logo?.querySelector<HTMLElement>(".logo__mot") ?? null;
+    const ecran = ecranRef.current;
     const video = videoRef.current;
-    if (logo === null || overlay === null) return;
-    const lettres = logo.querySelectorAll<HTMLElement>(".logo__lettre");
+    if (logo === null || mot === null || ecran === null) return;
 
     let annule = false;
     let fini = false;
-    let enTransition = false;
-    let poser: gsap.core.Tween | null = null;
+    let sequence: gsap.core.Timeline | null = null;
 
     arreter("seuil");
-    /* Le vol du logo se calcule en coordonnées viewport : il faut être en haut
-       de la page, sinon un défilement restauré fausse le centrage. */
+    /* L'apparition se calcule en coordonnées viewport : il faut être en haut. */
     window.scrollTo(0, 0);
 
-    const finaliser = () => {
-      fini = true;
-      gsap.set(overlay, { display: "none", visibility: "hidden" });
-      video?.pause();
-      reprendre("seuil");
-      try {
-        sessionStorage.setItem(CLE_SESSION, "1");
-      } catch {
-        /* Navigation privée ou stockage refusé : la séquence rejouera au
-           prochain chargement. Ce n'est pas une erreur. */
-      }
+    /* -- Le préchargeur : les boutons ne s'ouvrent qu'une fois la vidéo et la
+       poster prêtes. Un filet de sécurité les débloque si un média cale, pour
+       ne jamais enfermer le visiteur devant un écran noir. -- */
+    let videoOk = video === null;
+    let posterOk = false;
+    const majPret = () => {
+      if (videoOk && posterOk && !annule) setPret(true);
     };
 
-    const transiter = (dureeVol: number, dureeClip: number) => {
-      if (enTransition) return;
-      enTransition = true;
+    const surVideoPrete = () => {
+      videoOk = true;
+      majPret();
+    };
+    if (video !== null) {
+      if (video.readyState >= 3) videoOk = true;
+      else {
+        video.addEventListener("canplay", surVideoPrete, { once: true });
+        video.addEventListener("loadeddata", surVideoPrete, { once: true });
+      }
+    }
 
-      poser?.kill();
-      gsap.killTweensOf(lettres);
-      gsap.set(lettres, { yPercent: 0, y: 0 });
+    const poster = new Image();
+    const surPoster = () => {
+      posterOk = true;
+      majPret();
+    };
+    poster.onload = surPoster;
+    /* Poster manquante ou refusée : on ne bloque pas l'entrée pour si peu. */
+    poster.onerror = surPoster;
+    poster.src = HERO_POSTER;
 
-      /* L'overlay ne se montre que sous `seuil-a-jouer` ; on le fige visible en
-         inline avant de retirer la classe, sinon il disparaît d'un coup au lieu
-         de se laisser rétracter par le clip. */
-      gsap.set(overlay, { display: "block" });
+    majPret();
+    const filet = window.setTimeout(() => {
+      videoOk = true;
+      posterOk = true;
+      majPret();
+    }, 6000);
 
-      /* Le geste signature : un seul nœud, du centre au coin, en un mouvement.
-         On efface simplement la transformation qui le tenait géant et centré —
-         il reprend sa boîte de repos, échelle 1, translation nulle. Rien ne
-         reflue, donc rien ne décale. À la fin, on rend le logo à son CSS. */
+    /* -- L'apparition, lancée par le clic. -- */
+    const reduit = mouvementReduitRef.current;
+
+    const revelerChrome = () => {
+      const droite = document.querySelector<HTMLElement>(".barre-nav__droite");
+      html.classList.remove("seuil-a-jouer");
+      if (droite === null) return;
+      const boutons = Array.from(droite.children) as HTMLElement[];
+      if (reduit) return; // la classe ôtée suffit : les commandes sont là.
+
+      /* Le groupe est encore caché par la règle `.seuil-a-jouer` au moment où on
+         arme le tween ; on le relève en inline (opacité et visibilité), puis on
+         révèle le son et le burger décalés de 120 ms. */
+      gsap.set(droite, { opacity: 1, visibility: "visible" });
+      gsap.fromTo(
+        boutons,
+        { opacity: 0, y: -8 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.6,
+          ease: "expo.out",
+          stagger: 0.12,
+          onComplete: () => gsap.set([droite, ...boutons], { clearProps: "all" }),
+        },
+      );
+    };
+
+    const rangerDansNav = (duree: number) => {
+      /* Le vol du centre au coin : on efface la transformation qui tenait le
+         logo géant et centré, il reprend sa boîte de repos. Rien ne reflue. */
       gsap.to(logo, {
         x: 0,
         y: 0,
         scale: 1,
-        duration: dureeVol,
+        duration: duree,
         ease: "power4.inOut",
         onComplete: () => {
           gsap.set(logo, { clearProps: "transform,transformOrigin" });
-          html.classList.remove("seuil-a-jouer");
+          revelerChrome();
+          reprendre("seuil");
+          fini = true;
         },
       });
-
-      /* En même temps, la vidéo se referme : d'abord une bande horizontale,
-         puis plus rien. Le fond de l'overlay est l'encre du site, donc le
-         vestibule apparaît sans coupure de couleur. */
-      gsap
-        .timeline({ onComplete: finaliser })
-        .to(overlay, {
-          clipPath: "inset(45% 0% 45% 0%)",
-          duration: dureeClip * 0.55,
-          ease: "power2.inOut",
-        })
-        .to(overlay, {
-          clipPath: "inset(50% 0% 50% 0%)",
-          duration: dureeClip * 0.45,
-          ease: "power2.in",
-        });
     };
 
-    /* On ne mesure aucun texte avant que sa police ne soit là : Gambetta charge
-       en `display: block`, et le calcul du vol porterait sinon sur la géométrie
-       du repli, décalée. */
-    document.fonts.ready.then(() => {
-      if (annule) return;
-
-      /* Le logo occupe déjà sa boîte de repos (petite, en haut à gauche). On la
-         mesure, puis on pose la transformation qui le fait paraître énorme et
-         centré : origine au coin haut-gauche, mise à l'échelle pour couvrir la
-         largeur voulue, translation vers le centre du viewport. Les lettres
-         sont encore cachées sous l'arête — rien de visible ne saute. */
-      const repos = logo.getBoundingClientRect();
-      const largeurCible = Math.min(innerWidth * 0.82, 1200);
-      const echelle = largeurCible / repos.width;
-      gsap.set(logo, {
-        transformOrigin: "0 0",
-        scale: echelle,
-        x: (innerWidth - repos.width * echelle) / 2 - repos.left,
-        y: (innerHeight - repos.height * echelle) / 2 - repos.top,
-      });
-
-      sauterRef.current = () => transiter(0.3, 0.3);
-
-      if (mouvementReduitRef.current) {
-        /* Pas de reveal lettre à lettre : le seuil se compose, il ne s'agite
-           pas. La vidéo cède la place à sa poster (première image), une courte
-           pause, puis le geste en 0,3 s. */
-        if (video !== null) {
-          video.pause();
-          video.currentTime = 0;
-        }
-        gsap.set(lettres, { yPercent: 0, y: 0 });
-        poser = gsap.delayedCall(0.5, () => transiter(0.3, 0.3));
-        return;
+    const demarrer = (avecSon: boolean) => {
+      if (annule || fini) return;
+      /* Le choix, et le fait d'être entré, mémorisés : un rechargement tombera
+         droit sur le hero. */
+      try {
+        sessionStorage.setItem(CLE_SESSION, "1");
+        sessionStorage.setItem(CLE_CHOIX, avecSon ? "son" : "silence");
+      } catch {
+        /* Stockage refusé (navigation privée) : la séquence rejouera. */
       }
 
-      /* Les lettres montent derrière l'arête, décalées de façon irrégulière —
-         un ease sur la distribution du stagger, jamais un pas constant.
+      /* L'écran d'entrée se retire, découvrant la vidéo seule. */
+      gsap.to(ecran, {
+        opacity: 0,
+        duration: reduit ? 0.2 : 0.6,
+        ease: "power2.inOut",
+        onComplete: () => gsap.set(ecran, { display: "none" }),
+      });
 
-         `y: 0` est explicite et non décoratif : la règle CSS qui cache les
-         lettres avant l'hydratation pose `transform: translateY(120%)`, que
-         GSAP lit comme un `y` de base en pixels. Sans l'épingler à zéro,
-         l'animation de `yPercent` s'ajouterait à cette base et les lettres
-         ne remonteraient jamais jusqu'à l'arête. */
-      gsap.fromTo(
-        lettres,
-        { yPercent: 120, y: 0 },
-        {
-          yPercent: 0,
-          y: 0,
-          duration: 0.72,
-          ease: "expo.out",
-          stagger: { each: 0.09, from: "start", ease: "power2.in" },
-        },
-      );
-      /* Trois secondes, puis le logo part et la vidéo se referme, en 1,15 s. */
-      poser = gsap.delayedCall(3, () => transiter(1.15, 1.15));
-    });
+      /* Aucune mesure avant que Gambetta ne soit là : sur le repli, la boîte du
+         logo est décalée et le centrage porterait à côté. */
+      void document.fonts.ready.then(() => {
+        if (annule) return;
+
+        /* On mesure la boîte de repos (petite, en haut à gauche), puis on pose
+           la transformation qui rend le logo géant et centré : origine au coin,
+           échelle pour couvrir la largeur voulue, translation vers le centre.
+           Le mot est encore à opacité 0 — rien de visible ne saute. */
+        const repos = logo.getBoundingClientRect();
+        const largeurCible = Math.min(innerWidth * 0.82, 1200);
+        const echelle = largeurCible / repos.width;
+        gsap.set(logo, {
+          transformOrigin: "0 0",
+          scale: echelle,
+          x: (innerWidth - repos.width * echelle) / 2 - repos.left,
+          y: (innerHeight - repos.height * echelle) / 2 - repos.top,
+        });
+
+        if (reduit) {
+          /* Pas de générique : le mot est simplement là, puis se range. */
+          gsap.set(mot, { opacity: 1, scale: 1, filter: "blur(0px)" });
+          sequence = gsap
+            .timeline({ delay: 0.4 })
+            .add(() => rangerDansNav(0.3));
+          return;
+        }
+
+        /* 2,5 s de vidéo seule, puis l'apparition en générique de film, puis
+           1,5 s de pose, puis le rangement dans la barre. */
+        sequence = gsap.timeline({ delay: 2.5 });
+        sequence
+          .fromTo(
+            mot,
+            { opacity: 0, scale: 1.06, filter: "blur(10px)" },
+            {
+              opacity: 1,
+              scale: 1,
+              filter: "blur(0px)",
+              duration: 1.8,
+              ease: "expo.out",
+            },
+          )
+          .to({}, { duration: 1.5 })
+          .add(() => rangerDansNav(1.15));
+      });
+    };
+    entrerRef.current = demarrer;
 
     return () => {
       annule = true;
-      sauterRef.current = null;
-      poser?.kill();
-      gsap.killTweensOf(lettres);
-      gsap.killTweensOf(overlay);
+      entrerRef.current = null;
+      window.clearTimeout(filet);
+      if (video !== null) {
+        video.removeEventListener("canplay", surVideoPrete);
+        video.removeEventListener("loadeddata", surVideoPrete);
+      }
+      poster.onload = null;
+      poster.onerror = null;
+      sequence?.kill();
+      gsap.killTweensOf([logo, mot, ecran]);
       if (!fini) {
-        /* Démontage en pleine intro (rare : défilement verrouillé, logo inerte).
-           Le logo est un nœud persistant du layout — on ne le laisse pas figé,
-           géant, à la page suivante : retour au repos, verrou levé, classe ôtée. */
-        gsap.killTweensOf(logo);
+        /* Démontage en pleine intro : le logo est un nœud persistant, on ne le
+           laisse ni géant ni figé à la page suivante. Retour au repos, verrou
+           levé, classe ôtée. */
         gsap.set(logo, { clearProps: "transform,transformOrigin" });
+        gsap.set(mot, { clearProps: "opacity,transform,filter" });
         html.classList.remove("seuil-a-jouer");
         reprendre("seuil");
       }
     };
     /* Le seuil est un geste unique joué au montage : il ne se rejoue pour aucune
-       dépendance. La préférence de mouvement est lue par ref, au bon moment,
-       et `arreter`/`reprendre` sont stables par construction. */
+       dépendance. La préférence de mouvement est lue par ref, au bon moment. */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="seuil" ref={overlayRef} aria-hidden="true">
-      <button
-        type="button"
-        className="seuil__passer"
-        onClick={() => sauterRef.current?.()}
-      >
-        Passer l&apos;introduction
-      </button>
+    <section className="hero" data-chapitre="Le Seuil" ref={heroRef}>
+      {/* Le titre principal de la page vit ici, dans le hero qui reste toujours
+          monté — jamais dans l'écran d'entrée, masqué au rechargement. */}
+      <h1 className="sr-only">
+        Rouvière — atelier d’architecture d’intérieur
+      </h1>
       <video
         ref={videoRef}
-        className="seuil__video"
-        poster="/video/seuil-poster.avif"
+        className="hero__video"
+        aria-hidden="true"
+        poster={HERO_POSTER}
         autoPlay={!mouvementReduit}
         muted
         loop
         playsInline
-        preload="metadata"
+        preload="auto"
       >
-        <source src="/video/seuil.webm" type="video/webm" />
-        <source src="/video/seuil.mp4" type="video/mp4" />
+        <source src={HERO_VIDEO} type="video/mp4" />
       </video>
-    </div>
+      {/* Le voile de sortie : noir, monté en scrub au défilement. */}
+      <div className="hero__voile" aria-hidden="true" ref={voileRef} />
+      <EcranEntree pret={pret} onEntrer={handleEntrer} conteneurRef={ecranRef} />
+    </section>
   );
 }

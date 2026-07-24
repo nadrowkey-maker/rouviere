@@ -10,6 +10,10 @@ import "./son.css";
  * Trois barres fines. Au repos elles sont couchées ; actives, elles montent en
  * une petite vague (animée en CSS, sans JS par frame). Le libellé reste en
  * couche technique.
+ *
+ * La confirmation sonore de la bascule n'est pas jouée ici : c'est le provider
+ * qui l'émet, au bon moment de part et d'autre du fondu — après la reprise du
+ * contexte quand on allume, avant la descente du maître quand on coupe.
  */
 export function Son() {
   const { sonActif, basculerSon } = useSon();

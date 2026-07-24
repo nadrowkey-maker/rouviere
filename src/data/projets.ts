@@ -5,8 +5,10 @@
  * entre elles et ne sont jamais approximatives.
  */
 
-/** Les cinq mondes chromatiques. Un par projet. Jamais un accent. */
-export type Monde = "sel" | "laque" | "ocre" | "vert-paris" | "outremer";
+/** Les cinq mondes chromatiques. Un par projet. Jamais un accent.
+ *  Chaque teinte est extraite de la dominante réelle des médias du projet —
+ *  voir `tokens.css`. */
+export type Monde = "ambre" | "paon" | "prairie" | "jade" | "nuit";
 
 export type Projet = {
   slug: string;
@@ -35,102 +37,102 @@ export const PHOTOGRAPHE = "Mathis Delaunay";
 
 export const projets: Projet[] = [
   {
-    slug: "villa-ostrea",
-    nom: "Villa Ostréa",
-    lieu: "Cap-Ferret",
-    coordonnees: "44°38'N 1°14'W",
+    slug: "appartement-laiton",
+    nom: "Appartement Laiton",
+    lieu: "Paris XVIᵉ",
+    coordonnees: "48°51'N 2°16'E",
     annee: 2024,
     livraison: "Juin 2024",
-    surface: 620,
-    matieres: ["pin maritime brûlé", "béton de chaux", "lin brut"],
-    monde: "sel",
-    nomMonde: "Sel",
+    surface: 96,
+    matieres: ["noyer fumé", "laiton bruni", "onyx"],
+    monde: "ambre",
+    nomMonde: "Ambre",
     programme:
-      "Maison de famille sur la dune. Restructuration complète, extension basse côté bassin, bassin de nage de vingt-deux mètres.",
+      "Pied-à-terre au dernier étage d'un immeuble de verre. Redistribution en une seule enfilade, dressing et salle d'eau taillés dans la masse.",
     fiche: [
-      "La maison regardait la route. Elle regarde maintenant l'eau. Le mur porteur nord tombe, le plancher haut monte de quarante centimètres, la charpente reste apparente et non traitée.",
-      "Le pin maritime est brûlé sur place, à la flamme, puis brossé et huilé. Il noircit au sel au lieu de griser. Les sols sont en béton de chaux, coulés en une seule journée, sans joint de fractionnement : la fissure viendra, elle est prévue.",
-      "Le bassin de nage longe la façade sud sur vingt-deux mètres. Il n'y a pas de terrasse. On marche sur le sable, puis sur la pierre, puis on est dedans.",
+      "L'appartement tient dans une longueur. On a supprimé les cloisons de refend et gardé un seul geste : une enfilade qui va de l'entrée à la baie, sans porte, sans couloir perdu.",
+      "Le noyer fumé habille le dressing d'un seul tenant — portes vitrées, tablettes, un panneau ondé sculpté dans la masse. Le laiton bruni tient les cadres et les tringles ; il n'est pas verni, il fonce avec les mains.",
+      "La salle d'eau est en onyx, scié en tranches de six millimètres et appairé. Un bandeau rétroéclairé passe derrière la pierre : le mur devient lampe à la tombée du jour.",
     ],
     photographe: PHOTOGRAPHE,
   },
   {
-    slug: "hotel-sevigne",
-    nom: "Hôtel Sévigné",
-    lieu: "Paris IVᵉ",
-    coordonnees: "48°51'N 2°21'E",
+    slug: "grand-hotel-des-bains",
+    nom: "Grand Hôtel des Bains",
+    lieu: "Hyères, Var",
+    coordonnees: "43°07'N 6°08'E",
     annee: 2023,
-    livraison: "Novembre 2023",
-    surface: 840,
-    matieres: ["boiseries XVIIIᵉ", "laque", "laiton bruni"],
-    monde: "laque",
-    nomMonde: "Laque",
+    livraison: "Mai 2023",
+    surface: 2400,
+    matieres: ["chêne ciré", "laque bleu paon", "laiton poli"],
+    monde: "paon",
+    nomMonde: "Paon",
     programme:
-      "Hôtel particulier du XVIIIᵉ. Restauration des boiseries d'origine, création d'un niveau de réception au premier étage.",
+      "Restauration d'un grand hôtel balnéaire de 1912. Reprise du hall d'honneur, des salons et de l'aile des chambres ; patio planté et bassin côté mer.",
     fiche: [
-      "Quatre-vingt-dix mètres carrés de boiseries d'origine dormaient sous onze couches de peinture. Elles ont été décapées à la main pendant sept mois.",
-      "Ce qui manquait n'a pas été imité. Les parties refaites sont en laque rouge, pleine, sans moulure, et la couture reste visible. Le grand salon reçoit soixante personnes debout.",
-      "Les tringles, les crémones et les garde-corps sont en laiton bruni, posés sans vernis : ils foncent avec les mains. L'escalier de service est conservé tel quel, marches creusées comprises.",
+      "Le hall avait perdu sa hauteur sous un faux plafond des années soixante-dix. On l'a rouvert : caissons de chêne, laque bleu paon dans les fonds, la proportion d'origine revient d'un coup.",
+      "Les salons gardent leurs boiseries et leurs lustres de cristal. Rien n'est redoré à neuf ; le laiton est poli puis laissé tel quel, les marbres sont recalés sur l'ancien plan.",
+      "Côté mer, l'aile basse s'ouvre sur un patio planté et un bassin. La nuit, la façade se règle en lumière chaude et l'eau tient le seul froid de l'ensemble.",
     ],
     photographe: PHOTOGRAPHE,
   },
   {
-    slug: "maison-cypres",
-    nom: "Maison Cyprès",
+    slug: "domaine-des-charmilles",
+    nom: "Domaine des Charmilles",
+    lieu: "Médoc, Gironde",
+    coordonnees: "45°12'N 0°45'W",
+    annee: 2025,
+    livraison: "Mars 2025",
+    surface: 540,
+    matieres: ["chaux blanche", "chêne peint", "pierre de Bourgogne"],
+    monde: "prairie",
+    nomMonde: "Prairie",
+    programme:
+      "Maison de maître à pignons, au bout d'un parc clos de charmilles. Remise à blanc des intérieurs, cuisine de famille, terrasse et bassin dans le jardin muré.",
+    fiche: [
+      "La maison est basse et longue, blanche sous ses pignons. On a tout ramené au blanc de chaux à l'intérieur pour que le parc entre par les fenêtres : c'est le vert qui fait la couleur, pas les murs.",
+      "La cuisine est en chêne peint gris, plans de pierre claire, sans îlot inutile. Elle donne de plain-pied sur la charmille taillée qui ceint le jardin.",
+      "La salle de bains est blanche, robinetterie de laiton, une baignoire posée sous la fenêtre. Au fond du parc, le bassin est bordé de pierre de Bourgogne ; l'été, il disparaît sous les vivaces.",
+    ],
+    photographe: PHOTOGRAPHE,
+  },
+  {
+    slug: "villa-calcaire",
+    nom: "Villa Calcaire",
     lieu: "Cap d'Antibes",
     coordonnees: "43°33'N 7°07'E",
     annee: 2022,
-    livraison: "Avril 2022",
-    surface: 480,
-    matieres: ["travertin", "chaux ferrée", "noyer fumé"],
-    monde: "ocre",
-    nomMonde: "Ocre",
+    livraison: "Septembre 2022",
+    surface: 720,
+    matieres: ["marbre de Calacatta", "plâtre lissé", "acier noirci"],
+    monde: "jade",
+    nomMonde: "Jade",
     programme:
-      "Villa de 1963 redécoupée trois fois. Dépose des cloisons ajoutées, ouverture du pignon ouest, cuisine d'été extérieure.",
+      "Villa des années 2000 reprise à blanc. Séjour traversant ouvert sur le parc, cuisine ouverte, bassin le long de la façade.",
     fiche: [
-      "Les cloisons ajoutées tombent, les proportions d'origine reviennent. Rien n'est ajouté au volume : on retire jusqu'à ce que le plan de 1963 réapparaisse.",
-      "Le travertin des sols est posé en dalles de quatre-vingts centimètres, à joint vif, sans plinthe. Le mur descend dans le sol. Les murs sont en chaux ferrée, lissée à la truelle chaude jusqu'à ce qu'elle réfléchisse la lumière. Le noyer fumé sert aux menuiseries et à rien d'autre.",
-      "À l'ouest, le pignon est ouvert sur trois mètres cinquante. À dix-neuf heures en août, la lumière traverse toute la maison.",
+      "La villa était grise de partout. On l'a passée au blanc — plâtre lissé, marbre veiné, verre — pour ne garder qu'un contraste : le noir des menuiseries d'acier et l'eau du bassin.",
+      "Le séjour est traversant. Voilages du sol au plafond d'un côté, parc de l'autre ; à midi la lumière rebondit sur le marbre de Calacatta et le sol renvoie le jardin.",
+      "La cuisine ouvre sur la salle à manger par un pan de noyer sombre. Le reste est blanc, laqué, sans poignée. Dehors, le bassin longe la façade et tient la seule couleur franche de la maison.",
     ],
     photographe: PHOTOGRAPHE,
   },
   {
-    slug: "appartement-cinq-heures",
-    nom: "Appartement Cinq Heures",
-    lieu: "Paris VIIᵉ",
-    coordonnees: "48°51'N 2°19'E",
-    annee: 2025,
-    livraison: "Février 2025",
-    surface: 310,
-    matieres: ["plâtre lissé", "chêne cérusé", "albâtre"],
-    monde: "vert-paris",
-    nomMonde: "Vert Paris",
-    programme:
-      "Dernier étage sur cour. Remise à nu, redistribution complète, éclairage entièrement indirect.",
-    fiche: [
-      "Tout a été déposé, y compris les corniches, qui étaient fausses. Les murs sont en plâtre lissé au couteau, sans peinture : la matière est la finition.",
-      "Le chêne cérusé court en lambris bas sur cent dix centimètres, hauteur d'appui. Deux plaques d'albâtre de six millimètres ferment les luminaires du couloir ; la lumière y devient jaune vers dix-sept heures, et l'appartement tient son nom de cette heure-là.",
-      "Aucune source lumineuse n'est visible depuis les pièces de réception. Il n'y a pas d'interrupteur dans le salon.",
-    ],
-    photographe: PHOTOGRAPHE,
-  },
-  {
-    slug: "la-bergerie",
-    nom: "La Bergerie",
-    lieu: "Ménerbes, Luberon",
-    coordonnees: "43°49'N 5°12'E",
+    slug: "villa-basalte",
+    nom: "Villa Basalte",
+    lieu: "Lanzarote, Canaries",
+    coordonnees: "29°03'N 13°34'W",
     annee: 2021,
-    livraison: "Septembre 2021",
-    surface: 390,
-    matieres: ["pierre sèche", "tadelakt", "olivier"],
-    monde: "outremer",
-    nomMonde: "Outremer",
+    livraison: "Octobre 2021",
+    surface: 410,
+    matieres: ["teck massif", "pierre de lave", "enduit à la chaux"],
+    monde: "nuit",
+    nomMonde: "Nuit",
     programme:
-      "Bergerie du XIXᵉ sans eau ni électricité, remise agricole depuis quarante ans. Consolidation, trois chambres, adduction d'eau.",
+      "Villa neuve sur un champ de lave. Un socle de pierre sèche, une dalle de teck, un grand toit plat qui porte l'ombre ; piscine à ras du sol, face au couchant.",
     fiche: [
-      "Les murs en pierre sèche sont repris à l'identique par un murailler de Gordes, sans mortier. La toiture n'est pas touchée : les trois chambres sont creusées dans le volume existant.",
-      "Les salles d'eau sont en tadelakt outremer, poli à la pierre d'agate puis savonné. La couleur vient du pigment, pas d'une peinture, et elle change avec l'humidité.",
-      "L'olivier de la cour a deux cent quarante ans. Il est resté où il est ; la maison s'est écartée pour lui.",
+      "Le terrain est noir, la maison est blanche. Elle pose ses volumes d'enduit sur un socle de pierre de lave montée à sec, et laisse le jardin de gravier volcanique et de palmiers venir jusqu'au seuil.",
+      "Dedans, tout est teck : le plafond du séjour à double hauteur, le sol, les persiennes qui filtrent le plein soleil. Le béton reste brut, la lumière fait le reste.",
+      "La salle d'eau est sombre — panneaux noirs, mur de bois, un miroir rond. Dehors, la piscine affleure la terrasse ; à l'heure bleue, l'eau, le ciel et la lave passent au même outremer.",
     ],
     photographe: PHOTOGRAPHE,
   },
@@ -138,3 +140,12 @@ export const projets: Projet[] = [
 
 export const projetParSlug = (slug: string): Projet | undefined =>
   projets.find((projet) => projet.slug === slug);
+
+/**
+ * Le rang d'un projet, de 1 à 5. C'est le numéro que portent ses fichiers —
+ * `media/projets/projet-3`, `audio/projets/projet-3.mp3` — et il vient de
+ * l'ordre de la liste ci-dessus, pas d'un champ à tenir à jour en double.
+ * Retourne 0 si le slug n'existe pas.
+ */
+export const rangDe = (slug: string): number =>
+  projets.findIndex((projet) => projet.slug === slug) + 1;

@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { projets } from "@/data/projets";
@@ -9,6 +10,7 @@ import { visuelsDe } from "@/data/visuels";
 import { useRig } from "@/components/gl/Rig";
 import type { EtatEnfilade } from "@/components/gl/materiaux/piece";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useSon } from "@/components/chrome/SonProvider";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import "./enfilade.css";
@@ -79,6 +81,7 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
   /* Le rig est là ou il ne l'est pas : c'est lui qui décide si l'image DOM
      s'efface au profit du plan WebGL. */
   const enWebgl = useRig() !== null;
+  const { jouer } = useSon();
 
   return (
     <article className="enfilade__piece" onFocusCapture={onFocusPiece}>
@@ -88,10 +91,18 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
         {projet.nom}
       </span>
 
-      <a
+      {/* `next/link`, et non un `<a>` : une navigation dure rechargerait le
+          document, donc démonterait le canvas du rig, le logotype et le
+          contexte audio — les trois choses que le site tient précisément à ne
+          jamais reconstruire. Elle sauterait aussi les masques de transition
+          entre routes. C'est le même lien que celui des entrées du menu. */}
+      <Link
         className="enfilade__lien"
         href={`/projets/${projet.slug}`}
         data-curseur="ENTRER"
+        /* Le seul son du couloir : celui du passage de seuil. On entre dans une
+           pièce, la nappe va changer — l'impulsion le dit avant elle. */
+        onClick={() => jouer("projet")}
         onPointerEnter={() => {
           etat.current.survol = index;
         }}
@@ -122,7 +133,7 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
             priority={index === 0}
           />
         </figure>
-      </a>
+      </Link>
 
       <p className="enfilade__legende technique">
         {projet.matieres.join(" / ")}
@@ -209,7 +220,17 @@ export function Enfilade() {
         trigger: section,
         start: "top top",
         end: () => `+=${distance()}`,
-        pin: scene,
+        /* On épingle la SECTION elle-même, pas la scène intérieure.
+           `.enfilade` porte un `height: 100vh` en CSS ; épingler un enfant
+           (`.enfilade__scene`) y insérait le pin-spacer, mais cette hauteur fixe
+           du parent le plafonnait — le spacer ne réservait alors jamais la
+           distance de l'épinglage, et la Matière remontait sous le couloir
+           encore figé (deux chapitres à l'écran). En épinglant la section, le
+           spacer se pose à son niveau, hors de tout plafond, et réserve la
+           course entière — c'est le motif déjà en place sur la chambre et la
+           séquence, qui n'ont jamais chevauché. La scène intérieure garde son
+           `overflow: clip` et cadre le couloir comme avant. */
+        pin: true,
         /* `1` et non `true` : le couloir rattrape le défilement en une seconde
            plutôt que de lui coller. C'est ce qui donne l'inertie d'un travelling
            au lieu d'un panoramique nerveux. */

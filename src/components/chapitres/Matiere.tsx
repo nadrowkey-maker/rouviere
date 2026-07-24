@@ -13,6 +13,7 @@ import {
 import { useRig } from "@/components/gl/Rig";
 import type { EtatBassin } from "@/components/gl/materiaux/bassin";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useSon } from "@/components/chrome/SonProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import "./matiere.css";
 
@@ -86,6 +87,7 @@ function minutage(nombre: number): number[] {
 export function Matiere() {
   const enWebgl = useRig() !== null;
   const { mouvementReduit, degrade } = useMouvement();
+  const { reglerEau } = useSon();
 
   const traverseeRef = useRef<HTMLDivElement>(null);
   const cadreRef = useRef<HTMLDivElement>(null);
@@ -302,7 +304,15 @@ export function Matiere() {
 
         <p className="matiere__technique technique">{bassin.technique}</p>
 
-        <SceneBassin ancre={ancreBassin} etat={etatBassin} repli={bassin.repli} />
+        {/* La vitesse du pointeur sur l'eau sort de la simulation et entre
+            dans le son : c'est la même grandeur qui creuse l'onde et qui ouvre
+            le gain. On n'entend jamais autre chose que ce qu'on voit. */}
+        <SceneBassin
+          ancre={ancreBassin}
+          etat={etatBassin}
+          repli={bassin.repli}
+          onVitesse={reglerEau}
+        />
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { useGLProxy } from "./useGLProxy";
 import { fabriquerBassin, type EtatBassin } from "./materiaux/bassin";
 
@@ -20,9 +20,25 @@ type Props = {
   ancre: RefObject<HTMLElement | null>;
   etat: { current: EtatBassin };
   repli: string;
+  /** La vitesse lissée du pointeur, remontée au cadre. Voir `bassin.ts`. */
+  onVitesse?: (vitesse: number | null) => void;
 };
 
-export default function SceneBassin({ ancre, etat, repli }: Props) {
-  useGLProxy(ancre, fabriquerBassin({ etat, repli }), "bassin");
+export default function SceneBassin({ ancre, etat, repli, onVitesse }: Props) {
+  /* `onVitesse` passe par une ref : la fabrique n'est appelée qu'à
+     l'inscription, et un rappel qui changerait d'identité entre deux rendus
+     reconstruirait toute la simulation. */
+  const rappel = useRef(onVitesse);
+  rappel.current = onVitesse;
+
+  useGLProxy(
+    ancre,
+    fabriquerBassin({
+      etat,
+      repli,
+      onVitesse: (vitesse) => rappel.current?.(vitesse),
+    }),
+    "bassin",
+  );
   return null;
 }

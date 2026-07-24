@@ -1,5 +1,5 @@
 /**
- * Le bassin de la Villa Ostréa — le morceau de bravoure, une seule fois.
+ * Le bassin de la Villa Calcaire — le morceau de bravoure, une seule fois.
  *
  * Porté de `references/zip/waterwebgl-shader/src/script.ts`, qui est du WebGL2
  * brut. Ce qui en vient, à la ligne près :
@@ -70,6 +70,20 @@ const AMBIANT_CADENCE = 1;
 const INACTIF = 2.2;
 /** Les gouttes ambiantes s'atténuent tant que quelqu'un remue l'eau. */
 const MULT_ACTIF = 0.45;
+
+/**
+ * Lissage de la vitesse du pointeur, par cadre.
+ *
+ * La vitesse brute d'une souris est un signal en dents de scie : un système
+ * d'exploitation livre les positions par paquets, et une frame sur trois n'a
+ * rien bougé. Prise telle quelle, elle ferait clignoter le gain de l'eau et
+ * hacher l'injection de l'onde. Le coefficient est celui d'une interpolation
+ * classique — 0,12 par cadre, soit une constante de temps d'environ un
+ * huitième de seconde à soixante hertz : assez court pour que le geste
+ * s'entende, assez long pour que le silence entre deux paquets ne s'entende
+ * pas.
+ */
+const LISSAGE_VITESSE = 0.12;
 
 /* --- Curseur fantôme, groupe « Attract » --- */
 const FANTOME_RETOUR = 10;
@@ -318,6 +332,16 @@ export type ReglagesBassin = {
   etat: { current: EtatBassin };
   /** La plaque affichée quand les cibles flottantes manquent. */
   repli: string;
+  /**
+   * La vitesse lissée du pointeur sur le bassin, en pixels par frame, remontée
+   * à chaque cadre — `null` dès qu'il en est sorti.
+   *
+   * C'est **la même grandeur** qui creuse l'onde dans le shader et qui ouvre le
+   * gain de l'eau : elle est calculée une fois, ici, et distribuée. Deux
+   * mesures parallèles, si proches soient leurs formules, dériveraient — et on
+   * entendrait de l'eau là où on n'en verrait pas.
+   */
+  onVitesse?: (vitesse: number | null) => void;
 };
 
 /** Une source de gouttes ambiantes : un point qui dérive et goutte. */
@@ -433,9 +457,9 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
         uResolution: { value: new THREE.Vector2(1, 1) },
         uTime: { value: 0 },
         uAspect: { value: 1 },
-        /* Les couleurs du bassin sont celles du monde de la Villa Ostréa. Le
-           sable est de la pierre de taille lavée, le fond est l'encre du site,
-           le ciel et les nervures sont le sel. Aucune valeur hors jetons. */
+        /* Les couleurs de l'eau : le sable est de la pierre de taille lavée, le
+           fond est l'encre du site, le ciel et les nervures sont le sel (jeton
+           conservé pour l'eau du bassin). Aucune valeur hors jetons. */
         uSandHi: { value: couleurJeton("pierre") },
         uSandLo: { value: couleurJeton("zinc") },
         uDeepColor: { value: couleurJeton("encre") },
@@ -494,6 +518,10 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
     let precedentY = 0.5;
     let aPointeur = false;
     let clicsVus = reglages.etat.current.clics;
+    /** Vitesse lissée du pointeur, en pixels par cadre. */
+    let vitesse = 0;
+    /** Dernière valeur remontée, pour ne pas répéter le `null` à vide. */
+    let vitesseRemontee: number | null = null;
 
     /* Curseur fantôme : son enveloppe monte quand l'inaction dure. */
     let enveloppe = 0;
@@ -641,19 +669,34 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
             1,
           );
 
+          /* La vitesse, mesurée en pixels d'écran et lissée. C'est cette
+             valeur — et elle seule — qui creuse l'onde ci-dessous et qui ouvre
+             le gain de l'eau : ce qu'on entend est exactement ce qu'on voit. */
+          if (aPointeur) {
+            const brute = Math.hypot(
+              (x - precedentX) * rect.width,
+              (y - precedentY) * rect.height,
+            );
+            vitesse += (brute - vitesse) * LISSAGE_VITESSE;
+          } else {
+            /* Première frame sous le pointeur : aucun déplacement à mesurer,
+               et surtout aucun saut à injecter depuis la position précédente,
+               qui date d'un autre endroit de l'écran. */
+            vitesse = 0;
+          }
+
           if (etat.clics !== clicsVus) {
             clicsVus = etat.clics;
             enfiler(x, y, CLIC_FORCE, CLIC_RAYON);
           } else if (aPointeur) {
             /* La force suit la vitesse de la main : effleurer ride, balayer
-               creuse. */
+               creuse. La vitesse revient en fraction de la largeur, unité dans
+               laquelle la brosse de la source est réglée. */
+            const part = rect.width > 0 ? vitesse / rect.width : 0;
             enfiler(
               x,
               y,
-              Math.min(
-                BROSSE_BASE + Math.hypot(x - precedentX, y - precedentY) * BROSSE_GAIN,
-                BROSSE_MAX,
-              ),
+              Math.min(BROSSE_BASE + part * BROSSE_GAIN, BROSSE_MAX),
               BROSSE_RAYON,
             );
           }
@@ -662,8 +705,18 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
           precedentY = y;
           aPointeur = true;
           derniereInteraction = temps;
+
+          reglages.onVitesse?.(vitesse);
+          vitesseRemontee = vitesse;
         } else {
           aPointeur = false;
+          vitesse = 0;
+          /* Le `null` ne part qu'une fois : c'est un ordre de fondu de sortie,
+             pas un état à répéter soixante fois par seconde. */
+          if (vitesseRemontee !== null) {
+            vitesseRemontee = null;
+            reglages.onVitesse?.(null);
+          }
         }
 
         /* Pas de temps fixe : la simulation ne dépend pas de la cadence, et
@@ -690,7 +743,18 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
         /* On revient au bassin après l'avoir quitté : l'accumulateur est remis
            à zéro, sinon la première frame rattraperait le temps passé
            ailleurs et l'eau exploserait d'un coup. */
-        if (!visible) accumulateur = 0;
+        if (visible) return;
+        accumulateur = 0;
+        /* Le chapitre sort de l'écran : le cadre ne sera plus appelé, et le
+           gain de l'eau resterait figé sur sa dernière valeur. On le referme
+           ici — sinon on emporterait le bruit du bassin dans le chapitre
+           suivant. */
+        vitesse = 0;
+        aPointeur = false;
+        if (vitesseRemontee !== null) {
+          vitesseRemontee = null;
+          reglages.onVitesse?.(null);
+        }
       },
 
       liberer: () => {

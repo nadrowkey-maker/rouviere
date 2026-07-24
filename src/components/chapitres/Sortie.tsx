@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { gambetta } from "@/lib/fonts";
 import { useRig } from "@/components/gl/Rig";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useSon } from "@/components/chrome/SonProvider";
 import type { EtatVerre } from "@/components/gl/materiaux/verre";
 import "./sortie.css";
 
@@ -40,6 +41,7 @@ const TELEPHONE = "+33 1 42 61 08 11";
 export function Sortie() {
   const enWebgl = useRig() !== null;
   const { capacites, degrade } = useMouvement();
+  const { jouer } = useSon();
 
   /* Le verre ne monte que si la machine le porte et si le pointeur est fin :
      sur tactile ou en dégradé, le titre DOM tient le rôle. */
@@ -56,6 +58,10 @@ export function Sortie() {
     void navigator.clipboard?.writeText(ADRESSE).then(
       () => {
         setCopie(true);
+        /* La copie est la seule action du site dont le résultat est invisible :
+           l'adresse part dans le presse-papier et rien ne bouge. Elle est donc
+           la mieux fondée à s'entendre. */
+        jouer("copie");
         setTimeout(() => setCopie(false), 2400);
       },
       () => {},
