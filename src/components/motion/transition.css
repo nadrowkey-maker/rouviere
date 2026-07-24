@@ -1,0 +1,19 @@
+/* La couture inter-routes. Une surface pleine qui couvre la nouvelle route puis
+   se retire par masque SVG. Portée dans document.body : elle couvre le vrai
+   viewport, sans dépendre du `transform` de .scene-page.
+
+   Couche : au-dessus du parcours (1), sous le logo (50) — qui reste son négatif
+   exact — et sous le chrome. */
+
+.transition {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  pointer-events: none;
+}
+
+.transition__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
