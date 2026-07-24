@@ -1,0 +1,177 @@
+/* Les Archives. Une liste austère ouverte par un mot énorme à l'ombre dure.
+   Fond encre, pas d'images, le vide travaille. */
+
+.archives {
+  position: relative;
+  min-height: 100vh;
+  background-color: var(--color-encre);
+  padding: clamp(7rem, 18vh, 14rem) var(--marge) clamp(8rem, 20vh, 16rem);
+}
+
+/* Le porteur de defs : présent dans le flux pour que le filtre s'applique,
+   mais sans dimension ni surface. */
+.archives__def {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* La teinte de l'ombre en cascade — le plomb, ciel de novembre. Posée en CSS
+   pour rester un jeton : `flood-color` accepte `var()`, l'attribut SVG non. */
+.archives__flood {
+  flood-color: var(--color-plomb);
+}
+
+/* ---- Le mot ---- */
+
+.archives__entete {
+  position: relative;
+  margin-bottom: clamp(4rem, 12vh, 10rem);
+  /* De la place pour que l'ombre fuie en bas à droite sans déborder du cadre
+     de défilement. */
+  padding-bottom: clamp(3rem, 8vw, 8rem);
+}
+
+.archives__mot,
+.archives__ombre {
+  margin: 0;
+  /* Calé à gauche, jamais centré. Coupé un peu par le bord : on n'en lit pas
+     tout, l'archive commence hors champ. */
+  font-size: var(--text-monument);
+  line-height: 0.82;
+  color: var(--color-craie);
+  /* Le mot déborde légèrement à gauche de la marge. */
+  margin-left: -0.04em;
+}
+
+/* La copie d'ombre, derrière le mot net, passée au filtre en cascade. */
+.archives__ombre {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  color: transparent;
+  filter: url(#archives-ombre);
+  pointer-events: none;
+  /* Jamais animée : elle est posée une fois, elle fuit vers l'infini. */
+}
+
+.archives__compte {
+  position: absolute;
+  top: 0.5em;
+  right: 0;
+  color: var(--color-zinc);
+  text-align: right;
+}
+
+/* ---- La liste ---- */
+
+.archives__liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Un liseré laiton d'un pixel ferme chaque ligne — jamais un aplat. */
+  border-top: 1px solid color-mix(in oklab, var(--color-laiton) 40%, transparent);
+}
+
+.archives__ligne {
+  border-bottom: 1px solid
+    color-mix(in oklab, var(--color-laiton) 40%, transparent);
+}
+
+.archives__entree {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.6fr) auto;
+  align-items: baseline;
+  column-gap: var(--gouttiere);
+  padding-block: clamp(1rem, 2.4vh, 1.75rem);
+  color: var(--color-pierre);
+  text-decoration: none;
+  /* Le décalage de huit pixels au survol : sec, sans rebond. */
+  transition: transform var(--duree-micro) var(--ease-seche),
+    color var(--duree-micro) var(--ease-seche);
+  will-change: transform;
+}
+
+.archives__entree--inerte {
+  color: var(--color-zinc);
+  cursor: default;
+}
+
+.archives__nom {
+  font-size: clamp(1.25rem, 2.4vw, 2rem);
+  color: var(--color-craie);
+}
+
+.archives__entree--inerte .archives__nom {
+  color: var(--color-pierre);
+}
+
+.archives__lieu {
+  color: var(--color-zinc);
+}
+
+.archives__annee {
+  color: var(--color-zinc);
+  justify-self: end;
+}
+
+/* La mention du chantier, décrochée dans la marge droite, révélée au survol. */
+.archives__mention {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% - 0.4em);
+  max-width: 44ch;
+  color: var(--color-laiton);
+  text-align: right;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity var(--duree-micro) var(--ease-seche),
+    transform var(--duree-micro) var(--ease-seche);
+}
+
+.archives__entree:hover,
+.archives__entree:focus-visible {
+  transform: translateX(8px);
+  color: var(--color-craie);
+}
+
+/* Le liseré de focus reste celui du site — laiton 1 px, décalage 3 px, posé
+   globalement dans base.css. On ne le remplace pas, on l'accompagne du même
+   décalage de huit pixels que le survol. */
+
+.archives__entree:hover .archives__mention,
+.archives__entree:focus-visible .archives__mention {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 48rem) {
+  .archives__entree {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .archives__lieu {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .archives__mention {
+    position: static;
+    opacity: 1;
+    transform: none;
+    text-align: left;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    margin-top: calc(var(--spacing) * 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .archives__entree {
+    transition: none;
+  }
+}

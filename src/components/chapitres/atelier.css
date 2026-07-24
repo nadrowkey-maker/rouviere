@@ -1,0 +1,133 @@
+/* L'Atelier. Retour au gris. Les images pivotent en profondeur au défilement ;
+   le texte se lit décroché dans la marge. Fond encre, calme. */
+
+.atelier {
+  position: relative;
+  background-color: var(--color-encre);
+  padding-block: clamp(6rem, 16vh, 12rem) clamp(8rem, 20vh, 16rem);
+  /* La profondeur des pivots a besoin d'une fuite : la perspective est portée
+     par la section, les items tournent dedans. */
+  perspective: 1400px;
+  perspective-origin: 50% 45%;
+  overflow: clip;
+}
+
+.atelier__entete {
+  margin-bottom: clamp(4rem, 12vh, 10rem);
+}
+
+/* Titre calé colonne 2, jamais centré. */
+.atelier__titre {
+  grid-column: 2 / span 7;
+  margin: 0;
+  font-size: var(--text-titre);
+  color: var(--color-craie);
+}
+
+.atelier__chapo {
+  grid-column: 2 / span 6;
+  margin-top: calc(var(--spacing) * 3);
+  font-size: var(--text-chapo);
+  color: var(--color-pierre);
+  max-width: 34ch;
+}
+
+.atelier__galerie {
+  /* Les enveloppes s'empilent ; chacune tient une image et, une fois sur deux,
+     un paragraphe décroché. La préservation 3D laisse le `z` des pivots
+     s'exprimer en profondeur réelle. */
+  transform-style: preserve-3d;
+  display: grid;
+  row-gap: clamp(6rem, 18vh, 16rem);
+  padding-inline: var(--marge);
+}
+
+.atelier__enveloppe {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
+  column-gap: var(--gouttiere);
+  align-items: center;
+  transform-style: preserve-3d;
+  /* `will-change` posé ici, sur ce qui bouge — repris de la source. */
+  will-change: transform;
+}
+
+/* L'image pivotante. Elle occupe une bande, jamais toute la largeur, et alterne
+   de côté au fil de la galerie : le débordement est volontaire. */
+.atelier__item {
+  grid-column: 3 / span 6;
+  margin: 0;
+  transform-style: preserve-3d;
+  will-change: transform, filter;
+  /* Née noire au fond, l'image ne doit pas éclairer le fond d'encre autour :
+     pas d'ombre portée CSS — la profondeur se fait par échelle, flou, z. */
+}
+
+.atelier__enveloppe:nth-child(even) .atelier__item {
+  grid-column: 5 / span 6;
+}
+
+.atelier__item .atelier__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.atelier__note {
+  margin-top: calc(var(--spacing) * 2);
+  color: var(--color-zinc);
+}
+
+/* Le portrait : centré dans sa bande, un peu plus étroit, et jamais recadré —
+   on le regarde en entier. */
+.atelier__item[data-portrait="true"] {
+  grid-column: 4 / span 4;
+}
+
+/* Le texte décroché : dans la marge opposée à l'image, en petit. */
+.atelier__texte {
+  grid-column: 9 / span 3;
+  align-self: center;
+  color: var(--color-pierre);
+  font-size: var(--text-corps);
+  max-width: 32ch;
+}
+
+.atelier__enveloppe:nth-child(even) .atelier__texte {
+  grid-column: 2 / span 3;
+  text-align: right;
+  justify-self: end;
+}
+
+/* ---- Mouvement réduit : posé, droit, net, sans perspective ---- */
+.atelier[data-reduit="true"] {
+  perspective: none;
+}
+
+.atelier[data-reduit="true"] .atelier__item {
+  transform: none;
+  filter: none;
+}
+
+@media (max-width: 48rem) {
+  .atelier__titre,
+  .atelier__chapo {
+    grid-column: 1 / -1;
+  }
+
+  .atelier__item,
+  .atelier__enveloppe:nth-child(even) .atelier__item,
+  .atelier__item[data-portrait="true"] {
+    grid-column: 1 / span 9;
+  }
+
+  .atelier__texte,
+  .atelier__enveloppe:nth-child(even) .atelier__texte {
+    grid-column: 1 / -1;
+    text-align: left;
+    justify-self: start;
+    margin-top: calc(var(--spacing) * 3);
+  }
+}
