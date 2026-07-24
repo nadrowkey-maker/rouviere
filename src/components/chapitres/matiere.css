@@ -1,99 +1,125 @@
-/* La Matière. Deux temps : les échantillons qu'on touche, puis le bassin.
-   Aucun fond opaque sur les échantillons — le canvas du rig est fixe derrière
-   le contenu, il faut le laisser transparaître pour que les plaques se voient. */
+/* La Matière. Deux temps : la traversée des trois plans macro, puis le bassin.
+
+   Le chapitre est contemplatif : il n'y a dans ce fichier aucune transition,
+   aucune animation, aucun survol. La seule chose qui change à l'écran est le
+   masque, et il est piloté au défilement depuis le composant. */
 
 .matiere {
   position: relative;
 }
 
-/* ---- Les échantillons ---- */
+/* ---- La traversée ---- */
 
-.matiere__echantillons {
+/* La course : un écran par matière. `--matieres` vient du manifeste. */
+.matiere__traversee {
   position: relative;
-  min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  padding: clamp(6rem, 16vh, 12rem) var(--marge) clamp(4rem, 10vh, 8rem);
-  /* La lumière rasante d'un atelier : un halo très bas, calculé nulle part
-     ailleurs qu'ici, qui décolle les plaques du fond d'encre sans jamais être
-     un dégradé décoratif — il n'a pas de bord, pas de couleur, il éclaire.
-     (Autorisé : c'est un fond d'ambiance en radial, pas un `bg-gradient-to-r`
-     interdit ni un accent coloré.) */
-  background:
-    radial-gradient(
-      120% 80% at 30% 12%,
-      color-mix(in oklab, var(--color-plomb) 55%, transparent),
-      transparent 60%
-    );
+  height: calc(var(--matieres) * 100vh);
 }
 
-/* Le manifeste du chapitre, calé colonne 2, jamais centré. */
-.matiere__intro {
-  grid-row: 1;
+/* Le cadre tient par `sticky`, pas par un `pin` GSAP : rien n'est sorti du
+   flux, rien n'est compensé par de l'espace inséré, et le retour en arrière est
+   exact au pixel près. */
+.matiere__cadre {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: clip;
+  /* Le fond d'encre ferme le cadre : le canvas du rig est fixe derrière la
+     page, et le bassin ne doit pas transparaître sous les matières. */
+  background-color: var(--color-encre);
+}
+
+/* Les trois plans s'empilent, tous au même endroit. L'ordre du DOM fait la
+   profondeur : le dernier plan est le plus haut, donc c'est son masque à lui
+   qui découvre. Aucun `z-index` — l'empilement naturel suffit et ne ment pas. */
+.matiere__plan {
+  position: absolute;
+  inset: 0;
   margin: 0;
-  max-width: 16ch;
-  font-size: var(--text-titre);
-  color: var(--color-craie);
-  /* La phrase traverse ce qui passe derrière, comme le logo traverse le site. */
-  mix-blend-mode: difference;
+  /* Le masque par défaut : ouvert. Le composant ferme les suivants au montage,
+     et sans JavaScript le premier plan reste visible — c'est la bonne
+     dégradation. */
+  clip-path: inset(0% 0% 0% 0%);
 }
 
-.matiere__liste {
-  grid-row: 2;
-  align-self: center;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: clamp(1rem, 4vw, 4rem);
-  align-items: end;
-}
-
-.matiere__echantillon {
-  position: relative;
-}
-
-.matiere__prise {
-  display: grid;
-  gap: calc(var(--spacing) * 2);
-  width: 100%;
-  padding: 0;
-  background: none;
-  border: none;
-  color: inherit;
-  text-align: left;
-}
-
-/* La boîte que la plaque WebGL vient couvrir. Carrée, elle donne au rig le rect
-   à mesurer. Débordement autorisé au-delà d'elle pour le pli qui se soulève. */
-.matiere__image {
-  position: relative;
-  display: block;
-  aspect-ratio: 1;
-  overflow: visible;
-}
-
-.matiere__image img {
+/* Plein cadre, sans exception. Une matière ne se cadre pas, elle se traverse. */
+.matiere__media {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* WebGL présent : la plaque est peinte par le rig, l'image DOM s'efface mais
-   garde sa boîte — c'est elle qui donne la mise en page à la scène. */
-.matiere__image[data-webgl="true"] img {
-  opacity: 0;
+/* La légende est calée en bas à gauche du plan, jamais centrée. Elle est
+   *dans* le plan : le masque la découvre en même temps que la matière.
+
+   Le retrait du bas dégage la ligne du chrome — le nom du chapitre courant est
+   fixé au même coin, et deux textes en couche technique superposés ne se lisent
+   ni l'un ni l'autre. */
+.matiere__legende {
+  position: absolute;
+  left: var(--marge);
+  bottom: clamp(4.5rem, 9vh, 7rem);
+  /* La mesure du nom : il déborde volontiers, il n'est jamais rogné par une
+     largeur de colonne. */
+  max-width: calc(100% - 2 * var(--marge));
 }
 
+/* Le nom, en Gambetta monumental — un par écran, et l'écran ne contient rien
+   d'autre. `difference` le rend négatif de la matière qu'il traverse : clair
+   sur le noyer, sombre sur la chaux, et coloré partout où la matière l'est.
+   C'est la logique du logotype, appliquée au seul autre endroit du site où un
+   mot doit tenir sur une image qu'on ne contrôle pas. Il n'est jamais
+   recoloré. */
 .matiere__nom {
-  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  margin: 0;
+  font-size: var(--text-monument);
+  line-height: 0.82;
+  /* L'interlettrage du document au-delà de 120 px. */
+  letter-spacing: -0.03em;
   color: var(--color-craie);
+  mix-blend-mode: difference;
+}
+
+/* Les deux lignes de couche technique : la provenance, puis la facture. */
+.matiere__provenance,
+.matiere__facture {
+  margin: 0;
+  color: var(--color-craie);
+  mix-blend-mode: difference;
 }
 
 .matiere__provenance {
-  color: var(--color-zinc);
+  margin-top: calc(var(--spacing) * 3);
+}
+
+.matiere__facture {
+  margin-top: calc(var(--spacing) * 1);
+  /* Pas de retrait d'opacité ici : sur une matière de valeur moyenne, le
+     `difference` ne laisse déjà qu'une marge de contraste étroite, et la lui
+     rogner ferait passer la ligne sous le seuil AA. La hiérarchie entre les
+     deux lignes se lit à leur ordre, pas à leur densité. */
+}
+
+/* ---- Mouvement réduit : trois plans posés, un par écran ---- */
+
+/* Ni course, ni collage, ni masque. Les trois matières sont simplement
+   empilées et découvertes par le défilement natif. */
+.matiere__traversee[data-reduit="true"] {
+  height: auto;
+}
+
+.matiere__traversee[data-reduit="true"] .matiere__cadre {
+  position: static;
+  height: auto;
+  overflow: visible;
+}
+
+.matiere__traversee[data-reduit="true"] .matiere__plan {
+  position: relative;
+  inset: auto;
+  height: 100vh;
+  clip-path: none;
 }
 
 /* ---- Le bassin ---- */
@@ -133,16 +159,4 @@
   z-index: 2;
   color: var(--color-craie);
   mix-blend-mode: difference;
-}
-
-@media (max-width: 48rem) {
-  .matiere__liste {
-    grid-template-columns: 1fr;
-    gap: clamp(2rem, 8vh, 5rem);
-    align-items: stretch;
-  }
-
-  .matiere__image {
-    max-width: 60vw;
-  }
 }

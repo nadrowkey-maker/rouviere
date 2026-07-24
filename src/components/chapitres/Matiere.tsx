@@ -3,65 +3,208 @@
 import { useRef } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { matieres, bassin, OMBRE_ECHANTILLON } from "@/data/matieres";
+import { gsap } from "@/lib/gsap";
+import {
+  matieres,
+  bassin,
+  LARGEUR_MATIERE,
+  HAUTEUR_MATIERE,
+} from "@/data/matieres";
 import { useRig } from "@/components/gl/Rig";
-import type { EtatMatiere } from "@/components/gl/materiaux/echantillon";
 import type { EtatBassin } from "@/components/gl/materiaux/bassin";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useEffetVisuel } from "@/lib/isomorphe";
 import "./matiere.css";
 
 /**
- * La Matière.
+ * La Matière. Un chapitre entier sans image de projet. On touche.
  *
- * Un chapitre entier sans image de projet. On touche. Deux temps.
+ * Deux temps, et le premier est contemplatif.
  *
- *   *Les échantillons.* Trois surfaces planes en projection orthographique —
- *   lin, chaux, plâtre — posées de biais comme sur un établi. Elles se
- *   soulèvent sous le curseur, comme une feuille qu'on pince, et leur ombre
- *   portée s'efface à mesure qu'elles se décollent. Chaque plaque double une
- *   figure DOM : le rig la met à l'échelle de la figure, et les trois s'alignent
- *   d'elles-mêmes sur leurs légendes. Voir `materiaux/echantillon.ts`.
+ *   *La traversée.* Trois matières, une par écran, plein cadre : le noyer fumé
+ *   de l'Appartement Laiton, la chaux blanche des Charmilles, le voile de lin
+ *   de la Villa Calcaire. Chacune est un plan macro qui dérive lentement sur la
+ *   surface. On passe de l'une à l'autre **par masque** : le plan suivant
+ *   s'ouvre par le haut, à bord franc, et recouvre le précédent. À aucun
+ *   instant un pixel de l'écran ne montre deux matières mêlées — c'est ce qui
+ *   distingue un masque d'un fondu, et c'est la raison pour laquelle il n'y a
+ *   pas une seule opacité intermédiaire dans ce chapitre.
+ *
+ *   Rien d'autre ne bouge. Le nom et la couche technique sont peints *dans* le
+ *   plan : ils sont découverts par le même masque que la matière, du même
+ *   geste. Aucun reveal typographique, aucun décalage, aucune entrée d'objet.
+ *   Le mouvement du chapitre, c'est la matière elle-même.
  *
  *   *Le bassin.* Une seule fois dans tout le site : le bassin de la Villa
- *   Ostréa, vraie simulation de surface d'eau. Plein écran, sans texte, sans
+ *   Calcaire, vraie simulation de surface d'eau. Plein écran, sans texte, sans
  *   interface, sinon une ligne en couche technique. Voir `materiaux/bassin.ts`.
  *
- * Grammaire de mouvement : **le soulèvement**, un déplacement dans l'axe Z
- * commandé par le pointeur, pas par le défilement. La chambre qui précède avance
- * dans l'axe au scroll ; l'atelier qui suit pivote au scroll. Ici rien ne bouge
- * au défilement : c'est la main qui déforme la matière. Aucun des trois ne
- * partage sa grammaire avec son voisin.
+ * Grammaire de mouvement : **le dévoilement par masque**, sur une image qui ne
+ * se déplace pas. L'enfilade qui précède traverse latéralement, l'atelier qui
+ * suit traverse en échelle et en profondeur ; ici rien ne se déplace, une
+ * surface s'ouvre sur une autre. Aucun des trois ne partage sa grammaire.
  *
- * Le HTML tient la mise en page et le mode dégradé ; le WebGL, isolé derrière
- * `dynamic(..., { ssr: false })`, se cale dessus et n'entre pas dans la première
- * charge.
+ * Une seule vidéo joue à la fois — celle qu'on regarde. Les autres sont
+ * arrêtées, et les trois le sont dès que le chapitre quitte l'écran ou que
+ * l'onglet passe en arrière-plan : trois plans macro décodés en parallèle
+ * coûtent plus cher que toute la scène WebGL du bassin.
  */
 
-const SceneEchantillon = dynamic(
-  () => import("@/components/gl/SceneEchantillon"),
-  { ssr: false },
-);
 const SceneBassin = dynamic(() => import("@/components/gl/SceneBassin"), {
   ssr: false,
 });
 
+/**
+ * Part de la course prise par un passage de masque. Le reste est réparti en
+ * paliers égaux, un par matière : on est venu regarder la matière, pas la
+ * transition. `PASSAGE` est délibérément court — un masque qui traîne devient
+ * un effet, et le chapitre n'en veut aucun.
+ */
+const PASSAGE = 0.14;
+
+/** Le masque fermé et le masque ouvert. Bord franc, jamais de flou. */
+const FERME = "inset(0% 0% 100% 0%)";
+const OUVERT = "inset(0% 0% 0% 0%)";
+
+/**
+ * Le minutage de la traversée, en fractions de la progression.
+ *
+ * `n` matières, `n − 1` passages, et des paliers **égaux** : sans ce calcul, la
+ * première matière garderait l'écran deux fois plus longtemps que la dernière,
+ * et le chapitre aurait un rythme sans raison d'être.
+ *
+ * Retourne, pour chaque passage, l'instant où son masque commence à s'ouvrir.
+ */
+function minutage(nombre: number): number[] {
+  const palier = (1 - (nombre - 1) * PASSAGE) / nombre;
+  return Array.from(
+    { length: nombre - 1 },
+    (_, i) => (i + 1) * palier + i * PASSAGE,
+  );
+}
+
 export function Matiere() {
   const enWebgl = useRig() !== null;
-  const { degrade } = useMouvement();
+  const { mouvementReduit, degrade } = useMouvement();
 
-  /* Une ref stable par plaque : son identité ne change pas d'un rendu à
-     l'autre, sinon `useGLProxy` réinscrirait la scène à chaque rendu. Le
-     callback de la figure écrit dans `.current`. */
-  const ancresEchantillons = useRef(
-    matieres.map(() => ({ current: null as HTMLElement | null })),
-  );
+  const traverseeRef = useRef<HTMLDivElement>(null);
+  const cadreRef = useRef<HTMLDivElement>(null);
+  const videosRef = useRef<Array<HTMLVideoElement | null>>([]);
   const ancreBassin = useRef<HTMLDivElement>(null);
 
-  /* L'état des deux scènes vit dans des refs : le pointeur bouge soixante fois
-     par seconde, le passer par `useState` reconstruirait l'arbre à chaque
-     mouvement. Les shaders les lisent au cadre. */
-  const etatMatiere = useRef<EtatMatiere>({ pointeur: null, focus: null });
+  /* L'état du bassin vit dans une ref : le pointeur bouge soixante fois par
+     seconde, le passer par `useState` reconstruirait l'arbre à chaque geste.
+     Le shader le lit au cadre. */
   const etatBassin = useRef<EtatBassin>({ pointeur: null, clics: 0 });
+
+  useEffetVisuel(() => {
+    const traversee = traverseeRef.current;
+    const cadre = cadreRef.current;
+    if (traversee === null || cadre === null) return;
+
+    /* En mouvement réduit, les trois matières sont simplement empilées, chacune
+       sur son écran, découvertes par le défilement natif : pas d'épinglage, pas
+       de masque, pas de vidéo. Trois plans fixes et leurs noms. La composition
+       tient sans le mouvement — c'est une version, pas une punition. */
+    if (mouvementReduit) return;
+
+    const contexte = gsap.context(() => {
+      const plans = gsap.utils.toArray<HTMLElement>(".matiere__plan", cadre);
+      /* Le premier plan est le fond : il n'a pas de masque, il est là. Les
+         suivants arrivent fermés. */
+      gsap.set(plans.slice(1), { clipPath: FERME });
+
+      const departs = minutage(matieres.length);
+
+      /**
+       * Quelle matière occupe l'écran. Le passage de relais est pris à
+       * mi-masque : c'est l'instant où la nouvelle matière couvre la moitié du
+       * cadre, donc celui où c'est elle qu'on regarde.
+       */
+      const indexActif = (progression: number) => {
+        let index = 0;
+        departs.forEach((depart, i) => {
+          if (progression >= depart + PASSAGE * 0.5) index = i + 1;
+        });
+        return index;
+      };
+
+      let joue = -1;
+      const nAJouer = (index: number) => {
+        if (index === joue) return;
+        joue = index;
+        videosRef.current.forEach((video, i) => {
+          if (video === null) return;
+          if (i === index) {
+            /* La lecture peut être refusée (onglet en fond, économie
+               d'énergie) : on ne traite pas le refus comme une erreur. */
+            void video.play().catch(() => {});
+          } else {
+            video.pause();
+          }
+        });
+
+        /* La matière suivante est mise en chauffe pendant qu'on regarde
+           celle-ci. Sans cela, elle commencerait son téléchargement au moment
+           exact où le masque l'ouvre, et on la verrait arriver arrêtée sur sa
+           poster. On ne chauffe qu'elle : deux d'avance ne servent à rien. */
+        const suivante = videosRef.current[index + 1];
+        if (suivante !== null && suivante !== undefined && suivante.preload === "none") {
+          suivante.preload = "auto";
+          suivante.load();
+        }
+      };
+
+      /* Le cadre tient par `position: sticky`, pas par `pin` : la mise en page
+         du chapitre est un empilement, elle n'a pas besoin qu'on lui insère de
+         l'espace ni qu'on la sorte du flux. ScrollTrigger ne fait donc ici
+         qu'une chose — donner l'avancement du masque. */
+      const ligne = gsap.timeline({
+        defaults: { ease: "power2.inOut" },
+        scrollTrigger: {
+          trigger: traversee,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: true,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => nAJouer(indexActif(self.progress)),
+          onToggle: (self) => {
+            /* Hors du chapitre, plus rien ne décode. C'est le point qui tue
+               les sites mal finis : la vidéo qui tourne pendant qu'on lit
+               ailleurs. */
+            if (self.isActive) return;
+            joue = -1;
+            videosRef.current.forEach((video) => video?.pause());
+          },
+        },
+      });
+
+      /* Un palier, un passage, un palier… Le masque s'ouvre par le haut : le
+         plan qui arrive descend sur celui qui part, dans le sens du
+         défilement. */
+      plans.slice(1).forEach((plan, i) => {
+        ligne.to(plan, { clipPath: OUVERT, duration: PASSAGE }, departs[i]);
+      });
+
+      /* La ligne dure exactement 1 : sans cette borne, GSAP la clôturerait sur
+         le dernier masque et la troisième matière n'aurait pas son palier. */
+      ligne.set(cadre, {}, 1);
+    }, cadre);
+
+    return () => contexte.revert();
+  }, [mouvementReduit]);
+
+  /* L'onglet passe en arrière-plan : on arrête tout. `visibilitychange` est le
+     seul événement qui couvre le cas où la page n'est plus regardée sans avoir
+     quitté l'écran. */
+  useEffetVisuel(() => {
+    const suspendre = () => {
+      if (document.visibilityState === "visible") return;
+      videosRef.current.forEach((video) => video?.pause());
+    };
+    document.addEventListener("visibilitychange", suspendre);
+    return () => document.removeEventListener("visibilitychange", suspendre);
+  }, []);
 
   return (
     <section className="matiere" aria-labelledby="matiere-titre">
@@ -69,88 +212,69 @@ export function Matiere() {
         La matière
       </h2>
 
-      {/* ---- Les échantillons ---- */}
+      {/* ---- La traversée des trois matières ---- */}
       <div
-        className="matiere__echantillons"
+        className="matiere__traversee"
         data-chapitre="La Matière"
-        /* Le pointeur est capté au niveau du chapitre : il traverse les figures
-           (les événements React remontent) et pilote la plaque qu'il survole.
-           Les coordonnées passent en client, le shader les convertit avec le
-           rect de la passe de mesure. */
-        onPointerMove={(e) => {
-          etatMatiere.current.pointeur = { x: e.clientX, y: e.clientY };
-        }}
-        onPointerLeave={() => {
-          etatMatiere.current.pointeur = null;
-        }}
+        data-reduit={mouvementReduit}
+        ref={traverseeRef}
+        /* Un écran de course par matière : la hauteur vient du manifeste, pas
+           d'un chiffre écrit dans la feuille de style. Ajouter une matière au
+           manifeste allonge la traversée d'elle-même. */
+        style={{ "--matieres": matieres.length } as React.CSSProperties}
       >
-        <p className="matiere__intro display">
-          On règle la lumière, la matière et le silence.
-        </p>
-
-        <ul className="matiere__liste">
+        <div className="matiere__cadre" ref={cadreRef}>
           {matieres.map((matiere, index) => (
-            <li className="matiere__echantillon" key={matiere.cle}>
-              <button
-                type="button"
-                className="matiere__prise"
-                data-curseur="TIRER"
-                /* Le clavier fait ce que le pointeur fait : la plaque au focus
-                   se soulève, et rien d'autre ne bouge. */
-                onFocus={() => {
-                  etatMatiere.current.focus = index;
-                }}
-                onBlur={() => {
-                  if (etatMatiere.current.focus === index) {
-                    etatMatiere.current.focus = null;
-                  }
-                }}
-                onPointerEnter={() => {
-                  etatMatiere.current.focus = null;
-                }}
-              >
-                {/* L'ancre du rig : la boîte que la plaque WebGL vient couvrir.
-                    L'image DOM reste dessous, hidden quand le WebGL peint,
-                    visible en mode dégradé — c'est le motif de l'enfilade. */}
-                <span
-                  className="matiere__image"
-                  data-webgl={enWebgl}
+            <figure className="matiere__plan" key={matiere.cle}>
+              {mouvementReduit ? (
+                <Image
+                  className="matiere__media"
+                  src={matiere.video.poster}
+                  width={LARGEUR_MATIERE}
+                  height={HAUTEUR_MATIERE}
+                  alt={matiere.alt}
+                  sizes="100vw"
+                  priority={index === 0}
+                />
+              ) : (
+                <video
+                  className="matiere__media"
                   ref={(node) => {
-                    ancresEchantillons.current[index]!.current = node;
+                    videosRef.current[index] = node;
                   }}
-                >
-                  <Image
-                    src={matiere.texture}
-                    width={512}
-                    height={512}
-                    alt={`Échantillon de ${matiere.nom.toLowerCase()}.`}
-                    sizes="(max-width: 48rem) 44vw, 22vw"
-                  />
-                </span>
-                <span className="matiere__nom display">{matiere.nom}</span>
-                <span className="matiere__provenance technique">
-                  {matiere.provenance}
-                </span>
-              </button>
+                  src={matiere.video.mp4}
+                  poster={matiere.video.poster}
+                  width={LARGEUR_MATIERE}
+                  height={HAUTEUR_MATIERE}
+                  /* La première matière est celle du LCP du chapitre : elle
+                     se prépare. Les deux autres attendent qu'on arrive. */
+                  preload={index === 0 ? "metadata" : "none"}
+                  muted
+                  loop
+                  playsInline
+                  aria-label={matiere.alt}
+                />
+              )}
 
-              <SceneEchantillon
-                ancre={ancresEchantillons.current[index]!}
-                texture={matiere.texture}
-                ombre={OMBRE_ECHANTILLON}
-                index={index}
-                etat={etatMatiere}
-                cle={matiere.cle}
-              />
-            </li>
+              {/* Le nom est peint dans le plan : le masque le découvre en même
+                  temps que la matière, du même geste. */}
+              <figcaption className="matiere__legende">
+                <h3 className="matiere__nom display">{matiere.nom}</h3>
+                <p className="matiere__provenance technique">
+                  {matiere.provenance}
+                </p>
+                <p className="matiere__facture technique">{matiere.facture}</p>
+              </figcaption>
+            </figure>
           ))}
-        </ul>
+        </div>
       </div>
 
       {/* ---- Le bassin ---- */}
       <div
         className="matiere__bassin"
         data-chapitre="Le Bassin"
-        aria-label="Bassin de la Villa Ostréa"
+        aria-label="Bassin de la Villa Calcaire"
         ref={ancreBassin}
         data-webgl={enWebgl}
         onPointerMove={(e) => {
@@ -171,7 +295,7 @@ export function Matiere() {
           src={bassin.repli}
           width={bassin.largeurRepli}
           height={bassin.hauteurRepli}
-          alt="Le bassin de nage de la Villa Ostréa, vingt-deux mètres le long de la façade sud. La surface porte quelques ondes."
+          alt="Le bassin de la Villa Calcaire, à Cap d'Antibes, le long de la façade. La surface porte quelques ondes."
           sizes="100vw"
           data-cache={enWebgl && !degrade}
         />

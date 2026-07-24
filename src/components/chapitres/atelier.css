@@ -1,19 +1,20 @@
-/* L'Atelier. Retour au gris. Les images pivotent en profondeur au défilement ;
-   le texte se lit décroché dans la marge. Fond encre, calme. */
+/* L'Atelier. Retour au gris.
+
+   Une séquence, pas une galerie : le guichet est fixe, l'image le traverse.
+   Toutes les proportions des planches viennent du manifeste par `--hauteur` et
+   `--largeur` — il n'y a pas une largeur de planche écrite dans ce fichier. */
 
 .atelier {
   position: relative;
   background-color: var(--color-encre);
   padding-block: clamp(6rem, 16vh, 12rem) clamp(8rem, 20vh, 16rem);
-  /* La profondeur des pivots a besoin d'une fuite : la perspective est portée
-     par la section, les items tournent dedans. */
-  perspective: 1400px;
-  perspective-origin: 50% 45%;
+  /* La séquence déborde volontairement des marges : c'est ici qu'on la coupe,
+     et nulle part ailleurs, pour que la page ne prenne jamais de largeur. */
   overflow: clip;
 }
 
 .atelier__entete {
-  margin-bottom: clamp(4rem, 12vh, 10rem);
+  margin-bottom: clamp(6rem, 18vh, 14rem);
 }
 
 /* Titre calé colonne 2, jamais centré. */
@@ -32,83 +33,120 @@
   max-width: 34ch;
 }
 
-.atelier__galerie {
-  /* Les enveloppes s'empilent ; chacune tient une image et, une fois sur deux,
-     un paragraphe décroché. La préservation 3D laisse le `z` des pivots
-     s'exprimer en profondeur réelle. */
-  transform-style: preserve-3d;
-  display: grid;
-  row-gap: clamp(6rem, 18vh, 16rem);
+/* La séquence tient la marge du site ; les planches en sortent. */
+.atelier__sequence {
   padding-inline: var(--marge);
 }
 
-.atelier__enveloppe {
+/* Un temps de la séquence : une planche, et parfois la respiration qui suit.
+   Les temps se chevauchent légèrement — une séquence n'a pas de blancs entre
+   ses plans. */
+.atelier__temps + .atelier__temps {
+  margin-top: clamp(-6rem, -6vh, -3rem);
+}
+
+/* ---- La planche ---- */
+
+.atelier__plan {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
-  column-gap: var(--gouttiere);
-  align-items: center;
-  transform-style: preserve-3d;
-  /* `will-change` posé ici, sur ce qui bouge — repris de la source. */
+  margin: 0;
+  width: var(--largeur);
+  /* L'échelle et la lumière sont posées au défilement ; l'origine au centre
+     fait grandir la planche depuis son milieu, pas depuis un coin. */
+  transform-origin: 50% 50%;
+  will-change: transform, filter;
+}
+
+/* Le débordement : la planche est calée sur un bord et sort de la marge par
+   ce bord-là. Jamais des deux côtés, jamais centrée. */
+.atelier__plan[data-cote="gauche"] {
+  margin-right: auto;
+  margin-left: calc(var(--marge) * -1);
+}
+
+.atelier__plan[data-cote="droite"] {
+  margin-left: auto;
+  margin-right: calc(var(--marge) * -1);
+}
+
+/* Le guichet : la fenêtre fixe. Sa hauteur est celle du manifeste, jamais sous
+   85 vh — c'est la définition du « quasi plein écran » du chapitre. */
+.atelier__guichet {
+  position: relative;
+  height: var(--hauteur);
+  overflow: clip;
+}
+
+/* L'image est plus haute que son guichet : c'est ce surplus qui donne au
+   travelling de quoi courir. 118 % pour ±9 % de course, plus la marge de
+   sécurité qui interdit tout bord découvert. */
+.atelier__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 118%;
+  top: -9%;
+  object-fit: cover;
   will-change: transform;
 }
 
-/* L'image pivotante. Elle occupe une bande, jamais toute la largeur, et alterne
-   de côté au fil de la galerie : le débordement est volontaire. */
-.atelier__item {
-  grid-column: 3 / span 6;
-  margin: 0;
-  transform-style: preserve-3d;
-  will-change: transform, filter;
-  /* Née noire au fond, l'image ne doit pas éclairer le fond d'encre autour :
-     pas d'ombre portée CSS — la profondeur se fait par échelle, flou, z. */
-}
+/* La note se pose au bord droit de sa planche, quel que soit le côté de
+   celle-ci. Deux raisons, et la seconde n'est pas négociable :
 
-.atelier__enveloppe:nth-child(even) .atelier__item {
-  grid-column: 5 / span 6;
-}
+   — le bord droit d'une planche calée à gauche tombe au milieu de l'écran, et
+     la donnée s'y décroche joliment de la masse de l'image ;
+   — le coin en bas à gauche est occupé en permanence par le nom du chapitre
+     courant, en couche technique lui aussi. Deux lignes de onze pixels
+     superposées ne se lisent ni l'une ni l'autre.
 
-.atelier__item .atelier__image {
-  display: block;
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-}
-
+   Le retrait n'est posé que sur les planches qui débordent par la droite :
+   pour les autres, le bord droit est déjà dans le cadre. */
 .atelier__note {
   margin-top: calc(var(--spacing) * 2);
+  text-align: right;
   color: var(--color-zinc);
 }
 
-/* Le portrait : centré dans sa bande, un peu plus étroit, et jamais recadré —
-   on le regarde en entier. */
-.atelier__item[data-portrait="true"] {
-  grid-column: 4 / span 4;
+.atelier__plan[data-cote="droite"] .atelier__note {
+  padding-right: var(--marge);
 }
 
-/* Le texte décroché : dans la marge opposée à l'image, en petit. */
+/* ---- La respiration ---- */
+
+/* Le texte se cale dans le vide laissé par la planche : à l'opposé du bord
+   qu'elle occupe, en petit, avec de l'air autour. */
 .atelier__texte {
-  grid-column: 9 / span 3;
-  align-self: center;
+  position: relative;
+  margin-block: clamp(4rem, 12vh, 9rem);
   color: var(--color-pierre);
   font-size: var(--text-corps);
-  max-width: 32ch;
+  max-width: 34ch;
 }
 
-.atelier__enveloppe:nth-child(even) .atelier__texte {
-  grid-column: 2 / span 3;
-  text-align: right;
-  justify-self: end;
+.atelier__texte[data-cote="gauche"] {
+  margin-left: auto;
+  margin-right: clamp(0rem, 6vw, 8rem);
 }
 
-/* ---- Mouvement réduit : posé, droit, net, sans perspective ---- */
-.atelier[data-reduit="true"] {
-  perspective: none;
+.atelier__texte[data-cote="droite"] {
+  margin-right: auto;
+  margin-left: clamp(0rem, 6vw, 8rem);
 }
 
-.atelier[data-reduit="true"] .atelier__item {
+/* ---- Mouvement réduit : le montage posé ---- */
+
+/* Les planches gardent leurs échelles, leurs largeurs et leurs débordements —
+   c'est la composition, et elle reste belle. Seul le travelling s'arrête. */
+.atelier[data-reduit="true"] .atelier__plan {
   transform: none;
   filter: none;
+}
+
+.atelier[data-reduit="true"] .atelier__image {
+  position: relative;
+  inset: auto;
+  top: 0;
+  height: 100%;
 }
 
 @media (max-width: 48rem) {
@@ -117,17 +155,21 @@
     grid-column: 1 / -1;
   }
 
-  .atelier__item,
-  .atelier__enveloppe:nth-child(even) .atelier__item,
-  .atelier__item[data-portrait="true"] {
-    grid-column: 1 / span 9;
+  /* Sur un écran étroit, la variance de largeur ne se lit plus : elle ne fait
+     que rétrécir des images déjà petites. Toutes les planches prennent la
+     largeur et gardent leur seul débordement, à gauche. */
+  .atelier__plan,
+  .atelier__plan[data-cote="gauche"],
+  .atelier__plan[data-cote="droite"] {
+    width: calc(100% + var(--marge));
+    margin-left: calc(var(--marge) * -1);
+    margin-right: 0;
   }
 
   .atelier__texte,
-  .atelier__enveloppe:nth-child(even) .atelier__texte {
-    grid-column: 1 / -1;
-    text-align: left;
-    justify-self: start;
-    margin-top: calc(var(--spacing) * 3);
+  .atelier__texte[data-cote="gauche"],
+  .atelier__texte[data-cote="droite"] {
+    margin-inline: 0;
+    max-width: none;
   }
 }

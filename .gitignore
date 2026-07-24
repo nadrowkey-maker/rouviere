@@ -1,6 +1,12 @@
 # Bibliothèque de références locale — ne doit jamais être commitée
 references/
 
+# Médias bruts : les fichiers tels qu'ils ont été téléchargés, avant
+# étalonnage. Ce sont des entrées de fabrication, pas des actifs du site —
+# `scripts/etalonnage.mjs` et ses appelants en tirent ce que `public/` sert.
+# Cent trente mégaoctets de PNG et de rushes n'ont rien à faire dans l'index.
+medias-source/
+
 # Dépendances
 node_modules/
 /.pnp
