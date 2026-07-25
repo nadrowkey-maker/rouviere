@@ -8,6 +8,7 @@ import { useSon } from "@/components/chrome/SonProvider";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
+import { largeurLogotype } from "@/lib/logotype";
 import "./seuil.css";
 
 /**
@@ -265,7 +266,10 @@ export function Seuil() {
            échelle pour couvrir la largeur voulue, translation vers le centre.
            Le mot est encore à opacité 0 — rien de visible ne saute. */
         const repos = logo.getBoundingClientRect();
-        const largeurCible = Math.min(innerWidth * 0.82, 1200);
+        /* La largeur du monument n'est pas décidée ici : elle vient de la loi
+           commune, que la sortie applique à l'autre bout du parcours. Voir
+           `lib/logotype.ts` — les deux extrémités du fil sont le même mot. */
+        const largeurCible = largeurLogotype(innerWidth);
         const echelle = largeurCible / repos.width;
         gsap.set(logo, {
           transformOrigin: "0 0",

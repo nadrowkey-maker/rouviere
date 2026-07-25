@@ -6,6 +6,7 @@ import { ScrollTrigger } from "@/lib/gsap";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon } from "@/components/chrome/SonProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
+import { largeurLogotype } from "@/lib/logotype";
 import "./sortie.css";
 
 /**
@@ -46,17 +47,6 @@ import "./sortie.css";
 
 const ADRESSE = "atelier@rouviere.fr";
 const TELEPHONE = "+33 1 42 61 08 11";
-
-/**
- * La taille du mot, reprise **telle quelle** du générique du seuil.
- *
- * Ce ne sont pas des valeurs choisies pour ce chapitre : ce sont celles que le
- * seuil applique au logotype quand il le fait paraître au centre
- * (`Seuil.tsx`, `largeurCible`). Le dernier mot du site et le premier sont le
- * même mot, à la même échelle — c'est ce qui referme le fil.
- */
-const LARGEUR_LOGO = 0.82;
-const LARGEUR_LOGO_MAX = 1200;
 
 /**
  * Base de mesure, en pixels. Sa valeur n'a aucune importance : on pose le mot
@@ -115,7 +105,7 @@ export function Sortie() {
         titre.style.removeProperty("font-size");
         return;
       }
-      const cible = Math.min(innerWidth * LARGEUR_LOGO, LARGEUR_LOGO_MAX);
+      const cible = largeurLogotype(innerWidth);
       titre.style.fontSize = `${(BASE_MESURE * cible) / largeur}px`;
     };
 
@@ -259,44 +249,67 @@ export function Sortie() {
         <span className="sortie__mot">Rouvière</span>
       </h2>
 
-      {/* Les coordonnées ne sont pas un pied de page : elles sont posées dans
-          la composition, chacune à sa place, et aucune n'est empilée sur une
-          autre. */}
-      <address className="sortie__coordonnees">
-        <p className="sortie__adresse">
-          14 rue de Beaune
-          <br />
-          75007 Paris
-        </p>
+      {/* ---- Le pied : deux colonnes, deux marges, une seule ligne ----
 
-        <p className="sortie__contact">
-          <a className="sortie__lien" href={`tel:${TELEPHONE.replace(/\s/g, "")}`}>
-            {TELEPHONE}
-          </a>
-          <a
-            className="sortie__lien sortie__courriel"
-            href={`mailto:${ADRESSE}`}
-            data-curseur="ÉCRIRE"
-            onClick={copierAdresse}
-          >
-            {ADRESSE}
-            <span className="sortie__copie technique" aria-hidden="true" data-vu={copie}>
-              adresse copiée
+          Les quatre blocs flottaient à quatre hauteurs sans rapport entre eux —
+          l'adresse décrochée en colonne 2 alors que le mot part de la marge, le
+          contact suspendu au milieu du vide, la mention seule dans le ciel. Rien
+          n'était aligné sur rien, et une dispersion sans alignement ne se lit
+          pas comme une composition : elle se lit comme un oubli.
+
+          Ils sont maintenant deux colonnes ancrées chacune sur sa marge et
+          partant de la même ligne. La gauche prolonge le mot — même bord, donc
+          une verticale forte du logotype jusqu'aux coordonnées ; la droite tient
+          l'autre bord. Ce n'est toujours pas un pied de page : le mot occupe le
+          cadre, et le texte n'est qu'une bande basse qui le laisse respirer.
+
+          La mention a quitté la marge haute pour une raison mesurée, pas pour
+          une raison de goût : le ciel est la zone la plus claire du plan (156 de
+          luminance contre 60 en bas à gauche), et onze pixels de couche
+          technique n'y tenaient pas le seuil AA. */}
+      <address className="sortie__pied">
+        <div className="sortie__colonne">
+          <p className="sortie__adresse">
+            14 rue de Beaune
+            <br />
+            75007 Paris
+          </p>
+          <p className="sortie__reperes technique">48°51′N 2°20′E</p>
+        </div>
+
+        <div className="sortie__colonne sortie__colonne--droite">
+          <p className="sortie__contact">
+            <a
+              className="sortie__lien"
+              href={`tel:${TELEPHONE.replace(/\s/g, "")}`}
+            >
+              {TELEPHONE}
+            </a>
+            <a
+              className="sortie__lien sortie__courriel"
+              href={`mailto:${ADRESSE}`}
+              data-curseur="ÉCRIRE"
+              onClick={copierAdresse}
+            >
+              {ADRESSE}
+              <span
+                className="sortie__copie technique"
+                aria-hidden="true"
+                data-vu={copie}
+              >
+                adresse copiée
+              </span>
+            </a>
+            {/* Le retour est annoncé aux lecteurs d'écran sans voler le focus. */}
+            <span className="sr-only" role="status" aria-live="polite">
+              {copie ? "Adresse copiée dans le presse-papier." : ""}
             </span>
-          </a>
-          {/* Le retour est annoncé aux lecteurs d'écran sans voler le focus. */}
-          <span className="sr-only" role="status" aria-live="polite">
-            {copie ? "Adresse copiée dans le presse-papier." : ""}
-          </span>
-        </p>
+          </p>
+          <p className="sortie__mention technique">
+            Atelier fondé 2011 — sur recommandation
+          </p>
+        </div>
       </address>
-
-      {/* La couche technique, décrochée dans la marge haute — à l'opposé de
-          tout le reste. */}
-      <p className="sortie__mention technique">
-        Atelier fondé 2011 — sur recommandation
-      </p>
-      <p className="sortie__reperes technique">48°51′N 2°20′E</p>
     </section>
   );
 }
