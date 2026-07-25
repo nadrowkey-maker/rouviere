@@ -73,13 +73,39 @@
    `--eau` (0 → 1) le clippe par le bas pour laisser monter le bassin, en
    lock-step avec la remontée de son ancre. Il n'y a plus de `--nuit` : le noir
    du chapitre n'est pas peint, il est filmé. */
+/* ---- Le décor : un fond, un plan, une seule découpe ----
+
+   `__decor` ne peint rien. Il porte la découpe de l'eau pour les deux surfaces
+   qu'il contient, qui se rétractent donc exactement ensemble.
+
+   `__fond` est un aplat d'encre opaque. Il existe pour une raison précise : le
+   plan **monte en densité**, donc on voit à travers lui pendant qu'il arrive —
+   et ce qu'il y avait derrière n'était pas continu. Le hero d'un côté de son
+   bord bas, la page de l'autre : cette frontière-là se lisait comme un trait
+   clair qui remontait avec le défilement. Égaliser les deux couleurs n'y
+   suffisait pas, parce que ce qu'on voyait était un **bord de surface**, pas
+   une différence de teinte. Avec un fond à lui, il n'y a plus de bord du tout.
+
+   C'est aussi le voile que ce chapitre a toujours eu, rendu à son vrai rôle :
+   ce qui couvre le cadre, et qui se rétracte pour laisser monter l'eau. */
+.vestibule__decor {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 0 calc(var(--eau, 0) * 100%) 0);
+}
+
+.vestibule__fond {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-encre);
+}
+
 .vestibule__film {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  clip-path: inset(0 0 calc(var(--eau, 0) * 100%) 0);
 
   /* ---- L'exposition du plan ----
 

@@ -264,6 +264,9 @@ export function Vestibule() {
 
   const courseRef = useRef<HTMLDivElement>(null);
   const cadreRef = useRef<HTMLDivElement>(null);
+  /* Le conteneur du décor : c'est lui qui porte la découpe de l'eau, pour le
+     fond et le plan à la fois. */
+  const decorRef = useRef<HTMLDivElement>(null);
   const filmRef = useRef<HTMLCanvasElement>(null);
   const lumiereRef = useRef<HTMLParagraphElement>(null);
   const ancreBassin = useRef<HTMLDivElement>(null);
@@ -285,6 +288,7 @@ export function Vestibule() {
     const cadre = cadreRef.current;
     const ancre = ancreBassin.current;
     const plan = filmRef.current;
+    const decor = decorRef.current;
     if (course === null || cadre === null) return;
 
     /* En mouvement réduit, la séquence n'existe pas : les sept temps sont
@@ -325,7 +329,8 @@ export function Vestibule() {
          basculement de `data-pose` strictement invisible — on découvre l'encre
          du site, qui est ce que le voile du hero vient de poser — et ce qui
          donne au chapitre une pièce qui émerge plutôt qu'une image qui surgit. */
-      if (plan !== null) gsap.set(plan, { "--eau": 0, opacity: 0 });
+      if (decor !== null) gsap.set(decor, { "--eau": 0 });
+      if (plan !== null) gsap.set(plan, { opacity: 0 });
       if (ancre !== null) gsap.set(ancre, { yPercent: 100 });
 
       /* ---- Le cadre n'est là qu'à partir de son chapitre ----
@@ -568,8 +573,8 @@ export function Vestibule() {
          même courbe, donc la ligne de partage est exacte au pixel. C'est ce
          qui donne l'eau qui *monte*, et non l'eau qu'on découvre. */
       const [ed, ef] = MINUTAGE.eauMontee;
-      if (plan !== null) {
-        tl.to(plan, { "--eau": 1, duration: ef - ed, ease: "none" }, ed);
+      if (decor !== null) {
+        tl.to(decor, { "--eau": 1, duration: ef - ed, ease: "none" }, ed);
       }
       if (ancre !== null) {
         tl.to(ancre, { yPercent: 0, duration: ef - ed, ease: "none" }, ed);
@@ -578,8 +583,8 @@ export function Vestibule() {
       /* Sept — l'eau redescend, exactement comme elle est montée, et le noir
          reprend le cadre. */
       const [xd, xf] = MINUTAGE.eauSortie;
-      if (plan !== null) {
-        tl.to(plan, { "--eau": 0, duration: xf - xd, ease: "none" }, xd);
+      if (decor !== null) {
+        tl.to(decor, { "--eau": 0, duration: xf - xd, ease: "none" }, xd);
       }
       if (ancre !== null) {
         tl.to(ancre, { yPercent: 100, duration: xf - xd, ease: "none" }, xd);
@@ -692,10 +697,28 @@ export function Vestibule() {
         style={{ "--temps": TEMPS } as React.CSSProperties}
       >
         <div className="vestibule__cadre" ref={cadreRef} aria-hidden="true">
-          {/* Le décor : l'appartement, image par image. C'est aussi la seule
-              surface opaque du cadre — le canvas du rig est fixe *derrière* la
-              page, et c'est en rétractant ce plan-ci qu'on découvre l'eau. */}
-          <canvas className="vestibule__film" ref={filmRef} />
+          {/* ---- Le décor ----
+
+              **Deux surfaces, et la première n'est pas décorative.**
+
+              `__fond` est un aplat d'encre opaque qui couvre tout le cadre. Il
+              existe parce que le plan **monte en densité** : pendant qu'il
+              arrive, on voit à travers lui, et ce qu'il y avait derrière n'était
+              pas continu — le hero d'un côté de son bord bas, la page de
+              l'autre. Cette frontière-là se lisait comme un trait clair qui
+              remontait avec le défilement, et aucune égalisation de couleurs
+              n'en venait à bout : c'est un bord de surface, pas une différence
+              de teinte. On lui donne donc un fond à lui, et il n'y a plus de
+              bord du tout.
+
+              C'est aussi le voile que ce chapitre a toujours eu, rendu à son
+              vrai rôle : ce qui couvre, et qui se rétracte pour laisser monter
+              l'eau. Les deux surfaces partagent la même découpe — d'où le
+              conteneur qui la porte pour elles deux. */}
+          <div className="vestibule__decor" ref={decorRef}>
+            <div className="vestibule__fond" />
+            <canvas className="vestibule__film" ref={filmRef} />
+          </div>
 
           {/* L'eau. Elle attend sous le cadre et monte au sixième temps.
               Hors de sa plage, son ancre n'a pas de boîte : l'observateur
