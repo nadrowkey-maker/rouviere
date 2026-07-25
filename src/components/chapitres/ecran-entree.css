@@ -122,9 +122,33 @@
 /* ---- Les deux choix ---- */
 
 /* Les deux portes, dans le même bloc que le nom et juste sous lui. Le retrait
-   qui les en sépare est le plus large de l'écran : on a fini de lire, on entre. */
+   qui les en sépare est le plus large de l'écran : on a fini de lire, on entre.
+
+   ------------------------------------------------------------------
+   Pourquoi deux colonnes égales, et pas deux boîtes côte à côte
+   ------------------------------------------------------------------
+   Elles étaient en `flex`, donc chacune à la largeur de son propre texte. Or
+   les deux libellés ne font pas la même longueur — « Entrer avec le son » passe
+   « Entrer en silence » d'un caractère, et l'anglais a le même défaut avec
+   d'autres lettres. Le groupe était bien centré ; **la couture entre les deux
+   cartouches ne l'était pas**, et c'est elle qu'on regarde.
+
+   C'est un axe vertical, posé à quelques pixels sous un filet d'un pixel qui
+   marque, lui, le vrai centre. Deux verticales presque alignées se dénoncent
+   l'une l'autre : l'œil ne mesure pas l'écart, il voit que quelque chose penche.
+
+   Deux colonnes en `1fr` règlent la question à la source. Dans une grille
+   dimensionnée sur son contenu, des fractions égales donnent aux deux pistes la
+   largeur de la plus large : les cartouches deviennent identiques, la couture
+   tombe sur l'axe, et elle y tombe dans toutes les langues sans qu'on ait à
+   mesurer quoi que ce soit.
+
+   Ce n'est pas qu'une réparation d'alignement. Deux plaques de porte de tailles
+   différentes se lisent comme un accident de gabarit ; deux plaques identiques
+   se lisent comme une paire — ce que le reste de l'écran dit déjà. */
 .ecran-entree__choix {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   align-items: stretch;
   gap: clamp(0.75rem, 2vw, 1.5rem);
   margin-top: clamp(1.5rem, 5vh, 3.5rem);
@@ -223,14 +247,13 @@
    largeur disponible : deux plaques pleine largeur valent mieux que deux boîtes
    serrées dont les mots se coupent. */
 @media (max-width: 32rem) {
+  /* Une seule colonne : les deux plaques s'empilent et prennent toute la
+     largeur. Elles restent égales, pour la même raison qu'au-dessus — et ici
+     c'est la largeur disponible qui la donne, plus le contenu. */
   .ecran-entree__choix {
-    flex-direction: column;
-    align-self: stretch;
+    grid-template-columns: 1fr;
+    justify-self: stretch;
     width: 100%;
     gap: clamp(0.6rem, 1.6vh, 1rem);
-  }
-
-  .ecran-entree__bouton {
-    width: 100%;
   }
 }
