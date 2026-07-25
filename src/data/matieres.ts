@@ -33,9 +33,11 @@
  * venait d'arriver. Le nom se pose maintenant sur l'image qui est déjà là, et
  * rien ne vient la remplacer.
  */
+import type { Texte } from "@/i18n/langues";
+
 export type PlanMatiere =
   /** Une vidéo à elle. `alt` décrit ce que montre le plan, descriptif et sec. */
-  | { sorte: "video"; mp4: string; poster: string; alt: string }
+  | { sorte: "video"; mp4: string; poster: string; alt: Texte }
   /**
    * L'image de sortie de l'enfilade. Elle n'a pas d'`alt` ici : elle est déjà
    * décrite à son manifeste (`PLANCHE_SORTIE.alt`), et une seconde description
@@ -46,7 +48,7 @@ export type PlanMatiere =
 export type Matiere = {
   cle: string;
   /** Le nom, en Gambetta monumental. Un mot, deux au plus. */
-  nom: string;
+  nom: Texte;
   /** Le plan : une vidéo à elle, ou l'image que le chapitre précédent a posée. */
   plan: PlanMatiere;
 };
@@ -56,7 +58,7 @@ export type Matiere = {
 export const LARGEUR_MATIERE = 1600;
 export const HAUTEUR_MATIERE = 900;
 
-const media = (cle: string, alt: string): PlanMatiere => ({
+const media = (cle: string, alt: Texte): PlanMatiere => ({
   sorte: "video",
   mp4: `/media/matieres/${cle}.mp4`,
   poster: `/media/matieres/${cle}-poster.avif`,
@@ -66,25 +68,25 @@ const media = (cle: string, alt: string): PlanMatiere => ({
 export const matieres: Matiere[] = [
   {
     cle: "noyer-fume",
-    nom: "Noyer fumé",
+    nom: { fr: "Noyer fumé", en: "Smoked walnut" },
     /* Le plan est celui que l'enfilade vient d'ouvrir en plein cadre. */
     plan: { sorte: "sortie" },
   },
   {
     cle: "chaux-blanche",
-    nom: "Chaux blanche",
-    plan: media(
-      "chaux-blanche",
-      "Gros plan sur un badigeon de chaux blanche. Les passes de taloche prennent le jour à plat.",
-    ),
+    nom: { fr: "Chaux blanche", en: "White lime" },
+    plan: media("chaux-blanche", {
+      fr: "Gros plan sur un badigeon de chaux blanche. Les passes de taloche prennent le jour à plat.",
+      en: "Close on a white lime wash. The float marks take the light flat.",
+    }),
   },
   {
     cle: "voile-de-lin",
-    nom: "Voile de lin",
-    plan: media(
-      "voile-de-lin",
-      "Gros plan sur un voile de lin à trame ouverte. Le jour passe entre les fils.",
-    ),
+    nom: { fr: "Voile de lin", en: "Linen veil" },
+    plan: media("voile-de-lin", {
+      fr: "Gros plan sur un voile de lin à trame ouverte. Le jour passe entre les fils.",
+      en: "Close on an open-weave linen veil. Daylight passes between the threads.",
+    }),
   },
 ];
 
@@ -96,7 +98,10 @@ export const matieres: Matiere[] = [
  */
 export const bassin = {
   /** La ligne de couche technique, seule interface de l'écran. */
-  technique: "Bassin — 25 m — eau douce — Cap d'Antibes",
+  technique: {
+    fr: "Bassin — 25 m — eau douce — Cap d'Antibes",
+    en: "Pool — 25 m — fresh water — Cap d'Antibes",
+  } as Texte,
   /** La plaque affichée sans WebGL2 ou sans cible flottante. */
   repli: "/textures/bassin-repli.png",
   largeurRepli: 1440,

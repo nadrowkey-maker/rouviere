@@ -12,6 +12,7 @@ import { type EtatEnfilade } from "@/components/gl/materiaux/piece";
 import { fenetre, PLEIN, type Boite } from "@/components/motion/plongee";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon } from "@/components/chrome/SonProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useOuverture } from "@/components/chrome/Ouverture";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
@@ -154,6 +155,7 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
   const enWebgl = useRig() !== null;
   const { jouer } = useSon();
   const { ouvrir } = useOuverture();
+  const { direTous } = useLangue();
 
   return (
     <article className="enfilade__piece" onFocusCapture={onFocusPiece}>
@@ -238,7 +240,7 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
       </Link>
 
       <p className="enfilade__legende technique">
-        {projet.matieres.join(" / ")}
+        {direTous(projet.matieres).join(" / ")}
       </p>
 
       <ScenePiece
@@ -262,6 +264,7 @@ type Sortie = { clip: string };
 
 export function Enfilade() {
   const { mouvementReduit, degrade } = useMouvement();
+  const { t } = useLangue();
   const { lenis } = useDefilement();
 
   const sectionRef = useRef<HTMLElement>(null);
@@ -533,12 +536,12 @@ export function Enfilade() {
     <section
       className="enfilade"
       ref={sectionRef}
-      data-chapitre="L'Enfilade"
+      data-chapitre={t("chapitreEnfilade")}
       data-reduit={mouvementReduit}
       aria-labelledby="enfilade-titre"
     >
       <h2 className="sr-only" id="enfilade-titre">
-        Cinq projets
+        {t("enfiladeTitre")}
       </h2>
 
       <div className="enfilade__scene" ref={sceneRef}>

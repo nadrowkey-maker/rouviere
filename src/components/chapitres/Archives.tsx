@@ -1,6 +1,10 @@
+"use client";
+
+import { useMemo } from "react";
 import Link from "next/link";
 import { projets } from "@/data/projets";
 import { archives } from "@/data/archives";
+import { useLangue } from "@/i18n/LangueProvider";
 import "./archives.css";
 
 /**
@@ -39,43 +43,54 @@ type Ligne = {
 /* Le corps complet de l'atelier : les cinq projets récents, puis les archives
    plus anciennes, du plus récent au plus ancien. Les récents portent un lien
    vers leur chambre — ils ont des images ailleurs ; les archives n'en ont pas,
-   c'est le propos. */
-const lignes: Ligne[] = [
-  ...projets.map((projet) => ({
-    nom: projet.nom,
-    lieu: projet.lieu,
-    annee: projet.annee,
-    mention: `${projet.surface} m² — ${projet.matieres.join(", ")}`,
-    href: `/projets/${projet.slug}`,
-  })),
-  ...archives.map((archive) => ({
-    nom: archive.nom,
-    lieu: archive.lieu,
-    annee: archive.annee,
-    mention: archive.mention,
-  })),
-].sort((a, b) => b.annee - a.annee);
+   c'est le propos.
 
+   La liste se construit **dans** le composant depuis qu'elle porte du texte
+   traduit : au niveau du module, elle serait figée dans la langue du premier
+   rendu. Elle ne se recalcule qu'au changement de langue. */
 export function Archives() {
+  const { t, dire, direTous } = useLangue();
+
+  const lignes = useMemo<Ligne[]>(
+    () =>
+      [
+        ...projets.map((projet) => ({
+          nom: projet.nom,
+          lieu: projet.lieu,
+          annee: projet.annee,
+          mention: `${projet.surface} m² — ${direTous(projet.matieres).join(", ")}`,
+          href: `/projets/${projet.slug}`,
+        })),
+        ...archives.map((archive) => ({
+          nom: archive.nom,
+          lieu: archive.lieu,
+          annee: archive.annee,
+          mention: dire(archive.mention),
+        })),
+      ].sort((a, b) => b.annee - a.annee),
+    [dire, direTous],
+  );
+
   return (
     <section
       className="archives"
-      data-chapitre="Les Archives"
+      data-chapitre={t("chapitreArchives")}
       aria-labelledby="archives-titre"
     >
       <header className="archives__entete">
         <h1 className="archives__mot display-monument" id="archives-titre">
-          Archives
+          {t("archivesMot")}
         </h1>
 
         {/* L'ombre en cascade : une copie du mot, cachée aux lecteurs d'écran,
             posée derrière le mot net et passée au filtre. */}
         <span className="archives__ombre display-monument" aria-hidden="true">
-          Archives
+          {t("archivesMot")}
         </span>
 
         <p className="archives__compte technique">
-          {lignes.length} chantiers depuis 2011 — {archives.length} sans images
+          {lignes.length} {t("archivesCompteAvant")} {archives.length}{" "}
+          {t("archivesCompteApres")}
         </p>
       </header>
 
@@ -93,6 +108,8 @@ export function Archives() {
 }
 
 function LigneContenu({ ligne }: { ligne: Ligne }) {
+  const { t } = useLangue();
+  const curseur = t("curseurVoir");
   const contenu = (
     <>
       <span className="archives__nom">{ligne.nom}</span>
@@ -106,7 +123,7 @@ function LigneContenu({ ligne }: { ligne: Ligne }) {
 
   if (ligne.href !== undefined) {
     return (
-      <Link className="archives__entree" href={ligne.href} data-curseur="VOIR">
+      <Link className="archives__entree" href={ligne.href} data-curseur={curseur}>
         {contenu}
       </Link>
     );

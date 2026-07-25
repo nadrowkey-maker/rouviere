@@ -7,6 +7,7 @@ import { rangDe, type Projet } from "@/data/projets";
 import { visuelsDe } from "@/data/visuels";
 import { useRevele } from "@/components/motion/useRevele";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useSon } from "@/components/chrome/SonProvider";
 import { useChrome } from "@/components/chrome/ChromeProvider";
 import {
@@ -49,6 +50,7 @@ import "./chambre.css";
  */
 export function Chambre({ projet }: { projet: Projet }) {
   const { mouvementReduit } = useMouvement();
+  const { t, dire, direTous } = useLangue();
   const { entrerProjet, quitterProjet } = useSon();
   const { menuOuvert } = useChrome();
   const flux = useVideoProjet();
@@ -329,12 +331,14 @@ export function Chambre({ projet }: { projet: Projet }) {
       {/* ---- La fiche : sobre, dernière ---- */}
       <section className="chambre__fiche grille" ref={ficheRef}>
         <div className="chambre__programme">
-          <p className="technique">Programme</p>
-          <p className="chambre__revele chambre__chapo">{projet.programme}</p>
+          <p className="technique">{t("chambreProgramme")}</p>
+          <p className="chambre__revele chambre__chapo">
+            {dire(projet.programme)}
+          </p>
         </div>
 
         <div className="chambre__texte">
-          {projet.fiche.map((paragraphe) => (
+          {direTous(projet.fiche).map((paragraphe) => (
             <p className="chambre__revele" key={paragraphe.slice(0, 24)}>
               {paragraphe}
             </p>
@@ -345,8 +349,10 @@ export function Chambre({ projet }: { projet: Projet }) {
         <p className="chambre__ligne chambre__revele technique">
           <span>{projet.lieu}</span>
           <span>{projet.surface} m²</span>
-          <span>livraison {projet.livraison}</span>
-          <span>{projet.matieres.join(" / ")}</span>
+          <span>
+            {t("chambreLivraison")} {dire(projet.livraison)}
+          </span>
+          <span>{direTous(projet.matieres).join(" / ")}</span>
           <span>{projet.photographe}</span>
         </p>
       </section>

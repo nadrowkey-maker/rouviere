@@ -1,0 +1,64 @@
+/* La bascule de langue. Deux codes, un filet entre eux.
+
+   Régime du chrome : aucune couleur propre. Le `difference` est porté par
+   `.barre-nav__droite` (voir `barre-nav.css`), les codes n'héritent que de
+   `currentColor`. L'état actif ne peut donc pas se marquer par une teinte — il
+   se marque par la densité, exactement comme le libellé du son. */
+
+.langue {
+  display: inline-flex;
+  align-items: center;
+  color: currentColor;
+}
+
+.langue__cellule {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Le filet : un trait d'un pixel, de la hauteur d'une capitale. Il sépare, il
+   ne décore pas — et il tient l'ensemble ensemble, ce qu'une barre oblique
+   typographique ferait moins bien à cette taille. */
+.langue__filet {
+  display: inline-block;
+  width: 1px;
+  height: 0.7em;
+  margin-inline: calc(var(--spacing) * 1.25);
+  background-color: currentColor;
+  opacity: 0.4;
+}
+
+.langue__code {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: currentColor;
+  cursor: pointer;
+  /* La langue au repos est en retrait ; l'active est pleine. Une seule
+     propriété change, et c'est la seule que le blend laisse passer. */
+  opacity: 0.42;
+  transition: opacity var(--duree-micro) var(--ease-seche);
+}
+
+.langue__code:hover,
+.langue__code:focus-visible {
+  opacity: 0.78;
+}
+
+.langue__code[data-actif="true"] {
+  opacity: 1;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------
+   Sur l'écran d'entrée
+   ------------------------------------------------------------------
+   Le sas n'a pas de barre de nav, et il n'est pas en `difference` : il est posé
+   sur un noir plein, où l'inversion ne donnerait que du blanc. La bascule y
+   prend donc la craie franchement, et une taille un cran au-dessus — c'est le
+   premier écran, et c'est le seul endroit où le choix de la langue est une
+   décision d'entrée plutôt qu'un réglage.
+   ------------------------------------------------------------------ */
+.ecran-entree .langue {
+  color: var(--color-craie);
+}

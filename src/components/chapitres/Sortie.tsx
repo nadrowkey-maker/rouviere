@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ScrollTrigger } from "@/lib/gsap";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon } from "@/components/chrome/SonProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { largeurLogotype } from "@/lib/logotype";
 import "./sortie.css";
@@ -67,6 +68,7 @@ const PLAN = {
 export function Sortie() {
   const { mouvementReduit } = useMouvement();
   const { jouer, reglerSortie } = useSon();
+  const { t } = useLangue();
 
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -196,7 +198,7 @@ export function Sortie() {
     <section
       className="sortie"
       id="contact"
-      data-chapitre="La Sortie"
+      data-chapitre={t("chapitreSortie")}
       aria-labelledby="sortie-titre"
       ref={sectionRef}
     >
@@ -227,7 +229,7 @@ export function Sortie() {
             muted
             loop
             playsInline
-            aria-label={PLAN.alt}
+            aria-label={t("sortiePlanAlt")}
           />
         )}
       </div>
@@ -288,7 +290,7 @@ export function Sortie() {
             <a
               className="sortie__lien sortie__courriel"
               href={`mailto:${ADRESSE}`}
-              data-curseur="ÉCRIRE"
+              data-curseur={t("curseurEcrire")}
               onClick={copierAdresse}
             >
               {ADRESSE}
@@ -297,16 +299,16 @@ export function Sortie() {
                 aria-hidden="true"
                 data-vu={copie}
               >
-                adresse copiée
+                {t("sortieCopie")}
               </span>
             </a>
             {/* Le retour est annoncé aux lecteurs d'écran sans voler le focus. */}
             <span className="sr-only" role="status" aria-live="polite">
-              {copie ? "Adresse copiée dans le presse-papier." : ""}
+              {copie ? t("sortieCopieAnnonce") : ""}
             </span>
           </p>
           <p className="sortie__mention technique">
-            Atelier fondé 2011 — sur recommandation
+            {t("sortieMention")}
           </p>
         </div>
       </address>

@@ -16,14 +16,29 @@
   overflow: clip;
 }
 
+/* ---- Le couloir, et pourquoi il ne commence pas dans la marge ----
+
+   Il commençait dans la marge, et c'était un bug de composition qu'on ne
+   voyait pas comme tel : **la première pièce n'atteignait jamais le centre du
+   cadre.** Or la dominance d'un nom est une fonction de la distance de sa pièce
+   à ce centre. Le premier nom naissait donc à densité nulle, s'éloignait dès la
+   première frame, et n'était jamais lisible — un projet sur cinq sans titre.
+
+   Les deux retraits valent maintenant `50vw` moins la demi-largeur d'une pièce.
+   Course à zéro, la première est exactement centrée ; course à un, le couloir
+   ayant glissé de `scrollWidth − 100vw`, la dernière l'est aussi. Chaque pièce
+   passe par le centre, donc chaque nom a son moment. C'est la condition pour
+   que « un seul dominant à la fois » veuille dire quelque chose : encore
+   faut-il que chacun le soit une fois.
+
+   La largeur employée est celle des pièces de rang impair non multiple de
+   trois — la première et la cinquième —, seule variante qui compte ici. */
 .enfilade__couloir {
   position: relative;
   display: flex;
   align-items: center;
   height: 100%;
-  /* Le couloir commence dans la marge et finit dedans : la première pièce
-     n'est pas collée au bord, la dernière ne bute pas contre lui. */
-  padding-inline: var(--marge) 45vw;
+  padding-inline: calc(50vw - clamp(18rem, 34vw, 34rem) / 2);
   column-gap: clamp(6rem, 14vw, 18rem);
   width: max-content;
   will-change: transform;
@@ -59,7 +74,13 @@
   left: 50%;
   translate: -50% 0;
   white-space: nowrap;
-  font-size: var(--text-titre);
+  /* **Le nom se plafonne aussi en hauteur de fenêtre**, et pas seulement en
+     largeur. Il est posé au-dessus de sa pièce ; sur un écran bas, une pièce du
+     format le plus haut ne laisse plus assez d'air au-dessus d'elle, et le nom
+     sortait par le haut du cadre — c'est ce qu'on voyait sur la dernière. Onze
+     pour cent de la hauteur laissent la ligne des noms dans le cadre quel que
+     soit le format de l'écran, et le nom reste énorme là où il y a la place. */
+  font-size: min(var(--text-titre), 11vh);
   color: var(--color-craie);
   pointer-events: none;
   /* L'échelle prend le nom par son centre : un nom qui recule ne dérive pas. */
@@ -78,10 +99,24 @@
 
 /* Le cadre du média. Vide : c'est le rig qui peint dedans, en dessous du DOM.
    L'image reste là pour le mode dégradé et pour le temps du chargement. */
+/* Le cadre du média. Vide : c'est le rig qui peint dedans.
+
+   **Le plafond de hauteur est la seconde moitié du correctif du nom.** Le
+   format le plus haut du couloir (4/5) donnait, sur un écran bas, une pièce si
+   grande qu'il ne restait rien au-dessus d'elle : le nom, posé dans cette
+   marge, en sortait. Cinquante-deux pour cent de la hauteur réservent la bande
+   des noms sur tous les écrans.
+
+   Le rapport cède donc au plafond quand les deux se contredisent, et c'est sans
+   conséquence : la pièce est une **fenêtre** sur une image plein écran, pas un
+   cadre où l'on met une image à l'échelle. Une fenêtre plus basse montre moins
+   de l'image, elle ne la déforme pas — ni pour l'`<img>` en `cover`, ni pour le
+   plan WebGL qui échantillonne le même rect. */
 .enfilade__media {
   position: relative;
   margin: 0;
   aspect-ratio: 4 / 5;
+  max-height: 52vh;
   overflow: clip;
 }
 

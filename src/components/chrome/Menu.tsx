@@ -18,6 +18,7 @@ import {
 import { donneesEconomes } from "@/lib/capacites";
 import { visuels } from "@/data/visuels";
 import { useChrome } from "./ChromeProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useSon } from "./SonProvider";
 import { useVideoProjet, armerReleve } from "./VideoProjet";
 import { entreesParcours, entreesProjets, type Entree } from "./entrees";
@@ -88,6 +89,7 @@ export function Menu() {
   const { arreter, reprendre } = useDefilement();
   const { mouvementReduit } = useMouvement();
   const { jouer } = useSon();
+  const { t } = useLangue();
   const flux = useVideoProjet();
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -549,7 +551,9 @@ export function Menu() {
           }}
           onFocus={() => (projet ? survolerProjet(entree) : quitterApercu())}
         >
-          {entree.label}
+          {/* Nom propre affiché tel quel, ou passage du parcours résolu au
+              dictionnaire. Voir `entrees.ts`. */}
+          {entree.label ?? (entree.cle !== undefined ? t(entree.cle) : "")}
         </Link>
       </span>
       {projet && entree.detail ? (
@@ -586,7 +590,7 @@ export function Menu() {
 
       <nav
         className="menu__contenu"
-        aria-label="Menu"
+        aria-label={t("menu")}
         onMouseLeave={quitterApercu}
       >
         <ul className="menu__liste menu__liste--projets">
@@ -596,7 +600,7 @@ export function Menu() {
           {entreesParcours.map((entree) => rendreEntree(entree, false))}
         </ul>
         <p className="menu__pied technique">
-          14 rue de Beaune, Paris VII — Atelier fondé 2011
+          {t("menuPied")}
         </p>
       </nav>
     </div>

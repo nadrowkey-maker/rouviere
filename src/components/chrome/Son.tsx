@@ -1,6 +1,7 @@
 "use client";
 
 import { useSon } from "./SonProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import "./son.css";
 
 /**
@@ -17,6 +18,7 @@ import "./son.css";
  */
 export function Son() {
   const { sonActif, basculerSon } = useSon();
+  const { t } = useLangue();
 
   return (
     <button
@@ -24,7 +26,7 @@ export function Son() {
       className="son"
       onClick={basculerSon}
       aria-pressed={sonActif}
-      aria-label={sonActif ? "Couper le son" : "Activer le son"}
+      aria-label={sonActif ? t("sonCouper") : t("sonActiver")}
       data-actif={sonActif}
     >
       <span className="son__barres" aria-hidden="true">
@@ -32,7 +34,7 @@ export function Son() {
         <span className="son__barre" />
         <span className="son__barre" />
       </span>
-      <span className="son__label technique">Son</span>
+      <span className="son__label technique">{t("son")}</span>
     </button>
   );
 }

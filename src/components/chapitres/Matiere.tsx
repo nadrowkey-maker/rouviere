@@ -6,6 +6,7 @@ import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { matieres, LARGEUR_MATIERE, HAUTEUR_MATIERE } from "@/data/matieres";
 import { PLANCHE_SORTIE } from "@/data/visuels";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import "./matiere.css";
 
@@ -119,6 +120,7 @@ function minutage(nombre: number): number[] {
 
 export function Matiere() {
   const { mouvementReduit } = useMouvement();
+  const { t, dire } = useLangue();
 
   const traverseeRef = useRef<HTMLDivElement>(null);
   const cadreRef = useRef<HTMLDivElement>(null);
@@ -335,13 +337,13 @@ export function Matiere() {
       aria-labelledby="matiere-titre"
     >
       <h2 className="sr-only" id="matiere-titre">
-        La matière
+        {t("matiereTitre")}
       </h2>
 
       {/* ---- La traversée des trois matières ---- */}
       <div
         className="matiere__traversee"
-        data-chapitre="La Matière"
+        data-chapitre={t("chapitreMatiere")}
         data-reduit={mouvementReduit}
         ref={traverseeRef}
         /* Un écran de course par matière : la hauteur vient du manifeste, pas
@@ -371,7 +373,7 @@ export function Matiere() {
                   src={matiere.plan.poster}
                   width={LARGEUR_MATIERE}
                   height={HAUTEUR_MATIERE}
-                  alt={matiere.plan.alt}
+                  alt={dire(matiere.plan.alt)}
                   sizes="100vw"
                 />
               ) : (
@@ -391,7 +393,7 @@ export function Matiere() {
                   muted
                   loop
                   playsInline
-                  aria-label={matiere.plan.alt}
+                  aria-label={dire(matiere.plan.alt)}
                 />
               )}
 
@@ -411,9 +413,9 @@ export function Matiere() {
                       {/* Le nom découpé est doublé d'un équivalent lisible : les
                           mots sont des blocs, et rien ne garantit qu'un lecteur
                           d'écran restitue l'espace qui les sépare. */}
-                      <span className="sr-only">{matiere.nom}</span>
+                      <span className="sr-only">{dire(matiere.nom)}</span>
                       <span className="matiere__lignes" aria-hidden="true">
-                        {matiere.nom.split(" ").map((mot) => (
+                        {dire(matiere.nom).split(" ").map((mot) => (
                           <span className="matiere__mot" key={mot}>
                             <span className="matiere__ligne">{mot}</span>
                           </span>
@@ -421,7 +423,7 @@ export function Matiere() {
                       </span>
                     </>
                   ) : (
-                    matiere.nom
+                    dire(matiere.nom)
                   )}
                 </h3>
               </figcaption>

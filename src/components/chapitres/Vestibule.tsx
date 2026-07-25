@@ -10,6 +10,7 @@ import { useRig } from "@/components/gl/Rig";
 import type { EtatBassin } from "@/components/gl/materiaux/bassin";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon } from "@/components/chrome/SonProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { useSequence } from "./useSequence";
 import "./vestibule.css";
@@ -195,8 +196,19 @@ const MINUTAGE = {
    * fait de noir à noir, donc il est strictement invisible ; et le chapitre
    * s'ouvre par une pièce qui émerge au lieu d'une image qu'on allume. C'est le
    * pendant exact de l'extinction qui le referme.
+   *
+   * **La courbe compte autant que la plage, et c'est ce qui manquait.** La
+   * montée était en `power2.out`, qui se jette : au dixième de sa course elle
+   * avait déjà rendu un cinquième de la lumière, et les quatre-vingt-dix pour
+   * cent restants ne servaient plus à rien. On voyait donc encore la pièce
+   * arriver d'un coup, sur une plage pourtant longue.
+   *
+   * C'est exactement la leçon déjà payée sur l'entrée du son (`emerger()` dans
+   * `SonProvider`) : la perception ne suit pas la valeur. Une chose qui sort du
+   * noir doit partir lentement, sans quoi elle ne sort pas du noir, elle y
+   * apparaît. D'où `power2.in`, et une plage franchement longue.
    */
-  ignition: [0.0, 0.045],
+  ignition: [0.0, 0.075],
   unEntree: [0.01, 0.04],
   unSortie: [0.075, 0.105],
   deuxEntree: [0.125, 0.155],
@@ -241,6 +253,7 @@ export function Vestibule() {
   const enWebgl = useRig() !== null;
   const { mouvementReduit, degrade } = useMouvement();
   const { reglerEau, couperNappes } = useSon();
+  const { t, dire } = useLangue();
 
   const courseRef = useRef<HTMLDivElement>(null);
   const cadreRef = useRef<HTMLDivElement>(null);
@@ -388,14 +401,20 @@ export function Vestibule() {
         0,
       );
 
-      /* La pièce monte du noir. `power2.out` : elle sort vite de rien, puis se
-         pose — une émergence, pas une montée linéaire qu'on verrait progresser. */
+      /* La pièce monte du noir, en `power2.in` : elle démarre à peine, puis
+         vient. Voir `MINUTAGE.ignition` — une courbe `out` ici rendait la
+         lumière dans le premier dixième de sa plage, et l'on retombait sur le
+         surgissement qu'on cherchait à supprimer. */
       if (plan !== null) {
-        const [id, if_] = MINUTAGE.ignition;
+        const [debutIgnition, finIgnition] = MINUTAGE.ignition;
         tl.to(
           plan,
-          { "--expo": EXPOSITION, duration: if_ - id, ease: "power2.out" },
-          id,
+          {
+            "--expo": EXPOSITION,
+            duration: finIgnition - debutIgnition,
+            ease: "power2.in",
+          },
+          debutIgnition,
         );
       }
 
@@ -575,7 +594,7 @@ export function Vestibule() {
       <section
         className="vestibule vestibule--pose"
         data-reduit="true"
-        data-chapitre="Le Vestibule"
+        data-chapitre={t("chapitreVestibule")}
         aria-labelledby="vestibule-titre"
       >
         <h2 className="sr-only" id="vestibule-titre">
@@ -584,13 +603,14 @@ export function Vestibule() {
 
         <div className="vestibule__pose grille">
           <p className="vestibule__manifeste display">
-            Je ne décore pas. Je règle la <em>lumière</em>, la matière et le
-            silence. Le reste appartient aux gens qui vivent là.
+            {t("manifesteUn")} {t("manifesteDeux")} <em>{t("manifesteLumiere")}</em>
+            , {t("manifesteAutourAvant")}
+            {t("manifesteSilence")}. {t("manifesteSept")}
           </p>
-          <p className="vestibule__signature technique">Camille Rouvière</p>
+          <p className="vestibule__signature technique">{t("signature")}</p>
           <aside className="vestibule__marge technique">
-            <p>Atelier fondé 2011 — Paris VII</p>
-            <p>Cinq chantiers par an</p>
+            <p>{t("margeFondation")}</p>
+            <p>{t("margeChantiers")}</p>
           </aside>
         </div>
 
@@ -600,7 +620,7 @@ export function Vestibule() {
             src={PLAN_ALLUME.src}
             width={PLAN_ALLUME.largeur}
             height={PLAN_ALLUME.hauteur}
-            alt={PLAN_ALLUME.alt}
+            alt={t("planAllumeAlt")}
             sizes="100vw"
           />
         </div>
@@ -611,10 +631,12 @@ export function Vestibule() {
             src={bassin.repli}
             width={bassin.largeurRepli}
             height={bassin.hauteurRepli}
-            alt="Le bassin, vu à plat. La surface porte quelques ondes."
+            alt={t("bassinAlt")}
             sizes="100vw"
           />
-          <p className="vestibule__technique technique">{bassin.technique}</p>
+          <p className="vestibule__technique technique">
+            {dire(bassin.technique)}
+          </p>
         </div>
       </section>
     );
@@ -626,7 +648,7 @@ export function Vestibule() {
       /* Porté par la section : c'est elle qui remonte d'un écran sur le hero,
          et le recouvrement n'a pas lieu en mouvement réduit. */
       data-reduit="false"
-      data-chapitre="Le Vestibule"
+      data-chapitre={t("chapitreVestibule")}
       aria-labelledby="vestibule-titre"
     >
       <h2 className="sr-only" id="vestibule-titre">
@@ -636,10 +658,7 @@ export function Vestibule() {
       {/* La séquence fragmente le manifeste en sept temps : il est donné ici
           d'un seul tenant, dans l'ordre, pour être lu intact. Les couches
           visuelles qui suivent en sont la mise en scène, et rien d'autre. */}
-      <p className="sr-only">
-        Je ne décore pas. Je règle la lumière, la matière et le silence. Le reste
-        appartient aux gens qui vivent là. Camille Rouvière.
-      </p>
+      <p className="sr-only">{t("manifesteEntier")}</p>
 
       <div
         className="vestibule__course"
@@ -699,7 +718,7 @@ export function Vestibule() {
               celle du logotype au seuil ; elle est portée par le mot, le blend
               par le paragraphe. */}
           <p className="vestibule__lumiere display-monument" ref={lumiereRef}>
-            <span className="vestibule__lumiere-mot">lumière</span>
+            <span className="vestibule__lumiere-mot">{t("manifesteLumiere")}</span>
           </p>
 
           {/* Les deux premières phrases : **en haut à gauche, et en retrait.**
@@ -714,14 +733,14 @@ export function Vestibule() {
               className="vestibule__temps vestibule__temps--annonce display"
               data-temps="un"
             >
-              <span className="vestibule__ligne">Je ne décore pas.</span>
+              <span className="vestibule__ligne">{t("manifesteUn")}</span>
             </p>
 
             <p
               className="vestibule__temps vestibule__temps--annonce display"
               data-temps="deux"
             >
-              <span className="vestibule__ligne">Je règle la</span>
+              <span className="vestibule__ligne">{t("manifesteDeux")}</span>
             </p>
           </div>
 
@@ -731,15 +750,17 @@ export function Vestibule() {
           <div className="vestibule__bloc vestibule__bloc--centre">
             <p className="vestibule__temps display" data-temps="cinq">
               <span className="vestibule__ligne">
-                <span className="vestibule__autour">la matière et le </span>
-                <span className="vestibule__silence">silence</span>
+                <span className="vestibule__autour">
+                  {t("manifesteAutourAvant")}
+                </span>
+                <span className="vestibule__silence">{t("manifesteSilence")}</span>
                 <span className="vestibule__autour">.</span>
               </span>
             </p>
 
             <p className="vestibule__temps display" data-temps="sept">
               <span className="vestibule__ligne">
-                Le reste appartient aux gens qui vivent là.
+                {t("manifesteSept")}
               </span>
             </p>
           </div>
@@ -747,8 +768,8 @@ export function Vestibule() {
           {/* La couche technique traîne dans la marge droite — jusqu'à
               l'allumage, qui l'emporte avec lui. */}
           <aside className="vestibule__marge technique">
-            <p>Atelier fondé 2011 — Paris VII</p>
-            <p>Cinq chantiers par an</p>
+            <p>{t("margeFondation")}</p>
+            <p>{t("margeChantiers")}</p>
           </aside>
         </div>
       </div>

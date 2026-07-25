@@ -7,6 +7,7 @@ import { useLogo } from "@/components/chrome/LogoProvider";
 import { useSon } from "@/components/chrome/SonProvider";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { largeurLogotype } from "@/lib/logotype";
 import "./seuil.css";
@@ -55,6 +56,7 @@ export function Seuil() {
   const { activerSon, reglerSortieHero } = useSon();
   const { arreter, reprendre } = useDefilement();
   const { mouvementReduit } = useMouvement();
+  const { t } = useLangue();
 
   const [pret, setPret] = useState(false);
 
@@ -336,7 +338,7 @@ export function Seuil() {
   }, []);
 
   return (
-    <section className="hero" data-chapitre="Le Seuil" ref={heroRef}>
+    <section className="hero" data-chapitre={t("chapitreSeuil")} ref={heroRef}>
       {/* Le titre principal de la page vit ici, dans le hero qui reste toujours
           monté — jamais dans l'écran d'entrée, masqué au rechargement. */}
       <h1 className="sr-only">

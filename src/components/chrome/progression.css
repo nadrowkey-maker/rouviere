@@ -37,3 +37,11 @@
   /* Pas de transition : la valeur vient déjà lissée de Lenis via ScrollTrigger.
      Une transition par-dessus ajouterait un retard mou. */
 }
+
+/* Pendant l'écran d'entrée, la jauge n'a rien à jauger : on n'a pas commencé
+   le parcours. Même raison que le nom du chapitre — le chrome vit hors de
+   `.scene-page` et n'est donc pas couvert par le sas. */
+.seuil-a-jouer .progression {
+  opacity: 0;
+  visibility: hidden;
+}

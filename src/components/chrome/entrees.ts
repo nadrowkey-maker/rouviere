@@ -1,4 +1,5 @@
 import { projets } from "@/data/projets";
+import type { Cle } from "@/i18n/dictionnaire";
 
 /**
  * Les entrées du menu. Le menu n'est pas une liste de liens : c'est l'endroit
@@ -12,7 +13,16 @@ import { projets } from "@/data/projets";
  */
 
 export type Entree = {
-  label: string;
+  /**
+   * Le nom propre d'un projet, affiché tel quel — « Villa Calcaire » ne se
+   * traduit dans aucune langue. Absent pour les passages du parcours.
+   */
+  label?: string;
+  /**
+   * La clé de dictionnaire d'un passage du parcours, que le menu résout à
+   * l'affichage. Absente pour les projets.
+   */
+  cle?: Cle;
   href: string;
   /** Le slug du projet, pour retrouver sa vidéo d'aperçu au survol. */
   slug?: string;
@@ -33,7 +43,7 @@ export const entreesProjets: Entree[] = projets.map((projet) => ({
 }));
 
 export const entreesParcours: Entree[] = [
-  { label: "L'Atelier", href: "/#atelier" },
-  { label: "Les Archives", href: "/archives" },
-  { label: "Contact", href: "/#contact" },
+  { cle: "entreeAtelier", href: "/#atelier" },
+  { cle: "entreeArchives", href: "/archives" },
+  { cle: "entreeContact", href: "/#contact" },
 ];

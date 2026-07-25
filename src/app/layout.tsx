@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { variablesPolices } from "@/lib/fonts";
+import { LangueProvider } from "@/i18n/LangueProvider";
 import { MotionProvider } from "@/components/motion/MotionProvider";
 import { LenisProvider } from "@/components/motion/LenisProvider";
 import { RigProvider } from "@/components/gl/Rig";
@@ -67,6 +68,9 @@ export default function RootLayout({
         <a className="evitement" href="#contenu">
           Aller au contenu
         </a>
+        {/* La langue enveloppe tout : le chrome comme les chapitres en
+            dépendent, et elle ne doit jamais se remonter. */}
+        <LangueProvider>
         <MotionProvider>
           <LenisProvider>
             <RigProvider>
@@ -99,6 +103,7 @@ export default function RootLayout({
             </RigProvider>
           </LenisProvider>
         </MotionProvider>
+        </LangueProvider>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useChrome } from "./ChromeProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import "./burger.css";
 
 /**
@@ -19,6 +20,7 @@ import "./burger.css";
  */
 export function Burger() {
   const { menuOuvert, basculerMenu, burgerRef } = useChrome();
+  const { t } = useLangue();
 
   return (
     <button
@@ -27,7 +29,7 @@ export function Burger() {
       className="burger"
       aria-expanded={menuOuvert}
       aria-controls="menu-principal"
-      aria-label={menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}
+      aria-label={menuOuvert ? t("menuFermer") : t("menuOuvrir")}
       data-ouvert={menuOuvert}
       onClick={basculerMenu}
     >

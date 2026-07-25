@@ -4,6 +4,7 @@ import { useRef } from "react";
 import Image from "next/image";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { planchesAtelier, texteAtelier } from "@/data/atelier";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { decalageDans } from "@/lib/mesure";
@@ -126,6 +127,7 @@ const PLONGEE_RELAIS = 0.2;
 
 export function Atelier() {
   const { mouvementReduit } = useMouvement();
+  const { t, dire } = useLangue();
   const sectionRef = useRef<HTMLElement>(null);
   /* Les deux instances du plan filmé : celle du guichet, celle du plein cadre.
      Elles montrent le même fichier, et la seconde se cale sur la première à
@@ -217,15 +219,15 @@ export function Atelier() {
       className="atelier"
       id="atelier"
       ref={sectionRef}
-      data-chapitre="L'Atelier"
+      data-chapitre={t("chapitreAtelier")}
       data-reduit={mouvementReduit}
       aria-labelledby="atelier-titre"
     >
       <header className="atelier__entete grille">
         <h2 className="atelier__titre display" id="atelier-titre">
-          {texteAtelier.titre}
+          {dire(texteAtelier.titre)}
         </h2>
-        <p className="atelier__chapo">{texteAtelier.chapo}</p>
+        <p className="atelier__chapo">{dire(texteAtelier.chapo)}</p>
       </header>
 
       <div className="atelier__sequence">
@@ -261,7 +263,7 @@ export function Atelier() {
                         src={planche.poster}
                         width={planche.largeurFichier}
                         height={planche.hauteurFichier}
-                        alt={planche.alt}
+                        alt={dire(planche.alt)}
                         sizes="100vw"
                       />
                     ) : (
@@ -278,7 +280,7 @@ export function Atelier() {
                         muted
                         loop
                         playsInline
-                        aria-label={planche.alt}
+                        aria-label={dire(planche.alt)}
                       />
                     )
                   ) : (
@@ -287,13 +289,13 @@ export function Atelier() {
                       src={planche.src}
                       width={planche.largeurFichier}
                       height={planche.hauteurFichier}
-                      alt={planche.alt}
+                      alt={dire(planche.alt)}
                       sizes={`(max-width: 48rem) 100vw, ${Math.round(planche.largeur)}vw`}
                     />
                   )}
                 </div>
                 <figcaption className="atelier__note technique">
-                  {planche.note}
+                  {dire(planche.note)}
                 </figcaption>
               </figure>
 
@@ -330,7 +332,7 @@ export function Atelier() {
                   marge opposée à celle qui vient de passer. */}
               {paragraphe !== undefined ? (
                 <p className="atelier__texte" data-cote={planche.cote}>
-                  {paragraphe.texte}
+                  {dire(paragraphe.texte)}
                 </p>
               ) : null}
             </div>

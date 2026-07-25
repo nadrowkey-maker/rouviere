@@ -32,3 +32,20 @@
 .chapitre-courant__mot[data-vide="true"] {
   opacity: 0;
 }
+
+/* ------------------------------------------------------------------
+   Pendant l'écran d'entrée : rien.
+   ------------------------------------------------------------------
+   Le chrome vit hors de `.scene-page`, donc au-dessus d'elle quoi qu'il
+   arrive : le `z-index: 200` de l'écran d'entrée ne le couvre pas, il ne
+   couvre que ce qui partage son contexte d'empilement. Le nom du chapitre
+   traversait donc le plein noir du sas, et l'on lisait « LE SEUIL » sous les
+   deux choix — une étiquette de débogage sur la première image du site.
+
+   Il n'y a rien à nommer tant qu'on n'est pas entré. On le retire, comme le
+   son et le burger le sont déjà.
+   ------------------------------------------------------------------ */
+.seuil-a-jouer .chapitre-courant {
+  opacity: 0;
+  visibility: hidden;
+}

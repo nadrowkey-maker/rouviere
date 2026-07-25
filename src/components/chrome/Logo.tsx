@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLogo } from "./LogoProvider";
+import { useLangue } from "@/i18n/LangueProvider";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { traverserLeSas } from "./traversee";
 import "./logo.css";
@@ -29,6 +30,7 @@ import "./logo.css";
 
 export function Logo() {
   const { ref } = useLogo();
+  const { t } = useLangue();
   const { lenis } = useDefilement();
   const pathname = usePathname();
 
@@ -37,7 +39,7 @@ export function Logo() {
       ref={ref}
       className="logo"
       href="/"
-      aria-label="Rouvière — accueil"
+      aria-label={t("logoAccueil")}
       onClick={(evenement) => {
         /* Déjà sur l'accueil : pas de navigation, mais pas non plus de
            rembobinage. Remonter neuf écrans en défilement lissé, c'est repasser

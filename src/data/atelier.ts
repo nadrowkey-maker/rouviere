@@ -34,6 +34,8 @@
  * lui-même.
  */
 
+import type { Texte } from "@/i18n/langues";
+
 export type PlancheAtelier = {
   src: string;
   /**
@@ -46,9 +48,9 @@ export type PlancheAtelier = {
   /** Dimensions réelles du fichier : `next/image` en a besoin, le CLS aussi. */
   largeurFichier: number;
   hauteurFichier: number;
-  alt: string;
+  alt: Texte;
   /** Une donnée de couche technique, décrochée sous la planche. */
-  note: string;
+  note: Texte;
   /** Hauteur du guichet, en unités de hauteur de fenêtre. Jamais sous 85. */
   hauteur: number;
   /** Largeur du guichet, en pourcentage de la colonne. Peut dépasser 100. */
@@ -69,8 +71,14 @@ export const planchesAtelier: PlancheAtelier[] = [
     src: "/media/atelier/plans.avif",
     largeurFichier: 1440,
     hauteurFichier: 1920,
-    alt: "Des plans d'exécution étalés sur une table, en désordre, sous une lumière rasante.",
-    note: "Relevé avant dépose — 14 rue de Beaune",
+    alt: {
+      fr: "Des plans d'exécution étalés sur une table, en désordre, sous une lumière rasante.",
+      en: "Working drawings spread across a table, out of order, under raking light.",
+    },
+    note: {
+      fr: "Relevé avant dépose — 14 rue de Beaune",
+      en: "Survey before strip-out — 14 rue de Beaune",
+    },
     hauteur: 100,
     largeur: 62,
     cote: "gauche",
@@ -81,8 +89,11 @@ export const planchesAtelier: PlancheAtelier[] = [
     poster: "/media/atelier/atelier-poster.avif",
     largeurFichier: 1920,
     hauteurFichier: 1080,
-    alt: "La grande table de l'atelier : lampe d'architecte, maquette de tour, plans en pile, élévations punaisées au mur.",
-    note: "Atelier — jour du nord",
+    alt: {
+      fr: "La grande table de l'atelier : lampe d'architecte, maquette de tour, plans en pile, élévations punaisées au mur.",
+      en: "The studio's long table: architect's lamp, tower model, stacked drawings, elevations pinned to the wall.",
+    },
+    note: { fr: "Atelier — jour du nord", en: "Studio — north light" },
     hauteur: 88,
     largeur: 108,
     cote: "droite",
@@ -92,8 +103,11 @@ export const planchesAtelier: PlancheAtelier[] = [
     src: "/media/atelier/maquette.avif",
     largeurFichier: 1280,
     hauteurFichier: 1920,
-    alt: "Une maquette de charpente en bois clair, montée à blanc, vue de près.",
-    note: "Charpente au cinquantième",
+    alt: {
+      fr: "Une maquette de charpente en bois clair, montée à blanc, vue de près.",
+      en: "A pale timber roof-frame model, dry-assembled, seen close.",
+    },
+    note: { fr: "Charpente au cinquantième", en: "Roof frame at 1:50" },
     hauteur: 95,
     largeur: 44,
     cote: "droite",
@@ -102,8 +116,14 @@ export const planchesAtelier: PlancheAtelier[] = [
     src: "/media/atelier/chantier.avif",
     largeurFichier: 1282,
     hauteurFichier: 1920,
-    alt: "Une pièce à blanc en chantier : enduit frais, tableaux de portes ouverts, le jour au fond.",
-    note: "Après dépose — avant tracé",
+    alt: {
+      fr: "Une pièce à blanc en chantier : enduit frais, tableaux de portes ouverts, le jour au fond.",
+      en: "A stripped room on site: fresh plaster, door reveals open, daylight at the far end.",
+    },
+    note: {
+      fr: "Après dépose — avant tracé",
+      en: "After strip-out — before setting out",
+    },
     hauteur: 100,
     largeur: 72,
     cote: "gauche",
@@ -112,8 +132,14 @@ export const planchesAtelier: PlancheAtelier[] = [
     src: "/media/atelier/dossiers.avif",
     largeurFichier: 1920,
     hauteurFichier: 1280,
-    alt: "Une pile de plans reliés par des pinces, posée sur une table claire.",
-    note: "Cinq à sept chantiers par an",
+    alt: {
+      fr: "Une pile de plans reliés par des pinces, posée sur une table claire.",
+      en: "A stack of drawings held by clips, set on a pale table.",
+    },
+    note: {
+      fr: "Cinq à sept chantiers par an",
+      en: "Five to seven projects a year",
+    },
     hauteur: 85,
     largeur: 92,
     cote: "droite",
@@ -122,8 +148,11 @@ export const planchesAtelier: PlancheAtelier[] = [
     src: "/media/atelier/chassis.avif",
     largeurFichier: 1235,
     hauteurFichier: 1920,
-    alt: "Le fond de l'atelier : des châssis appuyés contre le mur, des blouses accrochées, la verrière à droite.",
-    note: "Aucune presse, aucune enseigne",
+    alt: {
+      fr: "Le fond de l'atelier : des châssis appuyés contre le mur, des blouses accrochées, la verrière à droite.",
+      en: "The back of the studio: frames leaning on the wall, coats hung up, the glazed roof to the right.",
+    },
+    note: { fr: "Aucune presse, aucune enseigne", en: "No press, no sign" },
     hauteur: 100,
     largeur: 56,
     cote: "gauche",
@@ -137,24 +166,32 @@ export const planchesAtelier: PlancheAtelier[] = [
  * respirations de la séquence, jamais à côté d'une planche dominante.
  */
 export const texteAtelier = {
-  titre: "L'Atelier",
-  chapo:
-    "Camille Rouvière fonde l'atelier en 2011. Cinq à sept chantiers par an, jamais plus.",
+  titre: { fr: "L'Atelier", en: "The Studio" } as Texte,
+  chapo: {
+    fr: "Camille Rouvière fonde l'atelier en 2011. Cinq à sept chantiers par an, jamais plus.",
+    en: "Camille Rouvière founded the studio in 2011. Five to seven projects a year, never more.",
+  } as Texte,
   paragraphes: [
     {
       apres: 0,
-      texte:
-        "Le travail commence par la dépose. On retire les cloisons ajoutées, les corniches fausses, les faux plafonds, jusqu'à ce que le plan d'origine réapparaisse. Rien n'est dessiné avant ce moment-là.",
+      texte: {
+        fr: "Le travail commence par la dépose. On retire les cloisons ajoutées, les corniches fausses, les faux plafonds, jusqu'à ce que le plan d'origine réapparaisse. Rien n'est dessiné avant ce moment-là.",
+        en: "The work begins by taking things out. Added partitions, false cornices, dropped ceilings — all removed, until the original plan comes back. Nothing is drawn before that moment.",
+      } as Texte,
     },
     {
       apres: 2,
-      texte:
-        "Chaque matière est choisie pour ce qu'elle devient, pas pour ce qu'elle est le premier jour. Le laiton fonce sous les mains, le pin brûlé noircit au sel, la chaux se fend là où on l'a prévu. Le temps fait partie du projet.",
+      texte: {
+        fr: "Chaque matière est choisie pour ce qu'elle devient, pas pour ce qu'elle est le premier jour. Le laiton fonce sous les mains, le pin brûlé noircit au sel, la chaux se fend là où on l'a prévu. Le temps fait partie du projet.",
+        en: "Each material is chosen for what it becomes, not for what it is on the first day. Brass darkens under the hand, burnt pine blackens in the salt, lime cracks where it was meant to. Time is part of the project.",
+      } as Texte,
     },
     {
       apres: 4,
-      texte:
-        "L'atelier ne publie pas, ne démarche pas, ne reçoit que sur recommandation. Ce qui se voit ici est tout ce qui se montre.",
+      texte: {
+        fr: "L'atelier ne publie pas, ne démarche pas, ne reçoit que sur recommandation. Ce qui se voit ici est tout ce qui se montre.",
+        en: "The studio does not publish, does not solicit, and takes work by referral only. What is seen here is all that is shown.",
+      } as Texte,
     },
   ],
 };
