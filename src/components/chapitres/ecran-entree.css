@@ -1,0 +1,91 @@
+/* L'écran d'entrée. Un plein cadre noir au-dessus de tout le parcours et du
+   chrome — mais sous le curseur. Il n'existe que sous `seuil-a-jouer` : au
+   rechargement dans la même session, la classe est absente, l'écran est
+   `display: none` avant la première peinture, et l'on tombe droit sur le hero.
+
+   Repère des couches : le hero vit à z-index 1 (dans le parcours), le chrome de
+   50 à 60, le curseur à 9000. L'écran d'entrée se glisse à 200 : il couvre le
+   hero et le chrome le temps du choix, sans jamais masquer le curseur. */
+
+.ecran-entree {
+  display: none;
+}
+
+.seuil-a-jouer .ecran-entree {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background-color: #000;
+}
+
+/* Le bloc de contenu est décroché en bas à gauche, jamais centré : même un sas
+   respecte la tension de la grille. */
+.ecran-entree__bloc {
+  position: absolute;
+  left: var(--marge);
+  bottom: clamp(3rem, 12vh, 8rem);
+  display: grid;
+  row-gap: clamp(1.75rem, 4vh, 3rem);
+  max-width: min(90vw, 40rem);
+}
+
+/* Le logotype « en petit » propre à l'écran d'entrée — distinct du nœud signature
+   du geste, qui n'entre en scène qu'à l'apparition. En craie, pas en blend :
+   sur fond noir pur, le négatif d'un difference donnerait le même blanc, autant
+   le poser franchement. */
+.ecran-entree__logo {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 1.3vw, 1.3rem);
+  letter-spacing: 0.42em;
+  padding-left: 0.42em;
+  color: var(--color-craie);
+}
+
+.ecran-entree__choix {
+  display: grid;
+  row-gap: clamp(0.75rem, 1.5vh, 1.25rem);
+  justify-items: start;
+}
+
+/* Un choix, pas un bouton d'appel à l'action : pas de fond, pas de rebond. Du
+   texte en Gambetta, sobre, qu'un liseré souligne au survol. */
+.ecran-entree__bouton {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: var(--tracking-titre);
+  color: var(--color-craie);
+  text-align: left;
+  padding: 0;
+  /* Le liseré de survol : une arête laiton qui pousse sous le mot. */
+  border-bottom: 1px solid transparent;
+  transition:
+    color var(--duree-micro) var(--ease-seche),
+    border-color var(--duree-micro) var(--ease-seche),
+    opacity var(--duree-objet) var(--ease-sortie);
+}
+
+.ecran-entree__bouton:hover {
+  color: var(--color-craie);
+  border-bottom-color: var(--color-laiton);
+}
+
+/* Tant que le hero n'est pas prêt, les choix sont là mais inertes : ni
+   pourcentage, ni animation de chargement — seulement l'attente, discrète. */
+.ecran-entree__bouton:disabled {
+  opacity: 0.32;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Mouvement réduit : aucune transition d'opacité au moment où les choix
+   s'activent — ils sont simplement là. */
+@media (prefers-reduced-motion: reduce) {
+  .ecran-entree__bouton {
+    transition:
+      color var(--duree-micro) var(--ease-seche),
+      border-color var(--duree-micro) var(--ease-seche);
+  }
+}

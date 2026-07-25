@@ -50,6 +50,11 @@ import { useMouvement } from "@/components/motion/MotionProvider";
  * progression du défilement hors du hero**, poussée ici par le seuil
  * (`reglerSortieHero`). On remonte, la nappe du hero revient — exactement comme
  * le voile noir se relève. Une minuterie ne saurait pas faire ça.
+ *
+ * Une seule montée fait exception et n'est pas une rampe : **la toute première**,
+ * celle du hero au sortir du sas. Elle passe par `emerger()`, sur une parabole et
+ * sur quatre secondes — une droite arrive trop vite pour l'oreille, et le son
+ * doublait la vidéo au lieu de la rejoindre. Voir `FONDU_ENTREE`.
  */
 
 /** Les micro-sons de l'interface. Chacun est une impulsion filtrée. */
@@ -80,6 +85,11 @@ type Son = {
    * quand il en est sorti. C'est la seule commande du niveau de l'eau.
    */
   reglerEau: (vitesse: number | null) => void;
+  /**
+   * Coupe entièrement le bus des nappes, ou le rend. Un seul endroit du site
+   * s'en sert : le bassin du vestibule, où il ne doit plus rester que l'eau.
+   */
+  couperNappes: (coupees: boolean) => void;
 };
 
 const ContexteSon = createContext<Son | null>(null);
@@ -95,6 +105,22 @@ const NIVEAU_AMBIANCE = 1;
 
 /** Montée et descente du maître : aucune bascule ne claque. */
 const FONDU_MAITRE = 0.4;
+/**
+ * **La toute première arrivée du son**, celle du hero, quand on entre par le sas.
+ *
+ * Elle empruntait le fondu du bouton — quatre dixièmes de seconde —, et c'était
+ * beaucoup trop brutal : on cliquait « entrer avec le son » et la nappe était
+ * là, d'un coup, par-dessus une vidéo qui, elle, tient l'écran seule pendant deux
+ * secondes et demie. La musique arrivait avant l'image.
+ *
+ * Quatre secondes, et par une courbe (voir `emerger`) : le son ne commence pas,
+ * il se met à exister. Il atteint son plein à peu près quand le logotype se pose,
+ * ce qui est le bon moment — c'est là que le site commence vraiment.
+ *
+ * La bascule du bouton, elle, garde ses quatre dixièmes : on lui demande
+ * d'obéir, pas de faire une entrée.
+ */
+const FONDU_ENTREE = 4;
 /** Fondu d'entrée et de sortie d'une nappe de projet. */
 const FONDU_PROJET = 1.2;
 /**
@@ -105,6 +131,13 @@ const FONDU_PROJET = 1.2;
 const FONDU_SUIVI = 0.08;
 /** Retour de l'eau au silence quand le pointeur quitte le bassin. */
 const FONDU_EAU_SORTIE = 0.4;
+/**
+ * Coupure complète des nappes, et leur retour. Un seul endroit du site s'en
+ * sert : le bassin du vestibule. Une seconde et demie, c'est assez long pour
+ * qu'on ne remarque pas la coupure et assez court pour qu'au moment où l'eau
+ * emplit l'écran, il n'y ait plus qu'elle.
+ */
+const FONDU_NAPPES = 1.5;
 
 /** Gain de l'eau à pleine vitesse. */
 const EAU_MAX = 0.6;
@@ -142,6 +175,35 @@ function rampe(param: AudioParam, cible: number, duree: number, t: number) {
   param.cancelScheduledValues(t);
   param.setValueAtTime(param.value, t);
   param.linearRampToValueAtTime(cible, t + Math.max(duree, 0.005));
+}
+
+/** Nombre de segments de la courbe d'émergence. Au-delà, on n'entend plus rien
+ *  de plus ; en deçà, l'escalier redevient audible sur une longue montée. */
+const SEGMENTS_EMERGENCE = 32;
+
+/**
+ * Fait **émerger** un gain du silence, par une courbe et non par une droite.
+ *
+ * Une rampe linéaire de gain n'est pas une montée douce : la sensation de
+ * volume suit à peu près la racine du gain, si bien qu'une droite se jette dans
+ * l'oreille pendant son premier tiers puis n'a plus grand-chose à donner. Une
+ * parabole (`x²`) corrige exactement cette courbure : le son sort de rien, prend
+ * son temps, et arrive sans qu'on ait su dire quand il a commencé.
+ *
+ * Elle est écrite en segments de `linearRampToValueAtTime` plutôt qu'en
+ * `setValueCurveAtTime` : une courbe programmée verrouille l'intervalle et fait
+ * lever une exception à toute automatisation qui l'y croise — or le bouton du
+ * chrome doit pouvoir couper le son en plein milieu de cette montée-là.
+ */
+function emerger(param: AudioParam, cible: number, duree: number, t: number) {
+  param.cancelScheduledValues(t);
+  const depart = param.value;
+  param.setValueAtTime(depart, t);
+  const pas = Math.max(duree, 0.005) / SEGMENTS_EMERGENCE;
+  for (let i = 1; i <= SEGMENTS_EMERGENCE; i += 1) {
+    const x = i / SEGMENTS_EMERGENCE;
+    param.linearRampToValueAtTime(depart + (cible - depart) * x * x, t + i * pas);
+  }
 }
 
 /**
@@ -336,6 +398,9 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       ecrirePreference(actif);
 
       if (actif) {
+        /* Lu **avant** la construction : c'est ce qui distingue la toute
+           première arrivée du son de toutes les bascules qui suivront. */
+        const premiere = moteurRef.current === null;
         const moteur = construire();
         if (moteur === null) return false;
         /* La confirmation est jouée *après* la reprise : au moment du clic, le
@@ -349,7 +414,13 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
              une erreur, le gain restera simplement muet. */
           void lecture?.element.play().catch(() => {});
         }
-        rampe(moteur.maitre.gain, 1, FONDU_MAITRE, moteur.ctx.currentTime);
+        /* La première fois, la nappe du hero **émerge** sur quatre secondes ;
+           ensuite, le bouton obéit en quatre dixièmes. */
+        if (premiere) {
+          emerger(moteur.maitre.gain, 1, FONDU_ENTREE, moteur.ctx.currentTime);
+        } else {
+          rampe(moteur.maitre.gain, 1, FONDU_MAITRE, moteur.ctx.currentTime);
+        }
         return true;
       }
 
@@ -501,6 +572,24 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     rampe(moteur.eau.sortie.gain, part * EAU_MAX, FONDU_SUIVI, t);
   }, []);
 
+  /**
+   * La coupure des nappes. C'est le bus entier qui descend, pas une nappe en
+   * particulier : peu importe laquelle joue — celle du hero, celle du site,
+   * celle d'un projet —, il n'en reste aucune. Le fondu croisé du parcours
+   * continue de se régler sous la coupure, si bien qu'à la sortie la nappe qui
+   * revient est celle que commande la position réelle du défilement.
+   */
+  const couperNappes = useCallback((coupees: boolean) => {
+    const moteur = moteurRef.current;
+    if (moteur === null) return;
+    rampe(
+      moteur.musique.gain,
+      coupees ? 0 : NIVEAU_MUSIQUE,
+      FONDU_NAPPES,
+      moteur.ctx.currentTime,
+    );
+  }, []);
+
   /* --- Les micro-sons --- */
 
   const jouer = useCallback((micro: Micro) => {
@@ -586,6 +675,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       entrerProjet,
       quitterProjet,
       reglerEau,
+      couperNappes,
     }),
     [
       sonActif,
@@ -596,6 +686,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       entrerProjet,
       quitterProjet,
       reglerEau,
+      couperNappes,
     ],
   );
 

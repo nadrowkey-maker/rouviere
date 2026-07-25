@@ -40,7 +40,15 @@
 
 /* Un temps de la séquence : une planche, et parfois la respiration qui suit.
    Les temps se chevauchent légèrement — une séquence n'a pas de blancs entre
-   ses plans. */
+   ses plans.
+
+   `relative` parce que le temps de la plongée porte un plan plein cadre centré
+   sur lui : c'est l'épinglage « center center » qui fait de ce centre celui de
+   l'écran, et donc de ce plan-là le viewport exact. */
+.atelier__temps {
+  position: relative;
+}
+
 .atelier__temps + .atelier__temps {
   margin-top: clamp(-6rem, -6vh, -3rem);
 }
@@ -75,6 +83,52 @@
   position: relative;
   height: var(--hauteur);
   overflow: clip;
+}
+
+/* ---- Le plan de la plongée ----
+
+   Plein cadre dès le départ ; ce qui bouge, c'est la fenêtre qu'un `clip-path`
+   y découpe. Elle part sur la boîte exacte du guichet et ses quatre bords vont
+   rejoindre ceux de l'écran.
+
+   Il est centré sur son temps, lui-même épinglé au centre du cadre : il couvre
+   donc le viewport au pixel près, sans `position: fixed` — que le `transform`
+   permanent de `.scene-page` rendrait faux.
+
+   Il passe au-dessus du reste de la séquence : une fois entré, on n'a plus à
+   voir la planche qu'on vient de traverser. */
+.atelier__plongee {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100vw;
+  height: 100vh;
+  translate: -50% -50%;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  will-change: clip-path, opacity;
+}
+
+.atelier__plongee-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+/* La planche de plongée ne fait pas de travelling interne : elle n'en a pas
+   besoin, elle a la plongée. Son image épouse donc exactement son guichet, ce
+   qui est aussi la condition pour que le plan plein cadre parte du même
+   cadrage qu'elle — sans quoi le relais se verrait. */
+.atelier__plan[data-plongee="true"] .atelier__image {
+  top: 0;
+  height: 100%;
 }
 
 /* L'image est plus haute que son guichet : c'est ce surplus qui donne au

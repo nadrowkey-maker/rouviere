@@ -53,6 +53,19 @@ function supporteWebgl2(): boolean {
   return webgl2Detecte;
 }
 
+/**
+ * `Save-Data: on` — l'utilisateur a demandé à son navigateur d'économiser les
+ * données. On ne lui téléverse pas une vidéo d'aperçu de menu : une photographie
+ * fixe suffit. `navigator.connection` n'existe pas partout (Safari, Firefox),
+ * d'où la lecture prudente.
+ */
+export function donneesEconomes(): boolean {
+  const connexion = (
+    navigator as Navigator & { connection?: { saveData?: boolean } }
+  ).connection;
+  return connexion?.saveData === true;
+}
+
 export function detecterCapacites(): Capacites {
   return {
     coeurs: navigator.hardwareConcurrency ?? 0,

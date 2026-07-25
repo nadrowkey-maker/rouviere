@@ -39,29 +39,29 @@ const grisDeParis: Jeton[] = [
 
 const mondes: Jeton[] = [
   {
-    nom: "Sel",
-    variable: "--color-sel",
-    usage: "Villa Ostréa. Nacre, gris perle, eau.",
+    nom: "Ambre",
+    variable: "--color-ambre",
+    usage: "Appartement Laiton. Laiton bruni, noyer, lumière du soir.",
   },
   {
-    nom: "Laque",
-    variable: "--color-laque",
-    usage: "Hôtel Sévigné. Rouge profond.",
+    nom: "Paon",
+    variable: "--color-paon",
+    usage: "Grand Hôtel des Bains. Laque bleu paon du hall, l'eau.",
   },
   {
-    nom: "Ocre",
-    variable: "--color-ocre",
-    usage: "Maison Cyprès. Terre de Sienne.",
+    nom: "Prairie",
+    variable: "--color-prairie",
+    usage: "Domaine des Charmilles. Le parc, la charmille taillée.",
   },
   {
-    nom: "Vert Paris",
-    variable: "--color-vert-paris",
-    usage: "Appartement Cinq Heures.",
+    nom: "Jade",
+    variable: "--color-jade",
+    usage: "Villa Calcaire. L'eau du bassin, le vert du parc.",
   },
   {
-    nom: "Outremer",
-    variable: "--color-outremer",
-    usage: "La Bergerie.",
+    nom: "Nuit",
+    variable: "--color-nuit",
+    usage: "Villa Basalte. L'heure bleue, la lave, l'outremer.",
   },
 ];
 
@@ -186,11 +186,11 @@ export default function Styleguide() {
               </p>
               <p className="technique mb-2">--text-monument · -0.03em</p>
               <p className="display-monument mb-12 text-monument text-craie">
-                Sel
+                Nuit
               </p>
               <p className="technique mb-2">--text-titre · -0.015em</p>
               <p className="display mb-12 text-titre text-craie">
-                Villa Ostréa, Cap-Ferret
+                Villa Basalte, Lanzarote
               </p>
               <p className="technique mb-2">
                 --text-chapo · --text-corps · --text-technique — interdits en

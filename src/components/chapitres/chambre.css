@@ -1,69 +1,186 @@
-/* La Chambre. Trois temps, sans coupure visible entre eux.
-   `--monde` est posé sur <html> par le composant et repeint le chrome. */
+/* La page projet — plein cadre. Hero vidéo, trois photographies en 100 vh,
+   puis la fiche. `--monde` est posé sur <html> par le composant et repeint le
+   chrome (curseur, progression, liserés). */
 
 .chambre {
   position: relative;
+  background-color: var(--color-encre);
 }
 
-/* ---- Premier temps : l'approche ---- */
+/* ---- Le hero : la vidéo, plein cadre, sans texte ---- */
 
-.chambre__approche {
-  position: relative;
-}
-
-.chambre__coordonnees {
-  position: absolute;
-  bottom: clamp(1.5rem, 5vh, 3rem);
-  left: var(--marge);
-  z-index: 2;
-  color: var(--color-pierre);
-  mix-blend-mode: difference;
-}
-
-/* ---- Deuxième temps : la profondeur ---- */
-
-.chambre__profondeur {
+.chambre__hero {
   position: relative;
   height: 100vh;
   overflow: clip;
+  background-color: var(--color-encre);
 }
 
-/* L'ancre du rig. Vide, plein cadre : c'est la boîte que le rig mesure pour
-   caler la scène. Elle ne peint rien elle-même. */
-.chambre__scene {
+.chambre__media {
   position: absolute;
   inset: 0;
-  /* Sous le texte du chapitre, et sous le WebGL qui est en z-index 0 du
-     document : la section descend donc son propre plan. */
-  z-index: -1;
+  transform-origin: center;
+  will-change: transform;
 }
 
-/* Le titre du projet, calé colonne 2, jamais centré, et débordant en bas du
-   cadre : on n'en lit que la moitié tant qu'on n'a pas descendu. */
+.chambre__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* L'hôte du flux partagé : le nœud vidéo unique du site vient s'y loger.
+
+   Trois états, portés par `data-flux` sur le hero :
+
+     `attente` — le flux n'a pas commencé : la poster tient le cadre, l'hôte est
+                 à densité nulle (et non `display: none`, sinon la vidéo ne
+                 serait pas composée et on ne saurait pas quand elle démarre).
+     `pret`    — le flux joue : il se pose sur la poster en une durée de micro-
+                 interaction. La poster et la première image ne sont pas le même
+                 instant du plan ; un basculement sec s'y verrait comme un saut.
+     `releve`  — le flux arrive **déjà en lecture** depuis l'aperçu du menu. Il
+                 est là, entier, sans transition : la moindre durée ici
+                 fabriquerait la coupure qu'on cherche précisément à supprimer. */
+.chambre__flux {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--duree-micro) var(--ease-seche);
+}
+
+.chambre__hero[data-flux="pret"] .chambre__flux {
+  opacity: 1;
+}
+
+.chambre__hero[data-flux="releve"] .chambre__flux {
+  opacity: 1;
+  transition: none;
+}
+
+/* Le repère de défilement, en couche technique, calé au bord droit — jamais
+   centré, et pas dans le coin bas gauche, occupé en permanence par le nom du
+   chapitre courant. Il ne paraît qu'une fois le plan installé : le délai est
+   celui d'une respiration, pas d'un effet. */
+.chambre__defiler {
+  position: absolute;
+  right: var(--marge);
+  bottom: clamp(1.5rem, 5vh, 3rem);
+  z-index: 20;
+  color: var(--color-craie);
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: opacity var(--duree-objet) var(--ease-sortie) 0.5s;
+}
+
+/* Il attend le plan : tant que le flux n'a pas commencé, il n'y a rien à
+   défiler. */
+.chambre__hero[data-flux="pret"] .chambre__defiler,
+.chambre__hero[data-flux="releve"] .chambre__defiler {
+  opacity: 1;
+}
+
+/* Un liseré d'un pixel sous le mot, et c'est tout l'écran. Il prend la couleur
+   du mot — donc aucune : comme lui, il est le négatif de ce qu'il traverse. Une
+   teinte propre ici serait inversée par le blend et ne vaudrait rien. */
+.chambre__defiler::after {
+  content: "";
+  display: block;
+  margin-top: calc(var(--spacing) * 1);
+  margin-left: auto;
+  width: 3rem;
+  height: 1px;
+  background-color: currentColor;
+}
+
+/* Le voile de sortie : noir, monté en scrub à mesure qu'on quitte le hero. */
+.chambre__voile {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-encre);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- Les vues : trois photographies plein cadre ---- */
+
+.chambre__vues {
+  position: relative;
+  height: 100vh;
+  overflow: clip;
+  background-color: var(--color-encre);
+}
+
+/* Chaque vue occupe tout l'écran. Les suivantes se posent au-dessus et
+   descendent par masque. */
+.chambre__vue {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: clip;
+}
+
+/* Le calque de parallaxe déborde le cadre : la photographie peut glisser sans
+   jamais découvrir un bord. */
+.chambre__parallaxe {
+  position: absolute;
+  inset: -7% 0;
+  will-change: transform;
+}
+
+.chambre__photo {
+  object-fit: cover;
+}
+
+/* Le titre monumental sur la première vue. Calé en bas à gauche, jamais centré,
+   et il traverse la photographie comme le logo traverse le site. */
 .chambre__titre {
   position: absolute;
   left: var(--marge);
-  bottom: clamp(3rem, 9vh, 7rem);
+  bottom: clamp(4rem, 12vh, 9rem);
   margin: 0;
-  max-width: 12ch;
-  font-size: var(--text-titre);
+  max-width: 14ch;
+  font-size: clamp(3rem, 11vw, 11rem);
   color: var(--color-craie);
-  /* Le titre traverse les images comme le logo traverse le site. */
   mix-blend-mode: difference;
-  z-index: 2;
+  z-index: 20;
 }
 
-.chambre__lieu {
+/* La couche technique court en bas, au-dessus des plans. */
+.chambre__technique {
   position: absolute;
-  right: var(--marge);
-  top: clamp(6rem, 14vh, 10rem);
-  text-align: right;
+  left: var(--marge);
+  bottom: clamp(1.5rem, 5vh, 3rem);
+  z-index: 20;
   color: var(--color-craie);
   mix-blend-mode: difference;
-  z-index: 2;
 }
 
-/* ---- Troisième temps : la fiche ---- */
+/* ---- Version mouvement réduit : les plans s'empilent, sans masque ni pin.
+   Le site en mouvement réduit reste beau — c'est une version, pas une
+   punition. ---- */
+.chambre[data-reduit] .chambre__vues {
+  height: auto;
+}
+
+.chambre[data-reduit] .chambre__vue {
+  position: relative;
+  height: 100vh;
+  clip-path: none !important;
+}
+
+.chambre[data-reduit] .chambre__parallaxe {
+  inset: 0;
+}
+
+.chambre[data-reduit] .chambre__technique {
+  display: none;
+}
+
+/* ---- La fiche : le seul moment sobre ---- */
 
 .chambre__fiche {
   position: relative;
@@ -92,44 +209,44 @@
   grid-column: 7 / span 5;
   display: grid;
   row-gap: calc(var(--spacing) * 4);
-  /* Mesure max 58 caractères. */
   max-width: var(--mesure);
   color: var(--color-pierre);
 }
 
-/* Les lignes montent derrière leur arête : le masque est posé par SplitText,
-   le débordement est tenu ici. */
 .revele__ligne {
   will-change: transform;
 }
 
-.chambre__donnees {
+/* La grille d'étiquettes dissoute : une seule ligne de données, décrochée
+   colonne 2, sous un liseré d'un pixel qui prend le monde du projet. */
+.chambre__ligne {
   grid-column: 2 / span 10;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  column-gap: var(--gouttiere);
-  row-gap: calc(var(--spacing) * 3);
-  margin-top: calc(var(--spacing) * 6);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--spacing) * 1) calc(var(--spacing) * 4);
+  margin-top: calc(var(--spacing) * 4);
   padding-top: calc(var(--spacing) * 3);
-  /* Un liseré laiton d'un pixel — jamais un aplat. Il prend le monde du
-     projet quand il y en a un. */
   border-top: 1px solid var(--monde, var(--color-laiton));
-}
-
-.chambre__donnees dt {
-  color: var(--color-zinc);
-  margin-bottom: calc(var(--spacing) * 1);
-}
-
-.chambre__donnees dd {
-  margin: 0;
   color: var(--color-pierre);
+}
+
+/* Un point de séparation dans le monde du projet, jamais entre le premier. */
+.chambre__ligne span + span::before {
+  content: "·";
+  margin-right: calc(var(--spacing) * 4);
+  margin-left: calc(var(--spacing) * -2);
+  color: var(--monde, var(--color-laiton));
+}
+
+.chambre__ligne span:first-child {
+  color: var(--color-craie);
 }
 
 @media (max-width: 48rem) {
   .chambre__programme,
   .chambre__texte,
-  .chambre__donnees {
+  .chambre__ligne {
     grid-column: 1 / -1;
   }
 

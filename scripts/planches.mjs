@@ -22,6 +22,13 @@ import { deflateSync } from "node:zlib";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import sharp from "sharp";
+
+/* Les planches sont assemblées en PNG (encodeur maison, sans dépendance) puis
+   transcodées en AVIF — le format que le site sert, et celui que le manifeste
+   `src/data/visuels.ts` attend. Le WebGL les charge en texture brute, hors de
+   `next/image`, donc leur format de fichier compte. */
+const avif = (buffer, options) => sharp(buffer).avif(options).toBuffer();
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -267,9 +274,9 @@ for (const [indexProjet, projet] of PROJETS.entries()) {
       lumiere,
       variante: i + indexProjet,
     });
-    const chemin = join(dossierPlanches, `${projet.slug}-${i + 1}.png`);
-    writeFileSync(chemin, png);
-    poidsTotal += png.length;
+    const image = await avif(png, { quality: 60, effort: 4 });
+    writeFileSync(join(dossierPlanches, `${projet.slug}-${i + 1}.avif`), image);
+    poidsTotal += image.length;
   }
   console.log(`planches  ${projet.slug} — ${PLANCHES_PAR_PROJET} images`);
 }
@@ -290,11 +297,12 @@ for (let i = 0; i < FRAMES; i += 1) {
     avance: i / (FRAMES - 1),
     variante: 1,
   });
+  const image = await avif(png, { quality: 55, effort: 4 });
   writeFileSync(
-    join(dossierSequence, `${String(i + 1).padStart(4, "0")}.png`),
-    png,
+    join(dossierSequence, `${String(i + 1).padStart(4, "0")}.avif`),
+    image,
   );
-  poidsTotal += png.length;
+  poidsTotal += image.length;
 }
 console.log(`séquence  ${projetSequence.slug} — ${FRAMES} frames`);
 console.log(`total     ${(poidsTotal / 1024 / 1024).toFixed(1)} Mo`);

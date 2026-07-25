@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Le mark d'onglet : l'encre du site, l'initiale en craie, voix serif.
+       Rayon 0, comme partout. Le wordmark complet vit dans le layout ;
+       ici, sa seule initiale. -->
+  <rect width="32" height="32" fill="#0d1216"/>
+  <text x="16" y="17" fill="#e7e5de" font-family="Georgia, 'Times New Roman', serif"
+        font-size="22" font-weight="500" text-anchor="middle" dominant-baseline="central">R</text>
+</svg>

@@ -7,6 +7,8 @@ import { PanneauDebug } from "@/components/gl/PanneauDebug";
 import { LogoProvider } from "@/components/chrome/LogoProvider";
 import { Logo } from "@/components/chrome/Logo";
 import { SonProvider } from "@/components/chrome/SonProvider";
+import { VideoProjetProvider } from "@/components/chrome/VideoProjet";
+import { OuvertureProvider } from "@/components/chrome/Ouverture";
 import { ChromeProvider } from "@/components/chrome/ChromeProvider";
 import { Chrome } from "@/components/chrome/Chrome";
 import "@/styles/base.css";
@@ -32,6 +34,14 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     siteName: "Rouvière",
   },
+  /* La carte de partage — l'image vient de `opengraph-image.tsx`, reprise par X
+     à défaut d'image propre. */
+  twitter: {
+    card: "summary_large_image",
+  },
+  alternates: {
+    canonical: "/",
+  },
 };
 
 /**
@@ -43,7 +53,15 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fr" className={variablesPolices}>
+    /* `suppressHydrationWarning` porte sur ce seul nœud : React ne l'applique
+       qu'aux attributs de l'élément marqué, jamais à ses descendants. Il est
+       ici parce que `SCRIPT_SEUIL` ajoute `seuil-a-jouer` à la classe de
+       <html> avant l'hydratation, ce que le serveur ne peut pas prédire — la
+       session n'existe que côté client. Les deux autres attributs, `lang` et
+       `variablesPolices`, sont des constantes de build : ils sont identiques
+       des deux côtés, et rien d'autre ne doit être ajouté ici sans l'être
+       aussi au rendu serveur. */
+    <html lang="fr" className={variablesPolices} suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_SEUIL }} />
         <a className="evitement" href="#contenu">
@@ -54,19 +72,28 @@ export default function RootLayout({
             <RigProvider>
               <LogoProvider>
                 <SonProvider>
-                  <ChromeProvider>
-                    <Logo />
-                    <Chrome />
-                    {/* La surface qui recule derrière le menu : c'est le
-                        document lui-même, d'où le wrapper. Le canvas et le
-                        chrome vivent dehors et ne reculent pas. */}
-                    <div className="scene-page" id="scene-page">
-                      {children}
-                    </div>
-                    {process.env.NODE_ENV === "development" ? (
-                      <PanneauDebug />
-                    ) : null}
-                  </ChromeProvider>
+                  {/* Le flux d'un projet : un unique nœud vidéo, monté ici et
+                      jamais démonté, que le menu et la chambre se passent sans
+                      couper la lecture. Même parti que le logotype. */}
+                  <VideoProjetProvider>
+                    {/* L'ouverture d'un projet depuis le couloir : elle doit
+                        survivre au changement de route, donc elle vit ici. */}
+                    <OuvertureProvider>
+                      <ChromeProvider>
+                        <Logo />
+                        <Chrome />
+                        {/* La surface qui recule derrière le menu : c'est le
+                            document lui-même, d'où le wrapper. Le canvas et le
+                            chrome vivent dehors et ne reculent pas. */}
+                        <div className="scene-page" id="scene-page">
+                          {children}
+                        </div>
+                        {process.env.NODE_ENV === "development" ? (
+                          <PanneauDebug />
+                        ) : null}
+                      </ChromeProvider>
+                    </OuvertureProvider>
+                  </VideoProjetProvider>
                 </SonProvider>
               </LogoProvider>
             </RigProvider>

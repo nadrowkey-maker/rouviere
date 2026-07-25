@@ -1,2 +1,7 @@
-- [Seuil — état](seuil-etat.md) — logo persistant, vol en transform (pas Flip), vidéo placeholder à remplacer (Livre V)
+- [Seuil — état](seuil-etat.md) — écran d'entrée (sas audio + préchargeur), apparition en bloc, hero épinglé réversible, vol du logo en transform (pas Flip)
 - [Mission chrome — état](mission-chrome.md) — nav/burger/menu/curseur/son/progression/chapitre ; recul de page en CSS (pas WebGL), z-index, cibles de liens provisoires
+- [Transitions — orchestrateur](transitions-orchestrateur.md) — créneau unique des masques (reclamer/liberer), fermeture menu instantanée en navigation, aperçu vidéo du menu au survol
+- [Chapitres Matière et Atelier](chapitres-matiere-atelier.md) — refonte : masque à bord franc, guichet fixe, ce qui a été retiré et ne revient pas
+- [Flux vidéo d'un projet](flux-video-projet.md) — un seul nœud vidéo déplacé du menu au hero, verrou de relève, révélation à la première image jouée
+- [Étalonnage des médias](etalonnage-medias.md) — une seule courbe pour tout le site, sources hors index, et la question du poids en dépôt
+- [Architecture du son](architecture-son.md) — un AudioContext, trois bus, nappes commandées par le défilement, eau liée à la simulation

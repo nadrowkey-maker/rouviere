@@ -1,0 +1,22 @@
+/* Le sas — l'écran de chargement du site.
+
+   Il emprunte au passage sa mécanique entière (`.passage`, voir
+   `motion/transition.css`) et ne lui change que deux choses, toutes deux
+   nécessaires :
+
+     — la couche. 46, c'est-à-dire au-dessus du menu (45) et de la couture de
+       route (44), et **sous le logotype** (50). C'est ce dernier point qui fait
+       l'écran : le logo, en `difference`, devient le négatif du noir qu'il
+       traverse, et l'écran de chargement n'a donc pas de logotype à lui — il
+       emprunte celui qui est déjà là, en haut à gauche, en petit ;
+
+     — l'état de repos. `--passage: 0` avant toute peinture, sans quoi la
+       surface couvrirait le site le temps que le JavaScript s'installe.
+
+   Les deux sélecteurs sont doublés pour passer devant `.passage`, qui a la même
+   spécificité. */
+
+.sas.passage {
+  z-index: 46;
+  --passage: 0;
+}

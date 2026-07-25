@@ -1,48 +1,80 @@
 /* Le menu : une pièce qui s'ouvre. Plein cadre, sous le logo (qui continue de
    l'inverser) et sous la barre de nav (dont le burger le referme).
 
-   Fermé, il est `inert` : ni focusable, ni cliquable, et ses masques sont
-   refermés — donc rien n'est peint. Aucun `overflow: hidden` nulle part :
-   le défilement est tenu par `lenis.stop()`. */
+   Fermé, il est `inert` : ni focusable, ni cliquable, et sa surface est retirée
+   — donc rien n'est peint. Aucun `overflow: hidden` nulle part : le défilement
+   est tenu par `lenis.stop()`. */
 
 .menu {
-  --monde-menu: var(--color-encre);
   position: fixed;
   inset: 0;
   z-index: 45;
 }
 
-/* Les deux surfaces masquées couvrent le cadre et n'interceptent pas le
-   pointeur : seul le contenu est interactif. */
-.menu__store,
-.menu__monde {
+/* ---- L'ordre des couches, et pourquoi il n'y a plus de z-index positif ----
+
+   Les titres de projets se mélangent en `difference` avec ce qu'il y a
+   derrière eux — la vidéo d'aperçu, ou l'encre du menu quand il n'y en a pas.
+   Or un blend ne voit que le contexte d'empilement qui le contient : tant que
+   `.menu__contenu` portait `z-index: 2`, il en fabriquait un et les titres ne
+   se mélangeaient qu'avec du vide.
+
+   L'empilement est donc rendu à l'ordre du DOM. La surface descend sous tout le
+   reste (`-1`), l'aperçu et le contenu restent en `auto` et se peignent dans
+   l'ordre où ils sont écrits. Le seul contexte d'empilement au-dessus des titres
+   est celui de `.menu` lui-même — qui contient la vidéo. C'est exactement la
+   portée qu'on veut. */
+
+/* La surface d'encre, posée et retirée par le passage commun (voir
+   `motion/transition.css` pour la mécanique de `--passage`).
+
+   `--passage: 0` par défaut, pour qu'aucune première peinture ne montre une
+   surface pleine avant que le JavaScript n'ait posé l'état fermé. Les deux
+   sélecteurs sont volontairement plus spécifiques que `.passage`. */
+.menu .menu__surface {
+  z-index: -1;
+  --passage: 0;
+}
+
+/* L'aperçu couvre le cadre et n'intercepte pas le pointeur : seul le contenu
+   est interactif. Il vit entre la surface du menu et les entrées. */
+.menu__apercu {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  display: block;
   pointer-events: none;
+  overflow: hidden;
 }
 
-.menu__store {
-  z-index: 0;
-}
-.menu__monde {
-  z-index: 1;
-}
+/* Le média du projet : l'hôte du flux partagé, un repli photo, plein cadre.
 
-/* La surface qui descend est l'encre du site. Le monde chromatique se peint
-   par-dessus, révélé cellule par cellule. */
-.menu__store rect {
-  fill: var(--color-encre);
+   Aucune transition, aucun fondu, aucune retouche : le média du mode courant
+   est là, l'autre n'y est pas. Le passage d'une entrée à l'autre est un
+   remplacement, pas un mélange — c'est ce qui a supprimé l'artefact qu'on
+   voyait à chaque changement d'entrée.
+
+   **C'est l'opacité qui distingue les états, et non `display`.** Une vidéo
+   `display: none` n'est pas composée : le navigateur ne présente aucune image,
+   donc `requestVideoFrameCallback` ne tire jamais et la révélation attendrait
+   son filet à chaque survol. À densité nulle, l'élément est bien composé — il
+   décode, il présente, on sait exactement quand il a commencé. Le basculement
+   reste sec : aucune durée n'est déclarée ici. */
+.menu__media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
 }
-.menu__monde rect {
-  fill: var(--monde-menu);
+.menu__apercu[data-mode="video"] .menu__media--video,
+.menu__apercu[data-mode="photo"] .menu__media--photo {
+  opacity: 1;
 }
 
 .menu__contenu {
   position: relative;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -59,6 +91,25 @@
   padding: 0;
 }
 
+/* Les titres de projets suivent le régime du chrome : `difference`, aucune
+   couleur propre. C'est ce qui les rend lisibles **par-dessus n'importe quelle
+   vidéo** — ils sont le négatif exact de ce qu'ils traversent, clairs sur une
+   pièce sombre, sombres sur un mur de chaux. Sur l'encre du menu au repos, la
+   craie reste de la craie : rien ne change quand aucun média n'est là.
+
+   La liste entière porte le blend, et non chaque lien : les liens changent
+   d'opacité au survol, et une opacité intermédiaire posée sur le nœud qui se
+   mélange l'affaiblirait. Posée en dessous, elle est sans effet. */
+.menu__liste--projets {
+  mix-blend-mode: difference;
+}
+
+@supports not (mix-blend-mode: difference) {
+  .menu__liste--projets {
+    mix-blend-mode: normal;
+  }
+}
+
 .menu__liste--parcours {
   margin-top: clamp(1rem, 3vh, 2.5rem);
 }
@@ -69,11 +120,16 @@
   gap: clamp(1rem, 3vw, 3rem);
 }
 
+/* L'arête derrière laquelle les entrées montent. C'est elle, et non le lien,
+   qui porte le décalage de survol : le masque doit suivre le titre, sinon il
+   lui couperait la queue au moment exact où il avance. */
 .menu__ligne {
   display: block;
   overflow: hidden;
   /* De l'air pour les jambages : le masque ne rogne pas les lettres. */
   padding: 0.08em 0;
+  translate: 0 0;
+  transition: translate var(--duree-micro) var(--ease-seche);
 }
 
 .menu__lien {
@@ -99,9 +155,27 @@
   color: var(--color-pierre);
 }
 
+/* ---- Le survol : c'est le titre qui se signale ----
+
+   L'entrée sous le pointeur avance vers la droite et garde toute sa densité ;
+   ses voisines reculent en perdant la leur. La règle porte sur le conteneur
+   des deux listes : survoler un projet retire aussi les entrées de parcours,
+   et l'inverse. Une seule entrée est en avant à la fois, sans ambiguïté
+   possible, et cela vaut même quand aucun média ne vient derrière. */
+.menu__item:has(.menu__lien:hover) .menu__ligne,
+.menu__item:has(.menu__lien:focus-visible) .menu__ligne {
+  translate: clamp(1rem, 2vw, 2.5rem) 0;
+}
+
 .menu__lien:hover,
 .menu__lien:focus-visible {
-  color: var(--color-craie);
+  opacity: 1;
+}
+
+.menu__contenu:has(.menu__lien:hover) .menu__lien:not(:hover),
+.menu__contenu:has(.menu__lien:focus-visible)
+  .menu__lien:not(:focus-visible) {
+  opacity: 0.26;
 }
 
 /* Le détail décroché dans la marge, en couche technique. Il n'apparaît qu'une
@@ -132,6 +206,15 @@
 .menu[aria-hidden="false"] .menu__pied {
   opacity: 1;
   transition-delay: 0.38s;
+}
+
+/* L'entrée survolée porte son détail à pleine densité, les autres le perdent
+   avec leur titre. */
+.menu[aria-hidden="false"] .menu__item:has(.menu__lien:hover) .menu__detail,
+.menu[aria-hidden="false"]
+  .menu__item:has(.menu__lien:focus-visible)
+  .menu__detail {
+  color: var(--color-pierre);
 }
 
 @media (max-width: 720px) {

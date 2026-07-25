@@ -1,5 +1,11 @@
 /* Le bouton de son. Trois barres fines qui se lèvent en vague quand le son est
-   actif. L'animation vit en CSS : aucune frame JS pour un décor qui pulse. */
+   actif. L'animation vit en CSS : aucune frame JS pour un décor qui pulse.
+
+   Le mot SON suit exactement le régime du logotype : il n'a aucune couleur
+   propre. Le `difference` est porté par `.barre-nav__droite` (voir
+   `barre-nav.css`, qui explique pourquoi il vit là et pas ici) ; le bouton et
+   ses barres n'héritent que de `currentColor`. Le survol ne peut donc pas se
+   marquer par une teinte — il se marque par la densité. */
 
 .son {
   display: inline-flex;
@@ -8,7 +14,7 @@
   background: none;
   border: 0;
   padding: 0;
-  color: var(--color-craie);
+  color: currentColor;
   cursor: pointer;
 }
 
@@ -51,14 +57,18 @@
   }
 }
 
+/* Au repos le libellé est en retrait, mais dans la même encre que les barres :
+   c'est son opacité qui recule, jamais sa couleur. Une opacité posée ici est
+   sans effet sur le blend — il vit deux niveaux plus haut, sur le groupe. */
 .son__label {
-  color: var(--color-zinc);
-  transition: color var(--duree-micro) var(--ease-seche);
+  color: currentColor;
+  opacity: 0.62;
+  transition: opacity var(--duree-micro) var(--ease-seche);
 }
 
 .son:hover .son__label,
 .son:focus-visible .son__label {
-  color: var(--color-craie);
+  opacity: 1;
 }
 
 /* Mouvement réduit : la vague ne s'agite pas. L'état actif se lit alors sur la

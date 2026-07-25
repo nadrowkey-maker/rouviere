@@ -26,11 +26,13 @@ import "./seuil.css";
  *      film : opacité, échelle et flou se résorbent sur 1,8 s. Il tient 1,5 s,
  *      puis vole en haut à gauche. Une fois posé, le son et le burger arrivent.
  *
- *   3. **La sortie du hero.** Le hero reste dans le DOM. Au défilement il est
- *      épinglé et un voile noir monte en scrub pendant que la vidéo grandit à
- *      peine ; voile plein, le vestibule est là. Tout est réversible : on
- *      remonte, le voile se lève, la vidéo revient. Un clic sur le logotype
- *      ramène en haut sans rejouer l'apparition.
+ *   3. **La sortie du hero.** Le hero reste dans le DOM, épinglé et
+ *      **immobile** : rien ne se déplace, rien ne grandit, rien ne glisse. Un
+ *      voile noir monte simplement de 0 à 1 en scrub, et voile plein, le
+ *      vestibule est là. On éteint une pièce ; on ne fait pas défiler une
+ *      image. Tout est réversible : on remonte, le voile se lève, la vidéo
+ *      revient. Un clic sur le logotype ramène en haut sans rejouer
+ *      l'apparition.
  *
  * Le logo est un nœud partagé (monté dans le layout) : c'est le même qui paraît
  * au centre et se range dans la barre. Son placement « centre géant » est une
@@ -85,7 +87,6 @@ export function Seuil() {
      l'intro, montée dans tous les cas. --- */
   useEffetVisuel(() => {
     const hero = heroRef.current;
-    const video = videoRef.current;
     const voile = voileRef.current;
     if (hero === null || voile === null) return;
 
@@ -95,6 +96,16 @@ export function Seuil() {
         start: "top top",
         end: "+=100%",
         pin: true,
+        /* **C'est la ligne qui décide si le hero s'éteint ou s'en va.**
+           `.scene-page` — la surface qui recule derrière le menu — porte en
+           permanence un `transform` et un `filter`, fût-ce à l'identité. L'un
+           comme l'autre font d'un élément le bloc conteneur de ses descendants
+           fixes : l'épinglage par défaut, qui passe par `position: fixed`, se
+           calait donc sur la page et non sur le cadre, et le hero remontait
+           avec le défilement au lieu de rester. Une translation, elle, se moque
+           du bloc conteneur. Tous les autres épinglages du site portent déjà
+           cette ligne ; celui-ci l'avait perdue. */
+        pinType: "transform",
         scrub: true,
         invalidateOnRefresh: true,
         /* Le son sort du hero exactement comme l'image : sur la même
@@ -104,10 +115,12 @@ export function Seuil() {
         onUpdate: (self) => reglerSortieHero(self.progress),
       },
     });
-    /* Le voile passe de 0 à 1 pendant que la vidéo monte très légèrement en
-       échelle. Un scrub, jamais une durée fixe : la progression suit la main. */
+    /* Le hero ne se déplace pas, et ne bouge pas du tout : il s'éteint.
+       Le voile passe de 0 à 1, et c'est tout ce qui se passe — pas de montée
+       d'échelle sur la vidéo, pas de glissement, pas de dérive verticale. On
+       éteint une pièce, on ne fait pas défiler une image. Un scrub, jamais une
+       durée fixe : la progression suit la main, et se rembobine avec elle. */
     tl.to(voile, { opacity: 1, ease: "none" }, 0);
-    if (video !== null) tl.to(video, { scale: 1.06, ease: "none" }, 0);
 
     return () => {
       tl.scrollTrigger?.kill();

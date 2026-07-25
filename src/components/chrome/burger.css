@@ -1,6 +1,17 @@
 /* Le burger : trois dalles fines. À l'ouverture elles s'écartent et pivotent
    chacune de son côté, décalées de 40 ms. Ce n'est pas une croix — c'est un
-   store qu'on entrouvre. */
+   store qu'on entrouvre.
+
+   ------------------------------------------------------------------
+   Pourquoi les dalles s'écartent, et ne se rejoignent pas
+   ------------------------------------------------------------------
+   L'état ouvert ramenait la dalle du haut de +6,5 px et celle du bas de −6,5 px,
+   c'est-à-dire exactement l'écart qui les sépare du milieu : les trois se
+   retrouvaient empilées sur la ligne médiane, et l'ouverture produisait un pâté.
+   La forme ouverte est maintenant **plus haute** que la forme fermée : chaque
+   dalle s'éloigne du centre au lieu d'y tomber. Aucune ne croise sa voisine, à
+   aucun instant de la course — la figure reste donc lisible du début à la fin,
+   dans les deux sens. */
 
 .burger {
   --dalle: 26px;
@@ -12,7 +23,7 @@
   background: none;
   border: 0;
   padding: 0;
-  color: var(--color-craie);
+  color: currentColor;
   cursor: pointer;
 }
 
@@ -30,11 +41,17 @@
   height: 1.5px;
   width: 100%;
   background-color: currentColor;
-  transform-origin: center;
+  /* Chaque dalle pivote autour de son propre bord, pas d'un centre commun :
+     c'est ce qui fait trois gestes distincts et non une figure qui tourne. */
+  transform-origin: left center;
   /* Le décalage de 40 ms est porté par les délais indexés plus bas. */
   transition:
     transform var(--duree-micro) var(--ease-seche),
     width var(--duree-micro) var(--ease-seche);
+}
+
+.burger__dalle:nth-child(2) {
+  transform-origin: right center;
 }
 
 /* Au survol, les dalles se resserrent légèrement — la barre respire avant même
@@ -48,19 +65,26 @@
   width: 85%;
 }
 
-/* Ouvert : chaque dalle s'écarte et pivote de son propre angle, avec un délai
-   croissant de 40 ms. La fermeture reprend les délais dans l'ordre inverse
-   pour que la dalle du bas se referme la première. */
+/* Ouvert : chaque dalle s'écarte du centre et pivote de son propre angle, avec
+   un délai croissant de 40 ms. Les amplitudes (−4 px, 0, +4 px) sont plus
+   petites que l'écart qui sépare deux dalles au repos (6,5 px) : l'ordre
+   vertical est conservé, la superposition est impossible.
+
+   La fermeture reprend les délais dans l'ordre inverse, pour que la dalle du
+   bas se referme la première. */
 .burger[data-ouvert="true"] .burger__dalle:nth-child(1) {
-  transform: translateY(6.5px) rotate(-17deg);
+  transform: translateY(-4px) rotate(-13deg);
+  width: 64%;
   transition-delay: 0ms;
 }
 .burger[data-ouvert="true"] .burger__dalle:nth-child(2) {
-  transform: rotate(9deg) scaleX(0.6);
+  transform: rotate(5deg);
+  width: 100%;
   transition-delay: 40ms;
 }
 .burger[data-ouvert="true"] .burger__dalle:nth-child(3) {
-  transform: translateY(-6.5px) rotate(-7deg);
+  transform: translateY(4px) rotate(9deg);
+  width: 78%;
   transition-delay: 80ms;
 }
 

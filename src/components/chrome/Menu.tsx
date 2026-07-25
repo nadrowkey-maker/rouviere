@@ -2,469 +2,414 @@
 
 import { useCallback, useRef } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { gsap } from "@/lib/gsap";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { reclamer, liberer } from "@/components/motion/orchestrateur";
 import {
-  reclamer,
-  liberer,
-  natureVivante,
-} from "@/components/motion/orchestrateur";
+  poser,
+  retirer,
+  figer,
+  POSE,
+  RETIRE,
+} from "@/components/motion/passage";
 import { donneesEconomes } from "@/lib/capacites";
 import { visuels } from "@/data/visuels";
 import { useChrome } from "./ChromeProvider";
 import { useSon } from "./SonProvider";
+import { useVideoProjet, armerReleve } from "./VideoProjet";
 import { entreesParcours, entreesProjets, type Entree } from "./entrees";
+/* La surface du menu joue le passage : elle en porte la classe, donc sa
+   feuille. L'import est explicite pour ne pas dépendre de l'ordre de
+   chargement des routes. */
+import "@/components/motion/transition.css";
 import "./menu.css";
 
 /**
  * Le menu. Il ne glisse pas depuis la droite : il ouvre une pièce.
  *
  * Au clic sur le burger, la page recule dans la profondeur — elle rétrécit, se
- * désature et se floute (en CSS : la surface qui recule est le document, pas
- * une scène WebGL) — pendant qu'une surface d'encre descend par un masque SVG à
- * lamelles, chaque lamelle s'ouvrant depuis sa propre ligne médiane, décalée à
- * contretemps. Les entrées arrivent ensuite en enfilade, en Gambetta énorme.
+ * désature et se floute (en CSS : la surface qui recule est le document, pas une
+ * scène WebGL) — pendant qu'une surface d'encre vient couvrir le cadre par le
+ * **passage**, le fondu de matière (voir `motion/passage.ts`). Les entrées
+ * arrivent ensuite en enfilade, en Gambetta énorme.
+ *
+ * Le store à lamelles a été retiré avec `scroll-transition` : le site n'a plus
+ * qu'une seule grammaire de transition, et le menu la partage avec les coutures
+ * de route.
  *
  * Au survol d'une entrée de projet, on voit **où l'on va** : la vidéo du projet,
- * muette et bouclée, apparaît en fond, dévoilée par un damier de cellules
- * d'encre qui s'effacent dans un ordre mélangé, et le monde chromatique du
- * projet passe en surimpression légère par-dessus. La vidéo n'est chargée qu'au
- * premier survol, après un anti-rebond de 80 ms, mise en pause dès qu'on quitte
- * l'entrée ; **une seule** vidéo vit à un instant donné (un unique élément
- * réemployé). Sur `prefers-reduced-motion` ou `Save-Data`, la première
- * photographie du projet remplace la vidéo — fixe, jamais téléversée en boucle.
+ * muette et bouclée, apparaît en fond. Le passage d'une entrée à l'autre est
+ * **instantané** — plus de damier qui s'efface case à case, plus de teinte de
+ * monde en surimpression. Ces deux-là fabriquaient un artefact à chaque
+ * changement : la nouvelle vidéo se découvrait sous les cellules de l'ancienne,
+ * et le calque de couleur multipliait un instant le mauvais monde. Une vidéo
+ * remplace l'autre, sec, et rien ne se mélange.
  *
- * Le store (lamelles) et le damier (aperçu) ne s'animent jamais ensemble : le
- * store passe par l'orchestrateur de transitions (nature « menu »), et l'aperçu
- * ne se dévoile qu'une fois le store posé — tant qu'une transition « menu » est
- * vivante, le damier attend. Aucune superposition possible.
+ * **La vidéo paraît déjà en lecture, depuis sa première image, et rien ne paraît
+ * avant elle.** Il y avait ici une photographie posée le temps du décodage : une
+ * image fixe qui s'immobilise un dixième de seconde puis se met à bouger se lit
+ * comme un bug, et c'est ce qu'on voyait. Il n'y a donc plus de poster, plus
+ * d'image d'attente, plus rien : le cadre reste vide jusqu'à ce que la vidéo
+ * joue vraiment (voir `VideoProjet.tsx`, qui attend une image effectivement
+ * présentée). Et **aucune mémoire d'état** : chaque survol rembobine, y compris
+ * le retour sur un projet déjà vu ; chaque sortie met en pause et remet à zéro.
+ *
+ * Le nœud vidéo n'appartient pas au menu : c'est celui du site, unique, que le
+ * menu emprunte le temps d'un survol et qu'il **laisse partir** au clic — la
+ * chambre l'adopte tel quel, à la même image. Sur `prefers-reduced-motion` ou
+ * `Save-Data`, la première photographie du projet remplace la vidéo — fixe,
+ * jamais téléversée en boucle.
+ *
+ * Ce qui signale l'entrée survolée n'est donc plus le fond : c'est **le titre
+ * lui-même**. Il se décale vers la droite pendant que ses voisines perdent leur
+ * densité et reculent. On sait sans ambiguïté sur quoi le curseur se trouve,
+ * même sans média derrière.
  *
  * Accessibilité : `lenis.stop()` à l'ouverture (jamais `overflow: hidden`),
  * piège de focus, `Échap` ferme, le focus revient au burger.
  */
 
-const N_LAMELLES = 22;
-const BANDE = 100 / N_LAMELLES;
-const DEMI = BANDE / 2;
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-/** Anti-rebond du chargement de la vidéo d'aperçu. */
-const ANTIREBOND_MS = 80;
+/**
+ * Filet de la couverture de navigation. Si le `pathname` ne change pas — clic
+ * sur la route déjà ouverte, navigation empêchée par une extension —, la
+ * surface du menu se retirerait sinon jamais et couvrirait le site. Une seconde
+ * est très au-delà de toute navigation client, et très en deçà de ce qu'un
+ * visiteur remarquerait.
+ */
+const FILET_NAVIGATION_MS = 1000;
 
 const SELECTEUR_FOCUS = 'a[href], button:not([disabled])';
-
-type Lamelle = { centre: number; haut: SVGRectElement; bas: SVGRectElement };
 
 export function Menu() {
   const { menuOuvert, fermerMenu, burgerRef, focusARestaurer } = useChrome();
   const { arreter, reprendre } = useDefilement();
   const { mouvementReduit } = useMouvement();
   const { jouer } = useSon();
+  const flux = useVideoProjet();
 
   const menuRef = useRef<HTMLDivElement>(null);
-  const groupeLamellesRef = useRef<SVGGElement>(null);
-  const groupeCellulesRef = useRef<SVGGElement>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const apercuRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  /* L'hôte du nœud vidéo partagé. Le menu ne possède pas la vidéo : il la loge. */
+  const hoteRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  const lamellesRef = useRef<Lamelle[]>([]);
-  const rectsLamellesRef = useRef<SVGRectElement[]>([]);
-  const cellulesRef = useRef<SVGRectElement[]>([]);
-  const damierRef = useRef<gsap.core.Timeline | null>(null);
   const masterRef = useRef<gsap.core.Timeline | null>(null);
   const monteRef = useRef(false);
 
-  /* L'aperçu au survol : l'entrée sous le pointeur, le slug actuellement chargé
-     sur l'unique élément vidéo, et le minuteur d'anti-rebond. */
+  /* La couverture de navigation : levée tant que la surface du menu doit rester
+     posée en attendant la nouvelle route, avec son filet de sécurité. */
+  const couvertureRef = useRef(false);
+  const filetRef = useRef<number | null>(null);
+  const pathname = usePathname();
+
+  /* L'aperçu au survol : l'entrée sous le pointeur. Le flux, lui, sait seul
+     quel projet il porte, et il les tient tous les cinq en chauffe. */
   const survolRef = useRef<Entree | null>(null);
-  const slugChargeRef = useRef<string | null>(null);
-  const minuteurRef = useRef<number | null>(null);
-  const ouvertureFinieRef = useRef(false);
+  /**
+   * Levé par le clic sur une entrée de projet, et lu par la fermeture : la vidéo
+   * part avec la page, il ne faut pas l'arrêter.
+   *
+   * Le drapeau du module ne peut pas servir ici : la chambre le consomme dans son
+   * effet de montage, et selon l'ordre des effets d'un même commit la fermeture
+   * du menu peut passer après elle. Elle trouvait alors un drapeau vide et
+   * coupait le flux qu'elle venait de laisser partir — la vidéo repartait de zéro,
+   * à l'arrêt, dans le hero. Ce que la fermeture doit savoir, c'est ce qu'elle a
+   * fait, pas ce qu'il reste du drapeau : d'où cette ref, posée par le clic.
+   */
+  const releveRef = useRef(false);
   /* Levé le temps du focus programmatique posé sur la première entrée à
      l'ouverture (piège de focus) : ce focus-là ne doit pas déclencher l'aperçu —
      seul un vrai survol, ou un focus clavier, le fait. */
   const focusInitialRef = useRef(false);
 
-  /* ---- Construction des masques, une fois ---- */
+  /* ---- État fermé, avant toute ouverture ---- */
   useEffetVisuel(() => {
-    const groupeLamelles = groupeLamellesRef.current;
-    const groupeCellules = groupeCellulesRef.current;
-    if (groupeLamelles === null || groupeCellules === null) return;
+    const surface = surfaceRef.current;
+    if (surface !== null) figer(surface, RETIRE);
 
-    /* Lamelles : chaque bande est une paire de rects partant de sa ligne
-       médiane, l'un vers le haut, l'autre vers le bas. Fermées, hauteur nulle.
-       Coordonnées en pourcentage du viewBox 100×100, donc insensibles au
-       redimensionnement (l'aspect est étiré par `preserveAspectRatio="none"`). */
-    const lamelles: Lamelle[] = [];
-    const rects: SVGRectElement[] = [];
-    for (let i = 0; i < N_LAMELLES; i += 1) {
-      const centre = (i + 0.5) * BANDE;
-      const haut = document.createElementNS(SVG_NS, "rect");
-      const bas = document.createElementNS(SVG_NS, "rect");
-      for (const r of [haut, bas]) {
-        r.setAttribute("x", "0");
-        r.setAttribute("width", "100");
-        r.setAttribute("y", String(centre));
-        r.setAttribute("height", "0");
-        r.setAttribute("fill", "#fff");
-        r.setAttribute("shape-rendering", "crispEdges");
-        groupeLamelles.appendChild(r);
-      }
-      lamelles.push({ centre, haut, bas });
-      rects.push(haut, bas);
-    }
-    lamellesRef.current = lamelles;
-    rectsLamellesRef.current = rects;
-
-    /* Damier de l'aperçu : une grille de cellules d'encre qui **couvrent** la
-       vidéo, densité selon la largeur, et s'effacent dans un ordre mélangé au
-       survol pour la dévoiler. Repartent opaques à la sortie. */
-    const largeur = window.innerWidth;
-    const colonnes = largeur <= 599 ? 6 : largeur <= 1024 ? 10 : 14;
-    const lignes = Math.max(3, Math.round(colonnes * 0.6));
-    const largeurCell = 100 / colonnes;
-    const hauteurCell = 100 / lignes;
-    const cellules: SVGRectElement[] = [];
-    for (let y = 0; y < lignes; y += 1) {
-      for (let x = 0; x < colonnes; x += 1) {
-        const cell = document.createElementNS(SVG_NS, "rect");
-        cell.setAttribute("x", String(x * largeurCell));
-        cell.setAttribute("y", String(y * hauteurCell));
-        cell.setAttribute("width", String(largeurCell + 0.05));
-        cell.setAttribute("height", String(hauteurCell + 0.05));
-        cell.setAttribute("fill", "currentColor");
-        cell.setAttribute("shape-rendering", "crispEdges");
-        cell.setAttribute("opacity", "1");
-        groupeCellules.appendChild(cell);
-        cellules.push(cell);
-      }
-    }
-    cellulesRef.current = cellules;
-    /* Le damier joue vers le dévoilement : cellules opaques → transparentes,
-       ordre mélangé, jamais un balayage régulier. `reverse()` recouvre ; une
-       fois recouvert, l'aperçu est remis au repos (masqué) et la vidéo en pause —
-       sauf si un nouveau survol a déjà repris la main entre-temps. */
-    damierRef.current = gsap
-      .timeline({
-        paused: true,
-        onReverseComplete: () => {
-          if (survolRef.current !== null) return;
-          if (apercuRef.current !== null) apercuRef.current.dataset.mode = "vide";
-          videoRef.current?.pause();
-        },
-      })
-      .to(gsap.utils.shuffle([...cellules]), {
-        opacity: 0,
-        duration: 0.5,
-        ease: "power2.out",
-        stagger: { each: 0.012 },
-      });
-
-    /* État fermé, avant toute ouverture. Les entrées passent sous contrôle de
-       GSAP dès maintenant : leur `translateY(110%)` CSS serait sinon lu comme
-       une base en pixels à laquelle `yPercent` s'ajouterait — le piège que le
-       seuil a déjà rencontré. On épingle donc `y: 0` partout où on les touche. */
-    gsap.set(rects, { attr: { y: (i: number) => lamelles[Math.floor(i / 2)]!.centre, height: 0 } });
-    gsap.set(cellules, { opacity: 1 });
+    /* Les entrées passent sous contrôle de GSAP dès maintenant : leur
+       `translateY(110%)` CSS serait sinon lu comme une base en pixels à laquelle
+       `yPercent` s'ajouterait — le piège que le seuil a déjà rencontré. On
+       épingle donc `y: 0` partout où on les touche. */
     const liens = menuRef.current?.querySelectorAll<HTMLElement>(".menu__lien");
     if (liens !== undefined) gsap.set(liens, { yPercent: 110, y: 0 });
 
     return () => {
-      if (minuteurRef.current !== null) clearTimeout(minuteurRef.current);
-      damierRef.current?.kill();
+      if (filetRef.current !== null) clearTimeout(filetRef.current);
       masterRef.current?.kill();
-      groupeLamelles.replaceChildren();
-      groupeCellules.replaceChildren();
     };
   }, []);
 
-  /* ---- L'aperçu vidéo révélé au survol ---- */
-
-  /** Joue le damier vers le dévoilement (cellules d'encre → transparentes). */
-  const devoiler = useCallback(() => {
-    const damier = damierRef.current;
-    if (damier === null) return;
-    if (mouvementReduit) gsap.set(cellulesRef.current, { opacity: 0 });
-    else damier.timeScale(1).play();
-  }, [mouvementReduit]);
-
-  /** Charge et joue le média, après l'anti-rebond. Un seul média à la fois :
-   *  l'unique <video> voit son `src` remplacé, ce qui libère le précédent. */
-  const chargerMedia = useCallback((entree: Entree) => {
-    if (entree.slug === undefined) return;
-    const v = visuels[entree.slug];
-    const video = videoRef.current;
-    const img = imgRef.current;
-    const apercu = apercuRef.current;
-    if (v === undefined || apercu === null) return;
-
-    /* Repli photographique : mouvement réduit ou Save-Data. On ne charge jamais
-       de vidéo en boucle, on affiche la première planche du projet. */
-    if (mouvementReduit || donneesEconomes()) {
-      video?.pause();
-      if (img !== null && img.getAttribute("src") !== v.planches[0]!.src) {
-        img.src = v.planches[0]!.src;
-      }
-      apercu.dataset.mode = "photo";
-      return;
+  /* ---- La relève de la couverture ----
+     La nouvelle route est montée, et sa propre couture la couvre déjà : la
+     surface du menu n'a plus rien à cacher et s'efface, sans animation — il n'y
+     a rien à voir puisque rien ne se découvre. */
+  useEffetVisuel(() => {
+    if (!couvertureRef.current) return;
+    couvertureRef.current = false;
+    if (filetRef.current !== null) {
+      clearTimeout(filetRef.current);
+      filetRef.current = null;
     }
+    const surface = surfaceRef.current;
+    if (surface !== null) figer(surface, RETIRE);
+    /* Le cadre d'aperçu est rendu à son état vide. S'il y a eu relève, le nœud
+       vidéo est déjà parti dans le hero de la chambre : il n'y a rien à cacher
+       et rien à arrêter — seulement un attribut à remettre au propre. */
+    if (apercuRef.current !== null) apercuRef.current.dataset.mode = "vide";
+    /* `pathname` n'est pas lu dans le corps : il sert de déclencheur. C'est son
+       changement, et lui seul, qui dit que la nouvelle route est montée. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
-    if (video === null) return;
-    if (slugChargeRef.current !== entree.slug) {
-      video.pause();
-      video.poster = v.video.poster;
-      video.src = v.video.mp4;
-      video.load();
-      slugChargeRef.current = entree.slug;
-    }
-    apercu.dataset.mode = "video";
-    /* `play()` rejette si le survol a déjà cessé : on avale silencieusement,
-       la pause de sortie fait foi. */
-    void video.play().catch(() => {});
-  }, [mouvementReduit]);
+  /* ---- L'aperçu vidéo, posé sec au survol ---- */
 
-  /** Prépare l'aperçu et lance le dévoilement. N'est appelée qu'une fois le
-   *  store posé — jamais pendant l'ouverture du menu, donc jamais superposée à
-   *  ses lamelles. */
-  const devoilerProjet = useCallback(
+  /**
+   * Entrée du pointeur (ou focus clavier) sur une entrée de projet.
+   *
+   * Le cadre ne montre **rien** jusqu'à ce que la vidéo joue : ni poster, ni
+   * photographie d'attente, ni la vidéo du projet précédent. C'est la correction
+   * — l'image fixe qui paraissait un instant avant que le plan démarre passait
+   * pour un défaut, et elle en était un.
+   *
+   * Le flux rembobine à chaque survol, même sur un projet déjà chargé : on n'a
+   * pas de mémoire d'état, on revoit toujours la première image.
+   */
+  const survolerProjet = useCallback(
     (entree: Entree) => {
       const apercu = apercuRef.current;
+      const hote = hoteRef.current;
       if (apercu === null || entree.slug === undefined) return;
+      /* Le focus programmatique d'ouverture ne dévoile rien. */
+      if (focusInitialRef.current) return;
       const v = visuels[entree.slug];
       if (v === undefined) return;
 
-      /* La poster (ou la photo de repli) est posée tout de suite pour que le
-         dévoilement ne montre pas de noir avant le premier plan de la vidéo. */
-      const repli = mouvementReduit || donneesEconomes();
-      if (!repli && videoRef.current !== null) {
-        videoRef.current.poster = v.video.poster;
-        apercu.dataset.mode = "video";
-      } else {
-        if (
-          imgRef.current !== null &&
-          imgRef.current.getAttribute("src") !== v.planches[0]!.src
-        ) {
-          imgRef.current.src = v.planches[0]!.src;
-        }
+      survolRef.current = entree;
+      const slug = entree.slug;
+
+      /* Repli : la photographie du projet, fixe, posée dans la frame même. La
+         vidéo n'a alors aucune raison d'être chargée. */
+      if (mouvementReduit || donneesEconomes()) {
+        const img = imgRef.current;
+        const source = v.planches[0]!.src;
+        if (img !== null && img.getAttribute("src") !== source) img.src = source;
         apercu.dataset.mode = "photo";
+        return;
       }
 
-      devoiler();
-
-      if (minuteurRef.current !== null) clearTimeout(minuteurRef.current);
-      minuteurRef.current = window.setTimeout(() => {
-        minuteurRef.current = null;
-        /* Le pointeur a-t-il tenu ? Sinon la sortie a déjà tout remis. */
-        if (survolRef.current === entree) chargerMedia(entree);
-      }, ANTIREBOND_MS);
+      /* Le nœud du projet vient se loger dans le cadre, et lui seul : les
+         quatre autres rentrent au foyer. Aucun anti-rebond — les flux sont en
+         chauffe depuis l'ouverture du menu, il n'y a rien à charger, donc rien
+         à différer. Un délai ici ne ferait qu'ajouter du noir. */
+      if (hote !== null) flux.accueillir(slug, hote);
+      flux.demarrer(slug, () => {
+        /* Dernière vérification au moment de montrer : la lecture a pu démarrer
+           après que le pointeur soit parti. */
+        if (survolRef.current?.slug !== slug) return;
+        apercu.dataset.mode = "video";
+      });
     },
-    [devoiler, chargerMedia, mouvementReduit],
+    [flux, mouvementReduit],
   );
 
-  /** Entrée du pointeur (ou focus clavier) sur une entrée de projet. */
-  const survolerProjet = useCallback(
-    (entree: Entree) => {
-      const menu = menuRef.current;
-      if (menu === null || entree.monde === null) return;
-      /* Le focus programmatique d'ouverture ne dévoile rien. */
-      if (focusInitialRef.current) return;
-
-      survolRef.current = entree;
-      menu.style.setProperty("--monde-menu", `var(--color-${entree.monde})`);
-
-      /* Tant que le store s'anime (transition « menu » vivante, ou ouverture
-         pas encore posée), on ne dévoile pas : l'aperçu reste masqué et
-         l'ouverture rappellera ce survol à sa fin. Aucune superposition de
-         masques n'est possible. */
-      if (!ouvertureFinieRef.current || natureVivante() === "menu") return;
-      devoilerProjet(entree);
-    },
-    [devoilerProjet],
-  );
-
-  /** Sortie de la zone des entrées, ou survol d'une entrée sans monde : on
-   *  recouvre par le damier, la pause de la vidéo et le retour au repos étant
-   *  scellés par `onReverseComplete`. */
+  /** Sortie de la zone des entrées, ou survol d'une entrée sans projet : le
+   *  cadre se vide, sec, et le flux revient à zéro.
+   *
+   *  Sauf si une relève est armée : le clic sur une entrée fait sortir le pointeur
+   *  de la zone des entrées, donc passe **ici** juste après. Vider le cadre à cet
+   *  instant découvrirait le noir sous la vidéo qu'on est en train d'emmener. */
   const quitterApercu = useCallback(() => {
+    if (releveRef.current) return;
     survolRef.current = null;
-    if (minuteurRef.current !== null) {
-      clearTimeout(minuteurRef.current);
-      minuteurRef.current = null;
-    }
-    const damier = damierRef.current;
-    if (mouvementReduit || damier === null) {
-      gsap.set(cellulesRef.current, { opacity: 1 });
-      videoRef.current?.pause();
-      if (apercuRef.current !== null) apercuRef.current.dataset.mode = "vide";
-    } else {
-      damier.timeScale(1.5).reverse();
-    }
-  }, [mouvementReduit]);
+    flux.arreter();
+    if (apercuRef.current !== null) apercuRef.current.dataset.mode = "vide";
+  }, [flux]);
 
   /* ---- Ouverture et fermeture ---- */
-  const ouvrir = useCallback(
-    (anime: boolean) => {
-      const scene = document.getElementById("scene-page");
-      const menu = menuRef.current;
-      if (menu === null) return;
-      const rects = rectsLamellesRef.current;
-      const lamelles = lamellesRef.current;
-      const liens = menu.querySelectorAll<HTMLElement>(".menu__lien");
+  const ouvrir = useCallback((anime: boolean) => {
+    const scene = document.getElementById("scene-page");
+    const menu = menuRef.current;
+    const surface = surfaceRef.current;
+    if (menu === null || surface === null) return;
+    const liens = menu.querySelectorAll<HTMLElement>(".menu__lien");
 
-      masterRef.current?.kill();
+    masterRef.current?.kill();
 
-      const attrOuvert = {
-        y: (i: number) =>
-          i % 2 === 0 ? lamelles[Math.floor(i / 2)]!.centre - DEMI : lamelles[Math.floor(i / 2)]!.centre,
-        height: DEMI + 0.02,
-      };
+    /* Finalisation si l'ouverture est préemptée : la surface posée, les liens
+       en place. L'orchestrateur l'appelle avant de céder le créneau. */
+    const finaliser = () => {
+      figer(surface, POSE);
+      gsap.set(liens, { yPercent: 0, y: 0 });
+      if (scene) gsap.set(scene, { "--recul": 1 });
+    };
 
-      /* Finalisation si l'ouverture est préemptée : le store posé, les liens en
-         place. L'orchestrateur l'appelle avant de céder le créneau. */
-      const finaliser = () => {
-        gsap.set(rects, { attr: attrOuvert });
-        gsap.set(liens, { yPercent: 0, y: 0 });
-        if (scene) gsap.set(scene, { "--recul": 1 });
-        ouvertureFinieRef.current = true;
-      };
+    if (!anime) {
+      finaliser();
+      return;
+    }
 
-      if (!anime) {
-        finaliser();
-        return;
-      }
+    const tl = gsap.timeline({ onComplete: () => liberer(tl) });
+    tl.add(poser(surface), 0);
+    if (scene) {
+      tl.to(scene, { "--recul": 1, duration: 0.9, ease: "power2.out" }, 0);
+    }
+    tl.to(
+      liens,
+      {
+        yPercent: 0,
+        y: 0,
+        duration: 0.72,
+        ease: "expo.out",
+        stagger: { each: 0.09, from: "start", ease: "power2.in" },
+      },
+      0.3,
+    );
+    masterRef.current = tl;
+    reclamer({ nature: "menu", anim: tl, finaliser });
+  }, []);
 
-      const tl = gsap.timeline({
-        onComplete: () => {
-          liberer(tl);
-          ouvertureFinieRef.current = true;
-          /* Le store est posé : on peut enfin dévoiler l'entrée restée sous le
-             pointeur pendant l'ouverture, sans jamais l'avoir superposée. */
-          if (survolRef.current !== null) devoilerProjet(survolRef.current);
-        },
-      });
-      tl.to(
-        rects,
-        {
-          attr: attrOuvert,
-          duration: 0.7,
-          ease: "power3.out",
-          stagger: { each: 0.028, from: "start", ease: "power1.in" },
-        },
-        0,
-      );
-      if (scene) {
-        tl.to(scene, { "--recul": 1, duration: 0.9, ease: "power2.out" }, 0);
-      }
-      tl.to(
-        liens,
-        {
-          yPercent: 0,
-          y: 0,
-          duration: 0.72,
-          ease: "expo.out",
-          stagger: { each: 0.09, from: "start", ease: "power2.in" },
-        },
-        0.3,
-      );
-      masterRef.current = tl;
-      reclamer({ nature: "menu", anim: tl, finaliser });
-    },
-    [devoilerProjet],
-  );
+  /**
+   * Ferme le menu, de trois façons qui ne se ressemblent pas :
+   *
+   *   `"animee"`     — burger ou `Échap` : on reste sur la page, la surface se
+   *                    retire par le passage.
+   *   `"instantanee"`— mouvement réduit : tout est posé, rien ne s'anime.
+   *   `"navigation"` — clic sur une entrée : **la surface reste posée**. C'est
+   *                    la correction du saut qu'on voyait au clic. Retirer la
+   *                    surface tout de suite découvrait la page qu'on est en
+   *                    train de quitter, le temps que Next aille chercher la
+   *                    nouvelle route et que sa couture se monte — un aller-
+   *                    retour visible. En la laissant en place, la couverture ne
+   *                    s'interrompt jamais : la couture de route s'installe
+   *                    dessous, et la surface du menu s'efface au changement de
+   *                    `pathname`, quand il n'y a plus rien à cacher.
+   */
+  const fermer = useCallback((
+    mode: "animee" | "instantanee" | "navigation",
+    apres: () => void,
+  ) => {
+    const scene = document.getElementById("scene-page");
+    const menu = menuRef.current;
+    const surface = surfaceRef.current;
+    if (menu === null || surface === null) {
+      apres();
+      return;
+    }
+    const liens = menu.querySelectorAll<HTMLElement>(".menu__lien");
 
-  const fermer = useCallback(
-    (anime: boolean, apres: () => void) => {
-      const scene = document.getElementById("scene-page");
-      const menu = menuRef.current;
-      if (menu === null) {
-        apres();
-        return;
-      }
-      const rects = rectsLamellesRef.current;
-      const lamelles = lamellesRef.current;
-      const liens = menu.querySelectorAll<HTMLElement>(".menu__lien");
+    masterRef.current?.kill();
+    /* L'aperçu est coupé net à la fermeture : plus aucune entrée survolée, plus
+       de chargement en attente.
 
-      masterRef.current?.kill();
-      ouvertureFinieRef.current = false;
-      /* L'aperçu est coupé net à la fermeture : cellules recouvrantes, vidéo en
-         pause, plus aucune entrée survolée. */
-      survolRef.current = null;
-      if (minuteurRef.current !== null) {
-        clearTimeout(minuteurRef.current);
-        minuteurRef.current = null;
-      }
-      /* Le damier est remis à son état couvrant (tête de lecture à 0) pour que
-         le prochain survol reparte d'un dévoilement complet, jamais d'un état
-         figé à mi-course. L'aperçu masqué, ces cellules opaques ne peignent pas. */
-      damierRef.current?.pause(0);
-      videoRef.current?.pause();
+       **Sauf si une relève est armée.** Un clic sur une entrée de projet ne
+       coupe pas la vidéo : c'est elle qui devient le hero de la page, à la même
+       image, et l'arrêter ici rendrait le relais impossible. Elle reste donc en
+       lecture dans l'aperçu — qui couvre encore le cadre — jusqu'à ce que la
+       chambre l'adopte. */
+    const releve = releveRef.current;
+    releveRef.current = false;
+    survolRef.current = null;
+    if (!releve) {
+      flux.arreter();
       if (apercuRef.current !== null) apercuRef.current.dataset.mode = "vide";
+    }
 
-      const attrFerme = {
-        y: (i: number) => lamelles[Math.floor(i / 2)]!.centre,
-        height: 0,
-      };
+    const finaliser = () => {
+      gsap.set(liens, { yPercent: 110, y: 0 });
+      figer(surface, RETIRE);
+      if (scene) gsap.set(scene, { "--recul": 0 });
+    };
 
-      /* Fermeture instantanée : mouvement réduit, ou fermeture par navigation —
-         la couture de route est alors la seule transition qui s'anime, le store
-         se retire sans bruit pour ne pas s'y superposer. */
-      if (!anime) {
+    if (mode === "navigation") {
+      /* **Tout s'en va, la vidéo reste.**
+
+         Les entrées étaient posées d'un coup hors du cadre, et la page derrière
+         reprenait sa netteté dans la même frame : on quittait le menu par une
+         disparition sèche, pas par un geste. Elles se retirent maintenant comme
+         à la fermeture ordinaire — un peu plus vite, parce qu'on est déjà
+         ailleurs — et ce qui reste à l'écran est la vidéo du projet, plein cadre,
+         qui ne s'est pas interrompue et deviendra le hero de la page.
+
+         La surface d'encre, elle, ne bouge pas : elle couvre encore la page qu'on
+         quitte, sous la vidéo, jusqu'à ce que la nouvelle route soit là. Le filet
+         ci-dessous la libère si le `pathname` ne change jamais — clic sur la
+         route déjà ouverte, navigation empêchée. */
+      /* Sa finalisation ne touche pas à la surface : préemptée ou non, la
+         couverture tient jusqu'à la nouvelle route. */
+      const poserSortie = () => {
         gsap.set(liens, { yPercent: 110, y: 0 });
-        gsap.set(rects, { attr: attrFerme });
-        if (scene) gsap.set(scene, { "--recul": 0 });
-        apres();
-        return;
-      }
-
-      const finaliser = () => {
-        gsap.set(liens, { yPercent: 110, y: 0 });
-        gsap.set(rects, { attr: attrFerme });
         if (scene) gsap.set(scene, { "--recul": 0 });
       };
-
-      /* La fermeture est toujours plus rapide que l'ouverture. Les entrées se
-         retirent en 0,26 s — franchement vif, et surtout hors de la zone
-         0,30–0,55 s que le document proscrit sur un déplacement de grande
-         amplitude (ici tout le corps du lien, sur 110 % de sa hauteur). Le
-         store, lui, se referme après, plus lentement, et scelle la retraite. */
-      const tl = gsap.timeline({
-        onComplete: () => {
-          liberer(tl);
-          apres();
-        },
-      });
-      tl.to(
+      const sortie = gsap.timeline({ onComplete: () => liberer(sortie) });
+      sortie.to(
         liens,
         {
           yPercent: 110,
           y: 0,
-          duration: 0.26,
+          duration: 0.22,
           ease: "power2.in",
-          stagger: { each: 0.04, from: "end" },
+          stagger: { each: 0.03, from: "start" },
         },
         0,
       );
-      tl.to(
-        rects,
-        {
-          attr: attrFerme,
-          duration: 0.5,
-          ease: "power2.in",
-          stagger: { each: 0.02, from: "end" },
-        },
-        0.1,
-      );
       if (scene) {
-        tl.to(scene, { "--recul": 0, duration: 0.6, ease: "power2.inOut" }, 0);
+        sortie.to(scene, { "--recul": 0, duration: 0.5, ease: "power2.out" }, 0);
       }
-      masterRef.current = tl;
-      reclamer({ nature: "menu", anim: tl, finaliser });
-    },
-    [],
-  );
+      masterRef.current = sortie;
+      reclamer({ nature: "menu", anim: sortie, finaliser: poserSortie });
+
+      couvertureRef.current = true;
+      if (filetRef.current !== null) clearTimeout(filetRef.current);
+      filetRef.current = window.setTimeout(() => {
+        filetRef.current = null;
+        if (!couvertureRef.current) return;
+        couvertureRef.current = false;
+        figer(surface, RETIRE);
+      }, FILET_NAVIGATION_MS);
+      apres();
+      return;
+    }
+
+    if (mode === "instantanee") {
+      finaliser();
+      apres();
+      return;
+    }
+
+    /* La fermeture est toujours plus rapide que l'ouverture. Les entrées se
+       retirent en 0,26 s — franchement vif, et surtout hors de la zone
+       0,30–0,55 s que le document proscrit sur un déplacement de grande
+       amplitude (ici tout le corps du lien, sur 110 % de sa hauteur). La
+       surface, elle, se retire après, plus lentement, et scelle la retraite. */
+    const tl = gsap.timeline({
+      onComplete: () => {
+        liberer(tl);
+        apres();
+      },
+    });
+    tl.to(
+      liens,
+      {
+        yPercent: 110,
+        y: 0,
+        duration: 0.26,
+        ease: "power2.in",
+        stagger: { each: 0.04, from: "end" },
+      },
+      0,
+    );
+    tl.add(retirer(surface), 0.1);
+    if (scene) {
+      tl.to(scene, { "--recul": 0, duration: 0.6, ease: "power2.inOut" }, 0);
+    }
+    masterRef.current = tl;
+    reclamer({ nature: "menu", anim: tl, finaliser });
+  }, [flux]);
 
   /* ---- Réaction à l'état d'ouverture ---- */
   useEffetVisuel(() => {
@@ -485,6 +430,10 @@ export function Menu() {
       html.classList.add("menu-ouvert");
       jouer("ouvrir");
       ouvrir(!mouvementReduit);
+      /* Les cinq flux se mettent en chauffe dès l'ouverture. C'est le geste qui
+         supprime le noir entre deux survols : quand on désigne un projet, sa
+         première image est déjà décodée et n'attend plus rien. */
+      if (!mouvementReduit && !donneesEconomes()) flux.prechauffer();
 
       const focusables = Array.from(
         menu.querySelectorAll<HTMLElement>(SELECTEUR_FOCUS),
@@ -517,15 +466,19 @@ export function Menu() {
     }
 
     /* Fermeture. Par navigation (clic sur un lien : le focus part avec la page,
-       donc `focusARestaurer` est faux) → instantanée, pour laisser la couture
-       de route animer seule. Par burger ou Échap (on reste sur la page) →
-       animée. En mouvement réduit, toujours instantanée. */
+       donc `focusARestaurer` est faux) → la surface reste posée jusqu'à la
+       nouvelle route. Par burger ou Échap (on reste sur la page) → animée. En
+       mouvement réduit, instantanée. */
     const navigation = !focusARestaurer.current;
-    const anime = !mouvementReduit && !navigation;
+    const mode = navigation
+      ? "navigation"
+      : mouvementReduit
+        ? "instantanee"
+        : "animee";
 
     jouer("fermer");
     html.classList.remove("menu-ouvert");
-    fermer(anime, () => reprendre("menu"));
+    fermer(mode, () => reprendre("menu"));
     if (focusARestaurer.current) {
       burgerRef.current?.focus();
       focusARestaurer.current = false;
@@ -539,9 +492,19 @@ export function Menu() {
         <Link
           className="menu__lien"
           href={entree.href}
-          data-monde={entree.monde ?? undefined}
           onClick={() => {
-            if (projet) jouer("projet");
+            if (projet) {
+              jouer("projet");
+              /* La vidéo qui joue derrière le texte **est** la vidéo
+                 d'ouverture de la page : on arme la relève, elle ne s'arrête
+                 pas et la chambre l'adoptera à cette image-là. Le drapeau du
+                 module dit à la chambre quoi adopter ; la ref dit à la fermeture
+                 de ne rien couper. */
+              if (entree.slug !== undefined) {
+                armerReleve(entree.slug);
+                releveRef.current = true;
+              }
+            }
             fermerMenu(false);
           }}
           onMouseEnter={() => {
@@ -568,53 +531,22 @@ export function Menu() {
       aria-hidden={!menuOuvert}
       inert={!menuOuvert ? true : undefined}
     >
-      {/* La surface d'encre qui descend par lamelles. */}
-      <svg
-        className="menu__store"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <defs>
-          <mask id="menu-masque-store">
-            <g ref={groupeLamellesRef} />
-          </mask>
-        </defs>
-        <rect
-          x="0"
-          y="0"
-          width="100"
-          height="100"
-          mask="url(#menu-masque-store)"
-        />
-      </svg>
+      {/* La surface d'encre, posée et retirée par le passage. */}
+      <div className="menu__surface passage" ref={surfaceRef} aria-hidden="true" />
 
-      {/* L'aperçu du projet, révélé au survol : la vidéo (ou la photographie de
-          repli) en fond, le monde chromatique en surimpression, et par-dessus le
-          damier d'encre qui s'efface pour dévoiler. */}
+      {/* L'aperçu du projet : le flux partagé du site (ou la photographie de
+          repli), plein cadre, posé sec. Rien par-dessus.
+
+          L'hôte est un cadre vide : c'est le nœud vidéo unique du layout qui
+          vient s'y loger au survol, et qui repart dans le hero de la chambre au
+          clic — sans jamais s'interrompre. */}
       <div className="menu__apercu" ref={apercuRef} data-mode="vide" aria-hidden="true">
-        <video
-          className="menu__media menu__media--video"
-          ref={videoRef}
-          muted
-          loop
-          playsInline
-          preload="none"
-          tabIndex={-1}
-        />
+        <div className="menu__media menu__media--video" ref={hoteRef} />
         {/* Repli décoratif, `src` posé impérativement au survol sur un unique
             nœud réemployé : `next/image` ne s'y prête pas. Il est aria-hidden,
             hors du flux LCP. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="menu__media menu__media--photo" ref={imgRef} alt="" />
-        <div className="menu__teinte" />
-        <svg
-          className="menu__damier"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <g ref={groupeCellulesRef} />
-        </svg>
       </div>
 
       <nav

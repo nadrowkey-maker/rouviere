@@ -153,6 +153,10 @@ export function SequenceCanvas({ sequence, description, className }: Props) {
            un `transform` et un `filter`, donc un `position: fixed` s'y
            calerait sur la page et non sur le viewport. */
         pinType: "transform",
+        /* L'approche est la section épinglée la plus haute de la chambre : elle
+           se re-mesure avant la profondeur qui la suit, pour que le calage de
+           l'une ne parte pas d'une position encore fausse de l'autre. */
+        refreshPriority: 1,
         scrub: 0.6,
         invalidateOnRefresh: true,
         animation: gsap.to(relais, {
@@ -185,6 +189,12 @@ export function SequenceCanvas({ sequence, description, className }: Props) {
       setPrete(true);
       etat.tailleSale = true;
       etat.dessine = -1;
+
+      /* La hauteur de l'approche était déjà réservée (100vh, indépendante des
+         frames), mais le premier tiers vient d'arriver de façon asynchrone : on
+         re-mesure une fois, pour caler les sections épinglées qui suivent sur
+         des positions définitives plutôt que sur celles d'avant le chargement. */
+      ScrollTrigger.refresh();
 
       /* Le reste arrive dans l'ordre, une image à la fois : la suivante est
          prête avant qu'on l'atteigne, et le réseau n'est jamais saturé par

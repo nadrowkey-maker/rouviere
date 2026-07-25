@@ -1,4 +1,10 @@
-/* Le nom du chapitre courant, en bas à gauche, en couche technique. */
+/* Le nom du chapitre courant, en bas à gauche, en couche technique.
+
+   Régime du chrome : `difference`, aucune couleur propre. La craie n'est pas
+   une teinte choisie, c'est la valeur que le blend inverse — le mot est donc
+   clair sur l'encre, sombre sur les matières claires, et jamais recoloré.
+   L'opacité d'apparition vit sur l'enfant : posée ici, elle grouperait le nœud
+   et neutraliserait le blend. */
 
 .chapitre-courant {
   position: fixed;
@@ -7,7 +13,15 @@
   z-index: 55;
   margin: 0;
   pointer-events: none;
-  color: var(--color-zinc);
+  color: var(--color-craie);
+  mix-blend-mode: difference;
+}
+
+@supports not (mix-blend-mode: difference) {
+  .chapitre-courant {
+    mix-blend-mode: normal;
+    color: var(--color-zinc);
+  }
 }
 
 .chapitre-courant__mot {

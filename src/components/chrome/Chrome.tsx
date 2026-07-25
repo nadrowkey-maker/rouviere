@@ -5,6 +5,7 @@ import { Menu } from "./Menu";
 import { Progression } from "./Progression";
 import { ChapitreCourant } from "./ChapitreCourant";
 import { Curseur } from "./Curseur";
+import { Sas } from "./Sas";
 
 /**
  * Le chrome, assemblé. Il persiste au-dessus de tout et ne se démonte jamais :
@@ -19,6 +20,7 @@ export function Chrome() {
     <>
       <BarreNav />
       <Menu />
+      <Sas />
       <Progression />
       <ChapitreCourant />
       <Curseur />

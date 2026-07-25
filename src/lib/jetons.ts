@@ -14,10 +14,11 @@ export type NomCouleur =
   | "pierre"
   | "craie"
   | "sel"
-  | "laque"
-  | "ocre"
-  | "vert-paris"
-  | "outremer"
+  | "ambre"
+  | "paon"
+  | "prairie"
+  | "jade"
+  | "nuit"
   | "laiton";
 
 export type NomDuree = "micro" | "objet" | "chapitre";

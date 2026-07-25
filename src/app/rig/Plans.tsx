@@ -146,9 +146,9 @@ function Bloc({ nom, titre }: { nom: NomCouleur; titre: string }) {
 export default function Plans() {
   return (
     <>
-      <Bloc nom="sel" titre="Plan — sel — Villa Ostréa" />
-      <Bloc nom="ocre" titre="Plan — ocre — Maison Cyprès" />
-      <Bloc nom="vert-paris" titre="Plan — vert Paris — Cinq Heures" />
+      <Bloc nom="ambre" titre="Plan — ambre — Appartement Laiton" />
+      <Bloc nom="prairie" titre="Plan — prairie — Domaine des Charmilles" />
+      <Bloc nom="jade" titre="Plan — jade — Villa Calcaire" />
     </>
   );
 }

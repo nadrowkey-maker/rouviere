@@ -1,0 +1,40 @@
+/* L'ouverture d'un projet depuis le couloir : le cadre de la pièce cliquée
+   s'agrandit jusqu'aux quatre bords de l'écran, et ce qu'il contient passe de la
+   photographie au film.
+
+   La surface est plein cadre dès le départ ; ce qui bouge est le `clip-path` qui
+   la découpe. L'image, elle, ne bouge jamais — c'est la même règle que la sortie
+   de l'enfilade, et c'est pour cela que les pièces du couloir montrent un morceau
+   d'image à sa taille plein écran plutôt qu'une photographie cadrée.
+
+   Couche : au-dessus du parcours et de la couture de route (44), sous le
+   logotype (50) — qui continue d'en être le négatif exact. */
+
+.ouverture {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  overflow: clip;
+  background-color: var(--color-encre);
+  will-change: clip-path, opacity;
+}
+
+.ouverture__flux,
+.ouverture__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Le flux passe dessous : la photographie s'efface sur lui, jamais l'inverse.
+   Les deux montrent la même pièce — le fondu se lit comme une prise de vue qui
+   s'anime, pas comme un changement de plan. */
+.ouverture__flux {
+  opacity: 0;
+}

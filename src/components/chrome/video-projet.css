@@ -1,0 +1,30 @@
+/* Le flux d'un projet : un seul nœud vidéo dans tout le site, déplacé d'un hôte
+   à l'autre (aperçu du menu, hero de la chambre).
+
+   Il n'a pas de mise en page propre : il épouse son hôte, plein cadre, en
+   `cover`. C'est cette absence de géométrie à lui qui rend le déplacement
+   invisible — les deux hôtes couvrent le viewport, donc le nœud ne bouge pas
+   d'un pixel en changeant de parent. */
+
+.video-projet {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Le foyer : là où le nœud attend. Hors du flux, sans surface, jamais peint —
+   mais toujours dans le document, pour que la lecture ne soit pas coupée par un
+   détachement. */
+.video-projet__foyer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: clip;
+  opacity: 0;
+  pointer-events: none;
+}

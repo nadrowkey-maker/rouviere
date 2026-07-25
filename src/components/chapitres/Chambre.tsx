@@ -8,6 +8,12 @@ import { visuelsDe } from "@/data/visuels";
 import { useRevele } from "@/components/motion/useRevele";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon } from "@/components/chrome/SonProvider";
+import { useChrome } from "@/components/chrome/ChromeProvider";
+import {
+  useVideoProjet,
+  consommerReleve,
+} from "@/components/chrome/VideoProjet";
+import { useOuverture } from "@/components/chrome/Ouverture";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { lireCouleur, lireDuree } from "@/lib/jetons";
 import "./chambre.css";
@@ -23,7 +29,12 @@ import "./chambre.css";
  * l'écran :
  *
  *   *Le hero* — la vidéo du projet ouvre en plein cadre, sans texte, comme le
- *   hero du site.
+ *   hero du site. **C'est le même élément vidéo que celui de l'aperçu du menu**,
+ *   déplacé et non recréé (voir `chrome/VideoProjet.tsx`) : quand on entre par le
+ *   menu, le plan qui jouait derrière le titre continue ici, à la même image, au
+ *   même instant de son flux, sans reprise à zéro et sans noir intermédiaire.
+ *   Une fois qu'il est en place, un repère `DÉFILER` paraît en bas et s'efface
+ *   au premier tour de molette.
  *
  *   *Les vues* — les trois photographies se traversent une par une, chacune en
  *   `object-fit: cover` sur 100 vh, avec une parallaxe interne et un
@@ -39,22 +50,72 @@ import "./chambre.css";
 export function Chambre({ projet }: { projet: Projet }) {
   const { mouvementReduit } = useMouvement();
   const { entrerProjet, quitterProjet } = useSon();
+  const { menuOuvert } = useChrome();
+  const flux = useVideoProjet();
+  const { ranger } = useOuverture();
   const { video, planches } = visuelsDe(projet.slug);
 
   /* ---- La nappe du projet ----
      Le monde chromatique bascule à l'entrée ; la nappe fait de même. Celle du
      site cède la place en 1,2 s et la reprend à la sortie, là où le parcours en
-     était resté — c'est le pendant sonore exact du fond qui se recolore. */
+     était resté — c'est le pendant sonore exact du fond qui se recolore.
+
+     **Et elle rend la main dès que le menu s'ouvre.** Ouvrir le menu depuis une
+     page projet, c'est en sortir : on va choisir ailleurs. La nappe du projet
+     tenait pourtant jusqu'au changement de route, si bien qu'on parcourait les
+     cinq titres avec la musique de celui qu'on quittait — puis elle cédait
+     brusquement la place à celle du suivant. Elle repasse maintenant à la nappe
+     du site en même temps que la page recule, et si l'on referme le menu sans
+     aller nulle part, elle revient. */
   useEffetVisuel(() => {
-    entrerProjet(rangDe(projet.slug));
+    if (menuOuvert) quitterProjet();
+    else entrerProjet(rangDe(projet.slug));
     return () => quitterProjet();
-  }, [projet.slug, entrerProjet, quitterProjet]);
+  }, [projet.slug, menuOuvert, entrerProjet, quitterProjet]);
 
   const heroRef = useRef<HTMLElement>(null);
+  const fluxRef = useRef<HTMLDivElement>(null);
   const vuesRef = useRef<HTMLElement>(null);
   const ficheRef = useRef<HTMLDivElement>(null);
 
   useRevele(ficheRef, ".chambre__revele");
+
+  /* ---- Le flux du projet : adopté, jamais recréé ----
+     Si une relève est armée pour ce projet — on vient de cliquer son entrée dans
+     le menu —, la vidéo joue déjà : on la déplace dans le hero et on n'y touche
+     pas. Elle est révélée sur-le-champ, sans fondu : à cet instant elle occupe
+     exactement le même rectangle qu'une seconde plus tôt dans l'aperçu du menu,
+     et le déplacement ne se voit donc pas.
+
+     Sinon — arrivée directe, ou entrée depuis l'enfilade — on la démarre, et le
+     hero tient sur sa poster jusqu'à ce qu'elle joue vraiment. */
+  useEffetVisuel(() => {
+    const hero = heroRef.current;
+    const hote = fluxRef.current;
+    const attendu = consommerReleve();
+    if (hero === null || hote === null || mouvementReduit) return;
+
+    const montrer = (immediat: boolean) => {
+      hero.dataset.flux = immediat ? "releve" : "pret";
+    };
+
+    flux.accueillir(projet.slug, hote);
+    /* La surface d'ouverture a fait son travail : le flux est ici. Elle se range
+       dans la même frame, avant toute peinture — sans quoi son encre vide
+       couvrirait la page qu'elle vient de découvrir. */
+    ranger();
+
+    if (attendu === projet.slug) {
+      montrer(true);
+    } else {
+      flux.demarrer(projet.slug, () => montrer(false));
+    }
+
+    return () => {
+      flux.arreter();
+      flux.accueillir(projet.slug, null);
+    };
+  }, [projet.slug, mouvementReduit, flux, ranger]);
 
   /* ---- La bascule de monde ---- */
   useEffetVisuel(() => {
@@ -99,7 +160,16 @@ export function Chambre({ projet }: { projet: Projet }) {
     });
     declencheur
       .to(hero.querySelector(".chambre__media"), { scale: 1.06, ease: "none" }, 0)
-      .to(hero.querySelector(".chambre__voile"), { opacity: 0.55, ease: "none" }, 0);
+      .to(hero.querySelector(".chambre__voile"), { opacity: 0.55, ease: "none" }, 0)
+      /* Le repère s'efface dès qu'on défile : il a dit ce qu'il avait à dire.
+         Un huitième de la course des deux autres tweens (0,5 s par défaut),
+         donc bien avant que le hero ne s'assombrisse — et réversible comme le
+         reste : on remonte, le repère revient. */
+      .to(
+        hero.querySelector(".chambre__defiler"),
+        { opacity: 0, ease: "none", duration: 0.0625 },
+        0,
+      );
 
     return () => {
       declencheur.scrollTrigger?.kill();
@@ -183,35 +253,38 @@ export function Chambre({ projet }: { projet: Projet }) {
       <section
         className="chambre__hero"
         ref={heroRef}
+        data-flux={mouvementReduit ? "poster" : "attente"}
         aria-label={`${projet.nom}, ${projet.lieu}`}
       >
         <div className="chambre__media">
-          {mouvementReduit ? (
-            <Image
-              src={video.poster}
-              width={video.largeur}
-              height={video.hauteur}
-              alt=""
-              className="chambre__image"
-              priority
-              sizes="100vw"
-            />
-          ) : (
-            <video
-              className="chambre__image"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              poster={video.poster}
-            >
-              <source src={video.webm} type="video/webm" />
-              <source src={video.mp4} type="video/mp4" />
-            </video>
+          {/* La poster : le LCP du chapitre, et la surface sur laquelle le flux
+              se pose quand on arrive sans relève. En mouvement réduit, c'est
+              elle et rien d'autre. */}
+          <Image
+            src={video.poster}
+            width={video.largeur}
+            height={video.hauteur}
+            alt=""
+            className="chambre__image"
+            priority
+            sizes="100vw"
+          />
+          {/* L'hôte du flux partagé. Vide au rendu : le nœud vidéo unique du
+              layout vient s'y loger, en venant du menu ou du foyer. */}
+          {mouvementReduit ? null : (
+            <div className="chambre__flux" ref={fluxRef} aria-hidden="true" />
           )}
         </div>
         <div className="chambre__voile" aria-hidden="true" />
+
+        {/* Le repère de défilement. Il ne paraît qu'une fois le plan installé,
+            et il s'efface au premier tour de molette — c'est un repère, pas une
+            invitation à cliquer : pas de flèche, pas de rebond, pas de centre. */}
+        {mouvementReduit ? null : (
+          <p className="chambre__defiler technique" aria-hidden="true">
+            Défiler
+          </p>
+        )}
       </section>
 
       {/* ---- Les vues : trois photographies plein cadre ---- */}

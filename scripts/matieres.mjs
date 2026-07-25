@@ -1,9 +1,9 @@
 /**
  * Les trois matières du chapitre *La Matière*.
  *
- * Trois plans macro, un par matière réellement présente dans un projet :
- * le noyer fumé de l'Appartement Laiton, la chaux blanche du Domaine des
- * Charmilles, le voile de lin de la Villa Calcaire. Sources dans
+ * Deux plans macro, un par matière filmée du chapitre : la chaux blanche du
+ * Domaine des Charmilles, le voile de lin de la Villa Calcaire. Le noyer fumé,
+ * lui, n'a pas de fichier — voir plus bas. Sources dans
  * `medias-source/matieres/` (Pexels, licence libre) ; sorties dans
  * `public/media/matieres/`.
  *
@@ -16,7 +16,7 @@
  *   propre sans coupure visible, et le chapitre est fait pour qu'on s'y arrête.
  * — **Sept secondes de source.** Doublées par l'aller-retour, cela fait
  *   quatorze secondes de boucle : assez long pour qu'on ne sente pas le
- *   cycle, assez court pour tenir le budget avec trois vidéos dans la page.
+ *   cycle, assez court pour tenir le budget des plans de la page.
  * — **Étalonnage.** Le même que les photographies, par `filtreVideo()`. Une
  *   vidéo qui n'aurait pas la courbe des images se verrait immédiatement.
  *
@@ -41,7 +41,7 @@ const DUREE = 7;
 const POSTER_A = 3;
 
 /**
- * Ces trois plans sont les fichiers les plus lourds du site : du grain fin sur
+ * Ces plans macro sont les fichiers les plus lourds du site : du grain fin sur
  * toute la surface, c'est le pire cas d'un codec inter-frames — il n'y a rien
  * à prédire d'une image à l'autre. D'où deux écarts au reste des médias, tenus
  * ici et nulle part ailleurs :
@@ -51,9 +51,9 @@ const POSTER_A = 3;
  *   enlève un tiers du poids.
  * — **Un cran de quantification en plus.** Le mouvement lent masque le bruit de
  *   compression, et le chapitre ne montre qu'une matière à la fois : le
- *   navigateur ne charge jamais les trois ensemble.
+ *   navigateur ne les charge jamais ensemble.
  * — **Pas de WebM.** Le VP9 sert à peser moins que le H.264 ; mesuré sur ces
- *   trois plans, il pèse trois fois plus — le grain fin est le pire cas d'un
+ *   plans, il pèse trois fois plus — le grain fin est le pire cas d'un
  *   codec qui prédit d'une image à l'autre, et VP9 y dépense davantage que
  *   H.264. Un second format qui alourdit le fichier servi n'a aucune raison
  *   d'exister : les projets, eux, gardent leur WebM, où il gagne.
@@ -61,8 +61,16 @@ const POSTER_A = 3;
 const LARGEUR = 1600;
 const CRF_H264 = 28;
 
+/**
+ * Deux plans, et non trois.
+ *
+ * Le noyer fumé n'a plus de fichier : le premier temps du chapitre se joue sur la
+ * photographie que l'enfilade laisse ouverte en plein cadre. Le plan macro de
+ * bois qui était encodé ici la recouvrait — on ouvrait un cadre sur une image
+ * pour la remplacer aussitôt par une autre du même bois, ce qui annulait
+ * l'arrivée. Voir `data/matieres.ts` et `chapitres/Matiere.tsx`.
+ */
 const MATIERES = [
-  { cle: "noyer-fume", debut: 6 },
   { cle: "chaux-blanche", debut: 2 },
   { cle: "voile-de-lin", debut: 3 },
 ];
@@ -105,4 +113,4 @@ for (const { cle, debut } of MATIERES) {
   console.log("matière", cle);
 }
 
-console.log("Trois matières encodées dans", CIBLE);
+console.log("Deux matières filmées, étalonnées dans", CIBLE);

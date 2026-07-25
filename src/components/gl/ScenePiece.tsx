@@ -25,15 +25,25 @@ type Props = {
   index: number;
   etat: { current: EtatEnfilade };
   cle: string;
+  /** La dernière pièce : une fenêtre sur l'image de sortie, déjà à sa taille. */
+  fenetreFixe?: boolean;
 };
 
-export default function ScenePiece({ ancre, source, index, etat, cle }: Props) {
+export default function ScenePiece({
+  ancre,
+  source,
+  index,
+  etat,
+  cle,
+  fenetreFixe,
+}: Props) {
   useGLProxy(
     ancre,
     fabriquerPiece({
       source,
       index,
       etat,
+      fenetreFixe,
       /* La source en pose quarante. Chacune coûte deux prises de texture, et
          trois pièces sont à l'écran en même temps. Vingt-huit garde la douceur
          du bruit — c'est lui qui empêche le flou de baguer — pour trois

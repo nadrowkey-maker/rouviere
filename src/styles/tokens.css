@@ -2,7 +2,17 @@
    Source unique de vérité. Toute valeur ici provient de CLAUDE.md, Livre I.
    Aucune couleur, aucune durée, aucune courbe ne doit exister ailleurs. */
 
-@theme {
+/* `static` — et non `@theme` simple — parce que Tailwind v4 n'émet par défaut
+   que les variables qu'il voit consommées : une utilitaire générée, ou un
+   `var(--…)` trouvé dans une source. Un jeton lu uniquement depuis le
+   JavaScript, par `lireJeton`, est invisible à cette analyse et disparaît de
+   la feuille compilée — c'est exactement ce qui est arrivé à `--color-sel`,
+   seul jeton dont aucune règle CSS n'écrit le nom. Les cinq mondes ne
+   survivaient que par les `var()` du styleguide : un fichier de démonstration
+   ne peut pas être ce qui tient les couleurs du site en vie.
+   `static` émet le bloc entier, toujours. Le coût est de quelques centaines
+   d'octets ; le bénéfice est que la source de vérité en est réellement une. */
+@theme static {
   /* ------------------------------------------------------------------
      On vide les échelles par défaut de Tailwind avant de poser les
      nôtres : plus de text-gray-500, plus de rounded-lg, plus de
@@ -29,12 +39,19 @@
   --color-pierre: #b4b0a6; /* pierre de taille lavée */
   --color-craie: #e7e5de; /* enduit sec, JAMAIS un crème chaud */
 
-  /* ---- Les mondes — un par projet, plein écran, jamais en accent ---- */
-  --color-sel: #a8b8bc; /* Villa Ostréa */
-  --color-laque: #8e1a16; /* Hôtel Sévigné */
-  --color-ocre: #b26a24; /* Maison Cyprès */
-  --color-vert-paris: #1f4237; /* Appartement Cinq Heures */
-  --color-outremer: #0f2fa8; /* La Bergerie */
+  /* ---- Les mondes — un par projet, plein écran, jamais en accent ----
+     Chaque valeur est extraite de la dominante réelle des médias du projet
+     (vidéo + trois photographies), puis approfondie pour tenir plein cadre
+     derrière un texte craie. L'ordre suit `data/projets.ts`. */
+  --color-ambre: #8a5a22; /* Appartement Laiton — laiton, noyer, lumière du soir */
+  --color-paon: #0f4c5c; /* Grand Hôtel des Bains — laque bleu paon du hall, l'eau */
+  --color-prairie: #5b7327; /* Domaine des Charmilles — le parc, la charmille taillée */
+  --color-jade: #155e4c; /* Villa Calcaire — l'eau du bassin, le vert du parc */
+  --color-nuit: #17325c; /* Villa Basalte — l'heure bleue, la lave, l'outremer */
+
+  /* Sel — non plus un monde de projet, mais l'eau du bassin de La Matière.
+     Conservé car le shader `bassin.ts` s'y adosse pour le ciel et les veines. */
+  --color-sel: #a8b8bc; /* eau douce, nacre, gris perle */
 
   /* ---- Métal — liserés fins uniquement, jamais un aplat ---- */
   --color-laiton: #9a7b4f;

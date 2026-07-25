@@ -17,10 +17,32 @@
  * sont choisies une à une : une planche à 44 % de large suivie d'une à 108 %
  * qui déborde du cadre, c'est un montage. Un rapport tiré au hasard ou dérivé
  * de l'index en serait la caricature.
+ *
+ * **La plongée aussi est écrite ici.** Une seule planche du chapitre porte
+ * `plongee` : c'est celle dans laquelle on entre entièrement, jusqu'à en perdre
+ * les bords. Le choix ne se dérive pas d'une position dans la liste, il se
+ * décide — c'est la grande table de l'atelier, le sujet même du chapitre, la
+ * seule planche qui déborde des deux marges. Ses deux voisines s'assagissent
+ * pour la préparer (voir `Atelier.tsx`).
+ *
+ * **Et c'est la seule qui soit filmée.** On ne plonge pas dans une
+ * photographie : au sommet, quand les quatre bords du guichet ont rejoint ceux
+ * de l'écran, il faut que quelque chose vive encore dans l'image — sinon le
+ * plein écran n'est qu'un agrandissement, et le point culminant du chapitre est
+ * une image fixe très grande. Les cinq autres planches restent des
+ * photographies : la séquence est *montée*, et un seul de ses plans bouge de
+ * lui-même.
  */
 
 export type PlancheAtelier = {
   src: string;
+  /**
+   * Le plan est filmé, et `src` désigne alors un `.mp4` ; `poster` en donne la
+   * première surface, pour le cadre réservé et pour le mouvement réduit. Une
+   * seule planche du chapitre est dans ce cas : celle de la plongée. Voir
+   * `plongee` plus bas, et `scripts/atelier.mjs` pour la raison.
+   */
+  poster?: string;
   /** Dimensions réelles du fichier : `next/image` en a besoin, le CLS aussi. */
   largeurFichier: number;
   hauteurFichier: number;
@@ -33,6 +55,13 @@ export type PlancheAtelier = {
   largeur: number;
   /** Le bord sur lequel la planche est calée — et par lequel elle déborde. */
   cote: "gauche" | "droite";
+  /**
+   * Le point culminant du chapitre. **Une seule planche de la liste** le porte :
+   * c'est dans celle-là qu'on plonge jusqu'au plein écran. Elle est filmée, et
+   * elle est la seule à l'être — un sommet dans lequel on entre pour y trouver
+   * une image fixe n'est qu'un agrandissement.
+   */
+  plongee?: true;
 };
 
 export const planchesAtelier: PlancheAtelier[] = [
@@ -47,14 +76,17 @@ export const planchesAtelier: PlancheAtelier[] = [
     cote: "gauche",
   },
   {
-    src: "/media/atelier/atelier.avif",
+    /* Le seul plan filmé du chapitre, et le seul dans lequel on entre. */
+    src: "/media/atelier/atelier.mp4",
+    poster: "/media/atelier/atelier-poster.avif",
     largeurFichier: 1920,
-    hauteurFichier: 1280,
-    alt: "La grande pièce de l'atelier : presse, rouleaux de papier, tables de travail sous une fenêtre haute.",
+    hauteurFichier: 1080,
+    alt: "La grande table de l'atelier : lampe d'architecte, maquette de tour, plans en pile, élévations punaisées au mur.",
     note: "Atelier — jour du nord",
     hauteur: 88,
     largeur: 108,
     cote: "droite",
+    plongee: true,
   },
   {
     src: "/media/atelier/maquette.avif",

@@ -26,6 +26,19 @@ export const rattraper = (
   return actuel + (cible - actuel) * t;
 };
 
+/**
+ * Transition douce entre deux seuils — le `smoothstep` de GLSL, à l'identique.
+ *
+ * Vaut 0 jusqu'à `bas`, 1 à partir de `haut`, et entre les deux une courbe en S
+ * dont la dérivée s'annule aux deux bornes. C'est ce qui distingue une règle
+ * qu'on comprend d'une rampe linéaire : il y a une vraie plage nette, une vraie
+ * plage floue, et un passage sans angle entre elles.
+ */
+export const adoucir = (v: number, bas: number, haut: number): number => {
+  const t = borne01((v - bas) / (haut - bas));
+  return t * t * (3 - 2 * t);
+};
+
 /** Remappe `v` de l'intervalle [a1, a2] vers [b1, b2], sans borner. */
 export const remapper = (
   v: number,

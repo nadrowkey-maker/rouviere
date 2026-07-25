@@ -5,7 +5,24 @@
      0    canvas du rig            50   logo (négatif, geste signature)
      1    parcours (.scene-page)   55   progression, chapitre courant
      45   overlay du menu          60   barre de nav (burger, son)
-     100  lien d'évitement         9000 curseur */
+     100  lien d'évitement         9000 curseur
+
+   ------------------------------------------------------------------
+   Le régime du chrome : un seul, celui du logotype
+   ------------------------------------------------------------------
+   Tout ce qui vit dans le chrome est en `mix-blend-mode: difference` et n'a
+   jamais de couleur propre : logo, son, burger, progression, nom du chapitre,
+   curseur. Le contexte d'isolation est unique et se trouve sur `<body>`
+   (`isolation: isolate`, voir `base.css`) : chacun de ces nœuds en est un enfant
+   direct, donc chacun se mélange avec la page entière et rien d'autre.
+
+   La règle qui va avec, et qui est la seule façon de la tenir : **aucun ancêtre
+   d'un nœud qui se mélange ne porte de propriété groupante** — ni opacité
+   intermédiaire, ni filtre, ni `will-change` sur l'une des deux. C'est pourquoi
+   le blend est posé ici, sur `.barre-nav__droite`, et non sur les deux boutons :
+   c'est ce groupe-là que l'intro fait apparaître en opacité, et une opacité
+   posée sur le nœud qui se mélange est sans danger — c'est une opacité posée
+   *au-dessus* de lui qui l'annulerait. */
 
 .barre-nav {
   position: fixed;
@@ -25,4 +42,30 @@
   align-items: center;
   gap: clamp(1rem, 2vw, 2rem);
   pointer-events: auto;
+  /* La craie n'est pas une couleur choisie : c'est la valeur que `difference`
+     inverse. Le son et le burger en héritent par `currentColor`, et aucun des
+     deux ne déclare de teinte. */
+  color: var(--color-craie);
+  mix-blend-mode: difference;
+}
+
+@supports not (mix-blend-mode: difference) {
+  .barre-nav__droite {
+    mix-blend-mode: normal;
+  }
+}
+
+/* Pendant l'intro, les commandes du chrome n'existent pas encore : elles
+   n'arrivent qu'une fois le logo rangé dans la barre. On les cache avant la
+   première peinture ; le seuil les révèle ensuite en JS (son puis burger,
+   décalés de 120 ms). Au rechargement — sans `seuil-a-jouer` — elles sont là
+   d'emblée. */
+.seuil-a-jouer .barre-nav__droite {
+  opacity: 0;
+  /* `visibility: hidden` les retire aussi de l'ordre de tabulation : pendant
+     l'écran d'entrée, aucun focus ne se pose sur des commandes invisibles
+     derrière le plein cadre noir. Le seuil rétablit la visibilité à la
+     révélation. */
+  visibility: hidden;
+  pointer-events: none;
 }

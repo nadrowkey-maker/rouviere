@@ -17,6 +17,11 @@ import "./curseur.css";
  * Il n'ouvre pas de boucle : il lit le pointeur en phase de mesure et écrit sa
  * transformation en phase de rendu, sur le ticker partagé. Sur pointeur
  * grossier il n'existe pas du tout.
+ *
+ * L'anneau est doublé : un trait clair et un trait sombre décalés d'un pixel.
+ * Le second ne sert que là où le blend est neutralisé — moteur sans support, ou
+ * contexte d'empilement qui isolerait le groupe. Voir `curseur.css`, qui porte
+ * le raisonnement complet.
  */
 
 const RAYON_AIMANT = 80;
@@ -46,6 +51,13 @@ export function Curseur() {
 
     const html = document.documentElement;
     html.classList.add("curseur-actif");
+
+    /* Le repli doublé se déclare ici, une fois : `@supports` ne couvre que le
+       moteur qui refuse la propriété, pas celui qui l'accepte sans la rendre.
+       Le drapeau est le même dans les deux cas — l'anneau sombre reparaît. */
+    if (!CSS.supports("mix-blend-mode", "difference")) {
+      anneau.dataset.blend = "repli";
+    }
 
     const lerp = mouvementReduit ? 1 : 0.12;
 
@@ -138,6 +150,8 @@ export function Curseur() {
 
   return (
     <div className="curseur" ref={anneauRef} data-forme="anneau" aria-hidden="true">
+      {/* Le trait sombre en premier : il se peint sous le trait clair. */}
+      <span className="curseur__doublure" />
       <span className="curseur__forme">
         <span className="curseur__mot" ref={motRef} />
       </span>

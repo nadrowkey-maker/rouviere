@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/verifier-jetons.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "verifier:jetons": "node scripts/verifier-jetons.mjs",
+    "typecheck": "node scripts/verifier-jetons.mjs && tsc --noEmit"
   },
   "dependencies": {
     "gsap": "^3.13.0",

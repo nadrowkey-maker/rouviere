@@ -46,21 +46,25 @@
   width: clamp(20rem, 40vw, 40rem);
 }
 
-/* Le nom, dans la marge haute, en Gambetta énorme, coupé par le bord de
-   l'écran. Il ne se lit entier qu'au moment où sa pièce passe au centre. */
+/* Le nom, dans la marge haute, en Gambetta énorme. Il est calé sur sa pièce et
+   ne tient l'écran qu'au moment où celle-ci passe au centre : c'est le composant
+   qui pose son échelle, sa densité et sa position bornée, à chaque cadre.
+
+   Le `translate: -50%` est le repère de calcul — le nom est centré sur sa pièce
+   au repos —, jamais un parti pris de composition. Il vit sur la propriété
+   `translate`, laissant `transform` entièrement à GSAP. */
 .enfilade__nom {
   position: absolute;
   bottom: calc(100% + clamp(1.5rem, 4vh, 3.5rem));
   left: 50%;
-  /* Le centrage sert ici de repère de calcul, pas de parti pris de
-     composition : c'est la contre-parallaxe qui décale le nom presque tout le
-     temps, et il n'est aligné qu'à l'instant du passage au centre. */
   translate: -50% 0;
   white-space: nowrap;
   font-size: var(--text-titre);
   color: var(--color-craie);
   pointer-events: none;
-  will-change: transform;
+  /* L'échelle prend le nom par son centre : un nom qui recule ne dérive pas. */
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
   /* Au-dessus des médias peints par le rig, sous le chrome. */
   z-index: 2;
 }
@@ -131,6 +135,40 @@
   right: var(--marge);
   color: var(--color-zinc);
   z-index: 2;
+}
+
+/* ---- Le plan de sortie ----
+
+   Le cadre est **plein écran dès le départ**, et l'image dedans ne bouge
+   jamais : ni échelle, ni translation, ni transformation d'aucune sorte. La
+   seule chose qui s'anime est la fenêtre qu'un `clip-path` y découpe — elle part
+   sur la boîte exacte de la dernière pièce, mesurée au rafraîchissement, et ses
+   quatre bords vont rejoindre ceux de l'écran.
+
+   Ce n'est donc pas un zoom, et ce n'est pas non plus une caméra qui avance :
+   c'est un cadre qui s'ouvre sur une image posée. La distinction n'est pas
+   théorique — elle est la différence entre une image qu'on regarde grandir et
+   une image qu'on finit par voir en entier.
+
+   Le plan passe au-dessus de tout ce que la scène contient — noms et couche
+   technique compris — parce que c'est lui qui conclut le chapitre. */
+.enfilade__final {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  will-change: clip-path, opacity;
+}
+
+.enfilade__final-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* ------------------------------------------------------------------

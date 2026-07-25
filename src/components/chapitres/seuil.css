@@ -1,56 +1,40 @@
-/* Le Seuil. Un overlay plein cadre, au-dessus du parcours mais sous le logo.
+/* Le Seuil — le hero.
 
-   Il n'existe visiblement que sous `seuil-a-jouer` : au rechargement la classe
-   est absente, l'overlay est `display: none` avant la première peinture, et
-   rien ne clignote. Son fond est l'encre du site pour que la vidéo, en se
-   rétractant, découvre le vestibule sans coupure de couleur. */
+   Ce n'est plus un overlay qui disparaît : c'est la première section du
+   parcours, plein cadre, que le défilement épingle et voile. Elle reste dans le
+   DOM du début à la fin, ce qui rend le retour en haut possible et réversible.
+   L'écran d'entrée, lui, est un plein cadre noir posé au-dessus (voir
+   `ecran-entree.css`), qui ne vit que sous `seuil-a-jouer`. */
 
-.seuil {
-  display: none;
-}
-
-.seuil-a-jouer .seuil {
-  display: block;
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background-color: var(--color-encre);
+.hero {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
   overflow: hidden;
-  /* État plein : le point de départ que GSAP referme en bande puis à rien.
-     Sans valeur explicite, l'interpolation depuis `none` est impossible. */
-  clip-path: inset(0% 0% 0% 0%);
+  background-color: var(--color-encre);
 }
 
-.seuil__video {
+.hero__video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  /* Le voile de novembre : la vidéo n'est jamais à pleine lumière, le blend du
-     logo garde ainsi du contraste sur toute sa surface. */
+  /* La vidéo n'est jamais à pleine lumière : le blend du logo garde ainsi du
+     contraste sur toute sa surface. */
   filter: saturate(0.9) brightness(0.92);
+  /* Aucun `transform`, aucun `will-change` : le hero ne bouge pas. Sa sortie
+     est le voile, et rien d'autre. */
 }
 
-/* Le lien d'évitement du seuil : invisible, mais focusable au clavier. Il
-   apparaît quand on l'atteint, et saute directement l'intro. */
-.seuil__passer {
+/* Le voile de sortie : un plein noir que le défilement fait monter de 0 à 1.
+   Au-dessus de la vidéo, sous rien d'autre — le hero ne porte aucun texte. */
+.hero__voile {
   position: absolute;
-  top: 0;
-  right: var(--marge);
-  z-index: 41;
-  padding: var(--spacing) calc(var(--spacing) * 2);
-  background-color: var(--color-craie);
-  color: var(--color-encre);
-  font-family: var(--font-sans);
-  font-size: var(--text-technique);
-  letter-spacing: var(--tracking-technique);
-  text-transform: uppercase;
-  transform: translateY(-120%);
-  transition: transform var(--duree-micro) var(--ease-seche);
-}
-
-.seuil__passer:focus-visible {
-  transform: translateY(0);
+  inset: 0;
+  background-color: #000;
+  opacity: 0;
+  pointer-events: none;
 }

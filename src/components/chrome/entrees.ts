@@ -1,17 +1,21 @@
-import { projets, type Monde } from "@/data/projets";
+import { projets } from "@/data/projets";
 
 /**
  * Les entrées du menu. Le menu n'est pas une liste de liens : c'est l'endroit
  * où « on voit où l'on va avant d'y aller ». Les cinq projets viennent en
- * premier, chacun portant son monde chromatique — c'est lui qui envahit le
- * fond au survol. Viennent ensuite les trois passages du parcours, sans monde.
+ * premier, chacun portant son slug — c'est par lui qu'on retrouve la vidéo qui
+ * apparaît au survol. Viennent ensuite les trois passages du parcours.
+ *
+ * Le monde chromatique a quitté cette liste : la teinte de projet qui se posait
+ * en surimpression sur l'aperçu est retirée, elle fabriquait un artefact à
+ * chaque changement d'entrée. Le fond montre la vidéo, sans retouche.
  */
 
 export type Entree = {
   label: string;
   href: string;
-  /** Le monde chromatique qui envahit le fond au survol, ou `null`. */
-  monde: Monde | null;
+  /** Le slug du projet, pour retrouver sa vidéo d'aperçu au survol. */
+  slug?: string;
   /** Ligne de couche technique décrochée dans la marge. */
   detail?: string;
 };
@@ -24,12 +28,12 @@ export type Entree = {
 export const entreesProjets: Entree[] = projets.map((projet) => ({
   label: projet.nom,
   href: `/projets/${projet.slug}`,
-  monde: projet.monde,
+  slug: projet.slug,
   detail: `${projet.lieu} · ${projet.coordonnees} · ${projet.annee}`,
 }));
 
 export const entreesParcours: Entree[] = [
-  { label: "L'Atelier", href: "/#atelier", monde: null },
-  { label: "Les Archives", href: "/archives", monde: null },
-  { label: "Contact", href: "/#contact", monde: null },
+  { label: "L'Atelier", href: "/#atelier" },
+  { label: "Les Archives", href: "/archives" },
+  { label: "Contact", href: "/#contact" },
 ];

@@ -1,6 +1,11 @@
 /* La barre de progression du parcours. Une ligne de 1 px sur le bord gauche.
    La jauge se remplit du haut vers le bas ; sa couleur est une variable pour
-   que le monde d'un projet puisse la repeindre. */
+   que le monde d'un projet puisse la repeindre.
+
+   Comme tout le chrome, elle est en `difference` : elle traverse la vidéo du
+   seuil, l'encre du parcours et les mondes des projets sans jamais être
+   recolorée. Le `transform` de la jauge est posé sur l'enfant — il ne groupe
+   donc pas le nœud qui se mélange. */
 
 .progression {
   position: fixed;
@@ -11,6 +16,13 @@
   height: 100vh;
   background-color: var(--color-plomb);
   pointer-events: none;
+  mix-blend-mode: difference;
+}
+
+@supports not (mix-blend-mode: difference) {
+  .progression {
+    mix-blend-mode: normal;
+  }
 }
 
 .progression__jauge {

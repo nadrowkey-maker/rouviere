@@ -1,6 +1,26 @@
 /* Le curseur. Un anneau de 28 px en négatif de ce qu'il traverse, qui grossit
    sur l'interactif et devient une pastille pleine, portant un mot, sur un
-   média. Le seul arrondi autorisé de tout le site vit ici. */
+   média. Le seul arrondi autorisé de tout le site vit ici.
+
+   ------------------------------------------------------------------
+   Pourquoi le blend est porté par `.curseur` et non par `.curseur__forme`
+   ------------------------------------------------------------------
+   Le `difference` était posé sur la forme intérieure, sous un parent qui porte
+   `will-change: transform` et une opacité animée. Ces deux propriétés font du
+   parent un **groupe isolé** : la forme ne se mélangeait plus qu'avec le vide
+   de son propre groupe, jamais avec la page. Le blend était donc neutralisé en
+   permanence, et l'anneau craie devenait invisible sur toute surface claire.
+
+   Le blend vit maintenant sur le nœud extérieur — celui-là même qui porte la
+   transformation —, exactement comme le logotype, qui n'a jamais eu ce défaut.
+   L'opacité d'apparition descend d'un cran, sur la forme : l'opacité d'un
+   enfant n'isole pas son parent.
+
+   Et parce qu'un contexte d'empilement peut toujours réapparaître ailleurs
+   (un moteur qui isole `will-change`, un `@supports` qui échoue), l'anneau est
+   **doublé** : un trait sombre légèrement décalé sous le trait clair. Sous
+   `difference` on ne le voit pas — il est masqué. Dès que le blend tombe, il
+   reparaît et garantit le contraste sur n'importe quel fond. */
 
 /* Le natif s'efface : l'anneau prend le relais. Désactivé sur pointeur
    grossier — la classe n'est alors jamais posée. */
@@ -16,15 +36,16 @@ html.curseur-actif * {
   z-index: 9000;
   pointer-events: none;
   will-change: transform;
-  opacity: 0;
-  transition: opacity var(--duree-micro) var(--ease-seche);
+  /* Le négatif exact du fond, comme le logo. Porté ici, sur le nœud qui porte
+     la transformation : aucun ancêtre du blend n'isole plus rien. */
+  mix-blend-mode: difference;
 }
 
-.curseur[data-visible="true"] {
-  opacity: 1;
-}
-
-.curseur__forme {
+/* Les deux traits sont posés au même endroit ; seul le décalage de l'ombre les
+   distingue. Ils partagent toutes leurs dimensions, donc toutes leurs
+   transitions : un seul jeu de règles les commande. */
+.curseur__forme,
+.curseur__doublure {
   position: absolute;
   top: 0;
   left: 0;
@@ -37,24 +58,49 @@ html.curseur-actif * {
   transform: translate(-50%, -50%);
   border: 1px solid var(--color-craie);
   border-radius: 50%;
-  /* Le négatif exact du fond, comme le logo. */
-  mix-blend-mode: difference;
   transition:
     width var(--duree-micro) var(--ease-seche),
     height var(--duree-micro) var(--ease-seche),
+    opacity var(--duree-micro) var(--ease-seche),
     background-color var(--duree-micro) var(--ease-seche);
 }
 
+/* L'apparition est portée par les traits, jamais par `.curseur` : une opacité
+   intermédiaire sur le nœud du blend l'affaiblirait, sur un ancêtre elle
+   l'annulerait. */
+.curseur__forme,
+.curseur__doublure {
+  opacity: 0;
+}
+
+.curseur[data-visible="true"] .curseur__forme,
+.curseur[data-visible="true"][data-blend="repli"] .curseur__doublure {
+  opacity: 1;
+}
+
+/* Le trait sombre du repli : décalé d'un pixel, sous le trait clair, et
+   invisible tant que le blend fait son travail. */
+.curseur__doublure {
+  border-color: var(--color-encre);
+  translate: 1px 1px;
+}
+
 /* Sur un élément interactif : l'anneau s'ouvre. */
-.curseur[data-forme="actif"] .curseur__forme {
+.curseur[data-forme="actif"] .curseur__forme,
+.curseur[data-forme="actif"] .curseur__doublure {
   width: 44px;
   height: 44px;
 }
 
-/* Sur un média : une pastille pleine qui porte le mot. */
-.curseur[data-forme="pastille"] .curseur__forme {
+/* Sur un média : une pastille pleine qui porte le mot. La doublure reste un
+   trait — une seconde pastille pleine ferait un halo, pas un contour. */
+.curseur[data-forme="pastille"] .curseur__forme,
+.curseur[data-forme="pastille"] .curseur__doublure {
   width: 76px;
   height: 76px;
+}
+
+.curseur[data-forme="pastille"] .curseur__forme {
   background-color: var(--color-craie);
 }
 
@@ -72,8 +118,14 @@ html.curseur-actif * {
   opacity: 1;
 }
 
+/* Le blend est absent du moteur : on abandonne l'inversion et on passe au
+   repli doublé, qui tient le contraste sans elle. Le `data-blend` posé en JS
+   couvre le même cas pour les moteurs qui déclarent le support sans le rendre. */
 @supports not (mix-blend-mode: difference) {
-  .curseur__forme {
+  .curseur {
     mix-blend-mode: normal;
+  }
+  .curseur[data-visible="true"] .curseur__doublure {
+    opacity: 1;
   }
 }

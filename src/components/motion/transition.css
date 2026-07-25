@@ -1,19 +1,31 @@
-/* La couture inter-routes. Une surface pleine qui couvre la nouvelle route puis
-   se retire par masque SVG. Portée dans document.body : elle couvre le vrai
-   viewport, sans dépendre du `transform` de .scene-page.
+/* La couture inter-routes, et l'ouverture du menu : le même passage.
+
+   Une surface d'encre pleine, portée dans document.body (elle couvre le vrai
+   viewport, sans dépendre du `transform` de .scene-page). Un seul scalaire la
+   commande, `--passage` : 1 elle est posée, 0 elle est retirée.
+
+   Les trois propriétés en descendent, et c'est là tout le fondu de matière :
+     — l'échelle : la surface qui part s'éloigne d'un rien (5 %) ;
+     — la luminosité : elle s'assombrit jusqu'au noir complet ;
+     — l'opacité : elle ne cède qu'en fin de course, pour qu'on voie d'abord
+       la matière s'éteindre et seulement ensuite ce qu'il y a dessous.
 
    Couche : au-dessus du parcours (1), sous le logo (50) — qui reste son négatif
    exact — et sous le chrome. */
 
-.transition {
+.passage {
+  --passage: 1;
   position: fixed;
   inset: 0;
   z-index: 44;
   pointer-events: none;
-}
+  background-color: var(--color-encre);
 
-.transition__svg {
-  display: block;
-  width: 100%;
-  height: 100%;
+  /* Le facteur 1.5 fait que l'opacité atteint zéro au tiers restant : la
+     surface est déjà noire quand elle commence à céder. */
+  opacity: min(1, calc(var(--passage) * 1.5));
+  filter: brightness(var(--passage));
+  transform: scale(calc(1 + 0.05 * (1 - var(--passage))));
+  transform-origin: 50% 50%;
+  will-change: opacity, filter, transform;
 }

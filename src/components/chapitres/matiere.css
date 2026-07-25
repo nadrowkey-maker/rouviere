@@ -1,4 +1,7 @@
-/* La Matière. Deux temps : la traversée des trois plans macro, puis le bassin.
+/* La Matière. Un temps, et un seul : la traversée des trois plans macro.
+
+   Le bassin a quitté ce chapitre pour le vestibule, où il est le sixième temps
+   du manifeste. Il n'y a plus qu'une scène d'eau dans tout le site.
 
    Le chapitre est contemplatif : il n'y a dans ce fichier aucune transition,
    aucune animation, aucun survol. La seule chose qui change à l'écran est le
@@ -6,6 +9,29 @@
 
 .matiere {
   position: relative;
+}
+
+/* ---- Le recouvrement de l'enfilade ----
+
+   Le chapitre remonte d'un écran sur celui qui le précède.
+
+   L'enfilade fait 100 vh et son épinglage lui rend la main *au-dessus* de cet
+   écran-là : sans ce décalage, il faudrait le franchir avant que le cadre des
+   matières ne se colle en haut du viewport — un écran entier pendant lequel la
+   photographie de sortie glisse vers le haut tandis que sa copie arrive par le
+   bas. Deux fois la même image, en train de se croiser.
+
+   En remontant le chapitre d'exactement la hauteur qu'occupe l'enfilade après
+   son épinglage, le cadre se colle à l'instant où celui-ci rend la main. Les deux
+   unités sont la même (`100vh` ici, `height: 100vh` là) : elles s'annulent, quel
+   que soit l'écran. La photographie ne bouge donc pas d'un pixel entre les deux
+   chapitres — une copie prend la place de l'autre, au même endroit.
+
+   Rien de ce chapitre n'est interactif : il ne prend pas le pointeur, qui
+   traverse jusqu'aux pièces du couloir tant qu'elles sont dessous. */
+.matiere[data-reduit="false"] {
+  margin-top: -100vh;
+  pointer-events: none;
 }
 
 /* ---- La traversée ---- */
@@ -27,6 +53,15 @@
   /* Le fond d'encre ferme le cadre : le canvas du rig est fixe derrière la
      page, et le bassin ne doit pas transparaître sous les matières. */
   background-color: var(--color-encre);
+}
+
+/* La contrepartie du recouvrement : tant que le chapitre n'a pas commencé, le
+   cadre n'est pas là. Il serait sinon visible pendant le dernier écran de la
+   course épinglée du couloir, où il monterait par le bas et couvrirait la
+   sortie de l'enfilade. Le basculement se fait à l'instant exact où les deux
+   images coïncident : il ne se voit pas. */
+.matiere__cadre[data-pose="false"] {
+  visibility: hidden;
 }
 
 /* Les trois plans s'empilent, tous au même endroit. L'ordre du DOM fait la
@@ -81,26 +116,6 @@
   mix-blend-mode: difference;
 }
 
-/* Les deux lignes de couche technique : la provenance, puis la facture. */
-.matiere__provenance,
-.matiere__facture {
-  margin: 0;
-  color: var(--color-craie);
-  mix-blend-mode: difference;
-}
-
-.matiere__provenance {
-  margin-top: calc(var(--spacing) * 3);
-}
-
-.matiere__facture {
-  margin-top: calc(var(--spacing) * 1);
-  /* Pas de retrait d'opacité ici : sur une matière de valeur moyenne, le
-     `difference` ne laisse déjà qu'une marge de contraste étroite, et la lui
-     rogner ferait passer la ligne sous le seuil AA. La hiérarchie entre les
-     deux lignes se lit à leur ordre, pas à leur densité. */
-}
-
 /* ---- Mouvement réduit : trois plans posés, un par écran ---- */
 
 /* Ni course, ni collage, ni masque. Les trois matières sont simplement
@@ -120,43 +135,4 @@
   inset: auto;
   height: 100vh;
   clip-path: none;
-}
-
-/* ---- Le bassin ---- */
-
-.matiere__bassin {
-  position: relative;
-  height: 100vh;
-  overflow: clip;
-  /* Sans fond : le canvas du rig est fixe derrière la page, on le laisse
-     transparaître. Le curseur natif est déjà masqué par le chrome. */
-}
-
-/* Le repli occupe tout le cadre. Il reste sous le WebGL et disparaît une fois
-   la simulation en marche — mais jamais avant, pour ne pas montrer de trou. */
-.matiere__repli {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: -1;
-  transition: opacity var(--duree-chapitre) var(--ease-douce);
-}
-
-/* Quand le WebGL peint réellement le bassin, la plaque de repli s'efface. En
-   mode dégradé (`data-cache` faux) elle reste : c'est elle qu'on voit. */
-.matiere__repli[data-cache="true"] {
-  opacity: 0;
-}
-
-/* La seule interface de l'écran : une ligne de couche technique, en bas à
-   gauche, qui traverse l'eau en difference. */
-.matiere__technique {
-  position: absolute;
-  bottom: clamp(1.5rem, 5vh, 3rem);
-  left: var(--marge);
-  z-index: 2;
-  color: var(--color-craie);
-  mix-blend-mode: difference;
 }
