@@ -146,7 +146,7 @@ const SceneBassin = dynamic(() => import("@/components/gl/SceneBassin"), {
  * pas d'environ trente-sept pixels, ce qui donne à la molette un contrôle
  * continu au lieu d'un saut d'image tous les crans.
  */
-const TEMPS = 14;
+const TEMPS = 15;
 
 /**
  * Où s'arrête le plan filmé. **C'est la charnière du chapitre.**
@@ -159,7 +159,7 @@ const TEMPS = 14;
  * L'index de l'allumage étant mappé linéairement sur `[0, FILM_FIN]`, cette
  * valeur commande aussi l'instant où le mot se lève : `PART_ALLUMAGE × FILM_FIN`.
  */
-const FILM_FIN = 0.56;
+const FILM_FIN = 0.62;
 
 /** L'instant, en part de la course, où la pièce s'allume. Calculé, pas choisi. */
 const ALLUMAGE = PART_ALLUMAGE * FILM_FIN;
@@ -205,14 +205,24 @@ const MINUTAGE = {
    * noir doit partir lentement, sans quoi elle ne sort pas du noir, elle y
    * apparaît. D'où `power2.in`, et une plage franchement longue.
    */
-  ignition: [0.0, 0.075],
-  unEntree: [0.01, 0.04],
-  unSortie: [0.075, 0.105],
-  deuxEntree: [0.125, 0.155],
+  ignition: [0.0, 0.045],
+  /**
+   * **La première phrase attend que la pièce soit là.**
+   *
+   * Elle entrait à 0,01, c'est-à-dire pendant que le plan montait encore du
+   * noir : on lisait « Je ne décore pas » sur un écran presque vide, et la pièce
+   * arrivait après, comme si elle rattrapait le texte. L'ordre est inverse — on
+   * entre dans une pièce, *puis* quelqu'un parle.
+   *
+   * Son entrée commence donc après la fin de l'ignition, et non avant.
+   */
+  unEntree: [0.055, 0.082],
+  unSortie: [0.112, 0.138],
+  deuxEntree: [0.152, 0.178],
   /** La couche technique s'efface avant la lumière, et ne revient pas. */
-  margeSortie: [0.14, 0.175],
+  margeSortie: [0.145, 0.178],
   /** « Je règle la » cède au mot : la sortie enjambe l'allumage. */
-  deuxSortie: [0.19, 0.22],
+  deuxSortie: [0.2125, 0.24],
   /**
    * Le mot LUMIÈRE. Son début **est** l'index de l'allumage : il se lève avec
    * la pièce. La plage est courte — c'est une apparition de générique, pas une
@@ -227,17 +237,17 @@ const MINUTAGE = {
   extinction: [FILM_FIN, FILM_FIN + 0.055],
   lumiereSortie: [FILM_FIN + 0.015, FILM_FIN + 0.065],
   /** Dans le noir, et seulement là. */
-  cinqEntree: [0.665, 0.71],
+  cinqEntree: [0.725, 0.768],
   /** Tout disparaît sauf « silence ». */
-  reduction: [0.74, 0.775],
-  eauMontee: [0.785, 0.835],
-  eauSortie: [0.915, 0.955],
-  septEntree: [0.945, 0.985],
+  reduction: [0.795, 0.828],
+  eauMontee: [0.838, 0.878],
+  eauSortie: [0.925, 0.958],
+  septEntree: [0.948, 0.988],
 } as const;
 
 /** La séquence est en scrub : ces bornes disent où l'eau prend la main. */
-const EAU_DEBUT = 0.765;
-const EAU_FIN = 0.96;
+const EAU_DEBUT = 0.818;
+const EAU_FIN = 0.965;
 
 /**
  * Course verticale d'une phrase, en pixels. Huit — la ligne de base du site,
