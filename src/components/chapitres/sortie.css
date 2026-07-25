@@ -139,10 +139,10 @@
   display: grid;
   grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
   column-gap: var(--gouttiere);
-  /* Le retrait bas dégage la ligne du chrome : le nom du chapitre courant est
-     fixé au même coin, et deux textes superposés ne se lisent ni l'un ni
-     l'autre. */
-  padding: 0 var(--marge) clamp(4.5rem, 11vh, 7rem);
+  /* Le retrait bas dégage deux choses : la ligne du chrome, dont le nom de
+     chapitre est fixé au même coin, et le colophon qui ferme le site sous son
+     filet. Trois textes empilés dans le même coin ne se lisent pas. */
+  padding: 0 var(--marge) clamp(6rem, 13vh, 8.5rem);
   pointer-events: none;
   font-style: normal;
 }
@@ -228,6 +228,57 @@
   margin: 0;
   color: var(--color-pierre);
   pointer-events: none;
+}
+
+/* ---- Le colophon ----
+
+   La signature de l'auteur du site, et la seule ligne qui ne soit pas de la
+   voix de Rouvière. Le filet au-dessus le dit sans qu'on ait à l'écrire : le
+   site finit là, ce qui suit appartient à quelqu'un d'autre.
+
+   Elle est calée à droite, dans le coin opposé au nom du chapitre que le chrome
+   tient en bas à gauche — deux signatures ne se superposent pas. Et elle est en
+   zinc, un cran sous la couche technique de l'atelier : elle n'en fait pas
+   partie, et elle ne doit pas prétendre le contraire.
+
+   Le lien, lui, prend le pointeur : c'est le seul geste de cette ligne. */
+.sortie__colophon {
+  position: absolute;
+  left: var(--marge);
+  right: var(--marge);
+  bottom: clamp(1.5rem, 5vh, 3rem);
+  z-index: 2;
+  margin: 0;
+  padding-top: calc(var(--spacing) * 2);
+  border-top: 1px solid color-mix(in oklab, var(--color-zinc) 32%, transparent);
+
+  /* La taille de la couche technique, **sans ses capitales** : une adresse de
+     courriel en capitales se lit mal et cesse d'avoir l'air d'une adresse.
+     L'interlettrage descend en conséquence — les 0,14 em du document sont
+     calculés pour des capitales, ils désagrègent un bas de casse. */
+  font-family: var(--font-sans);
+  font-size: var(--text-technique);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-align: right;
+  color: var(--color-zinc);
+  pointer-events: none;
+}
+
+/* L'invitation reste solidaire de l'adresse : sur une ligne étroite, les deux
+   passent ensemble à la ligne suivante plutôt que de se séparer. */
+.sortie__colophon-invite {
+  display: inline-block;
+}
+
+.sortie__colophon .sortie__lien {
+  color: var(--color-pierre);
+  pointer-events: auto;
+}
+
+.sortie__colophon .sortie__lien:hover,
+.sortie__colophon .sortie__lien:focus-visible {
+  color: var(--color-craie);
 }
 
 /* Sur une colonne unique, les deux blocs se suivent au lieu de se faire face,

@@ -21,7 +21,6 @@ export const INTERFACE = {
     fr: "Architecture d'intérieur",
     en: "Interior architecture",
   },
-  entreeLieu: { fr: "Paris, depuis 2011", en: "Paris, since 2011" },
   entreeAvecSon: { fr: "Entrer avec le son", en: "Enter with sound" },
   entreeSilence: { fr: "Entrer en silence", en: "Enter in silence" },
   entreeGroupe: { fr: "Entrer sur le site", en: "Enter the site" },
@@ -137,6 +136,26 @@ export const INTERFACE = {
     fr: "Une nuée basse passe sur une crête boisée. Gris de novembre, sans horizon net.",
     en: "Low cloud crossing a wooded ridge. November grey, no clear horizon.",
   },
+
+  /* ---- Le colophon ----
+   *
+   * **La seule ligne du site qui ne soit pas de la voix de Rouvière.** Elle
+   * n'est donc pas tenue par les règles du Livre I — notamment celle qui
+   * interdit la deuxième personne : ici, quelqu'un d'autre parle, et il parle
+   * au visiteur.
+   *
+   * Elle en garde le registre, parce que c'est le registre qui la rend
+   * crédible : trois mots là où une phrase de démarchage en demanderait vingt.
+   * « Pour le vôtre » dit exactement ce que dirait « si vous souhaitez discuter
+   * de votre projet de site internet », et le dit mieux — parce que le site
+   * qu'on vient de traverser est l'argument, et qu'une ligne qui vendrait fort
+   * contredirait tout ce qu'il vient de démontrer.
+   */
+  colophonAuteur: {
+    fr: "Site conçu et développé par Flavien Gaudé.",
+    en: "Site designed and built by Flavien Gaudé.",
+  },
+  colophonInvite: { fr: "Pour le vôtre —", en: "For yours —" },
 } as const satisfies Record<string, Texte>;
 
 export type Cle = keyof typeof INTERFACE;

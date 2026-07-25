@@ -32,10 +32,15 @@ import "./sortie.css";
  * parcours reprend là où il en était. C'est la seule autre fois du site où le
  * son dit qu'on a changé d'endroit sans qu'on ait changé de route.
  *
- * Les coordonnées restent **dispersées dans la composition** — l'adresse calée
- * bas à gauche, le contact décroché à droite, la mention d'atelier isolée dans
- * la marge haute. Jamais empilées en pied de page : ce n'est pas un pied de
- * page, c'est la dernière pièce.
+ * Les coordonnées tiennent **deux colonnes ancrées chacune sur sa marge**, et
+ * partant de la même ligne : l'adresse et ses repères à gauche, dans le
+ * prolongement du mot ; le contact et la mention d'atelier à droite. Ce n'est
+ * pas un pied de page — le mot occupe le cadre, et le texte n'est qu'une bande
+ * basse qui le laisse respirer.
+ *
+ * Sous eux, séparé d'un filet, **le colophon** : la seule ligne du site qui ne
+ * soit pas de la voix de Rouvière. C'est l'auteur qui signe, et le filet dit
+ * sans qu'on l'écrive que le site finit là.
  *
  * Le courriel est un lien `mailto:` qui copie l'adresse au clic, avec un retour
  * discret. Pas de formulaire à six champs, pas de « Parlons de votre projet ».
@@ -48,6 +53,9 @@ import "./sortie.css";
 
 const ADRESSE = "atelier@rouviere.fr";
 const TELEPHONE = "+33 1 42 61 08 11";
+
+/** L'auteur du site. Pas l'atelier — voir le colophon, plus bas. */
+const AUTEUR = "contact.flaviengaude@gmail.com";
 
 /**
  * Base de mesure, en pixels. Sa valeur n'a aucune importance : on pose le mot
@@ -312,6 +320,26 @@ export function Sortie() {
           </p>
         </div>
       </address>
+
+      {/* ---- Le colophon ----
+
+          La seule ligne du site qui ne soit pas de la voix de Rouvière : c'est
+          l'auteur qui signe. Le filet au-dessus d'elle le dit sans qu'on ait à
+          l'écrire — le site finit là, ce qui suit appartient à quelqu'un
+          d'autre. D'où aussi le zinc plutôt que la pierre : un cran plus bas
+          que la couche technique de l'atelier, parce qu'elle n'en fait pas
+          partie. */}
+      {/* Pas la classe `technique` : elle passe tout en capitales, et une adresse
+          de courriel en capitales se lit mal et n'a pas l'air d'une adresse. */}
+      <p className="sortie__colophon">
+        <span>{t("colophonAuteur")}</span>{" "}
+        <span className="sortie__colophon-invite">
+          {t("colophonInvite")}{" "}
+          <a className="sortie__lien sortie__courriel" href={`mailto:${AUTEUR}`}>
+            {AUTEUR}
+          </a>
+        </span>
+      </p>
     </section>
   );
 }

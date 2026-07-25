@@ -29,12 +29,35 @@
      est le voile, et rien d'autre. */
 }
 
-/* Le voile de sortie : un plein noir que le défilement fait monter de 0 à 1.
-   Au-dessus de la vidéo, sous rien d'autre — le hero ne porte aucun texte. */
+/* Le voile de sortie : un plein que le défilement fait monter de 0 à 1.
+   Au-dessus de la vidéo, sous rien d'autre — le hero ne porte aucun texte.
+
+   ------------------------------------------------------------------
+   Pourquoi l'encre et non un noir pur
+   ------------------------------------------------------------------
+   Il était en `#000`, et cela fabriquait un **rideau à deux tons** à l'entrée du
+   vestibule.
+
+   Le chapitre suivant remonte d'une hauteur de fenêtre sur celui-ci, et son plan
+   monte en densité depuis rien. Pendant cette montée, on voit donc *à travers
+   lui* — et ce qu'il y a derrière n'est pas d'une seule couleur : le voile du
+   hero au-dessus, le fond du site en dessous, séparés par le bord bas du hero
+   qui remonte avec le défilement. Deux noirs à cinq pour cent l'un de l'autre,
+   c'est invisible en aplat et parfaitement lisible en frontière : on voyait une
+   ligne horizontale glisser vers le haut.
+
+   Le voile prend donc l'encre du site. Les deux fonds deviennent le même, la
+   frontière disparaît, et il n'y a plus rien à voir derrière le plan qui arrive.
+
+   C'est aussi ce que demandait le Livre I — « un seul régime : `--encre` » — et
+   ce que fait déjà l'étalonnage des frames, dont le point noir relevé tombe à
+   trois valeurs de ce jeton. Le noir pur était la seule valeur hors jetons du
+   parcours.
+   ------------------------------------------------------------------ */
 .hero__voile {
   position: absolute;
   inset: 0;
-  background-color: #000;
+  background-color: var(--color-encre);
   opacity: 0;
   pointer-events: none;
 }

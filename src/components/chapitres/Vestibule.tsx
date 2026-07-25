@@ -164,9 +164,6 @@ const FILM_FIN = 0.56;
 /** L'instant, en part de la course, où la pièce s'allume. Calculé, pas choisi. */
 const ALLUMAGE = PART_ALLUMAGE * FILM_FIN;
 
-/** Exposition du plan. Voir `vestibule.css` — elle tient une contrainte mesurée. */
-const EXPOSITION = 0.55;
-
 /**
  * Le minutage, en parts de la course. Il est écrit ici, en toutes lettres, et
  * pas dérivé d'un pas régulier : c'est un montage, et un montage se décide.
@@ -314,10 +311,11 @@ export function Vestibule() {
       if (mot !== null) {
         gsap.set(mot, { opacity: 0, scale: 1.06, filter: "blur(10px)" });
       }
-      /* Le plan part **éteint** : c'est ce qui rend le basculement de `data-pose`
-         invisible, et ce qui donne au chapitre une pièce qui émerge plutôt
-         qu'une image qui surgit. */
-      if (plan !== null) gsap.set(plan, { "--eau": 0, "--expo": 0 });
+      /* Le plan part **absent**, pas seulement éteint : c'est ce qui rend le
+         basculement de `data-pose` strictement invisible — on découvre l'encre
+         du site, qui est ce que le voile du hero vient de poser — et ce qui
+         donne au chapitre une pièce qui émerge plutôt qu'une image qui surgit. */
+      if (plan !== null) gsap.set(plan, { "--eau": 0, opacity: 0 });
       if (ancre !== null) gsap.set(ancre, { yPercent: 100 });
 
       /* ---- Le cadre n'est là qu'à partir de son chapitre ----
@@ -401,18 +399,33 @@ export function Vestibule() {
         0,
       );
 
-      /* La pièce monte du noir, en `power2.in` : elle démarre à peine, puis
-         vient. Voir `MINUTAGE.ignition` — une courbe `out` ici rendait la
-         lumière dans le premier dixième de sa plage, et l'on retombait sur le
-         surgissement qu'on cherchait à supprimer. */
+      /* ---- La pièce monte du noir ----
+       *
+       * **Sur `opacity`, et plus sur l'exposition.** Le fondu a été manqué trois
+       * fois, et la raison n'était pas la courbe : c'était la propriété. Faire
+       * varier `brightness()` par une propriété personnalisée demande, à chaque
+       * frame, un recalcul de style puis un refiltrage d'un canvas plein écran —
+       * et il suffit que la propriété ne s'anime pas pour que la valeur saute
+       * d'un bout à l'autre sans qu'aucune erreur ne le signale.
+       *
+       * `opacity` n'a aucun de ces défauts. Elle est composée sur le GPU, donc
+       * le fondu est gratuit ; et c'est la propriété que GSAP anime depuis
+       * toujours, donc elle ne peut pas ne pas fonctionner. Ce qu'on découvre en
+       * dessous est le fond du site, c'est-à-dire l'encre : la pièce sort de
+       * l'encre au lieu de s'allumer, ce qui est exactement l'image qu'on
+       * cherchait.
+       *
+       * L'exposition, elle, redevient ce qu'elle aurait toujours dû être : une
+       * valeur d'étalonnage écrite une fois dans la feuille de style.
+       */
       if (plan !== null) {
         const [debutIgnition, finIgnition] = MINUTAGE.ignition;
         tl.to(
           plan,
           {
-            "--expo": EXPOSITION,
+            opacity: 1,
             duration: finIgnition - debutIgnition,
-            ease: "power2.in",
+            ease: "power2.inOut",
           },
           debutIgnition,
         );
@@ -511,18 +524,21 @@ export function Vestibule() {
        *
        * C'est ce qui sépare franchement les deux temps du chapitre, et c'est ce
        * qui manquait : la suite du manifeste se disait *par-dessus* le séjour
-       * éclairé au lieu de se dire après lui. On ne pose pas un voile — on baisse
-       * la lumière, exactement comme la sortie du hero, et le cadre tombe au
-       * noir complet. Le reste du chapitre s'y joue.
+       * éclairé au lieu de se dire après lui. On ne pose pas un voile par-dessus
+       * la pièce — on la retire, et le cadre rend l'encre du site. Le reste du
+       * chapitre s'y joue.
+       *
+       * Le retrait est l'exact symétrique de l'arrivée, sur la même propriété et
+       * pour les mêmes raisons.
        *
        * Effet de bord heureux : le mot LUMIÈRE se calculant en négatif de ce
-       * qu'il traverse, il flambe à mesure que la pièce s'éteint. Il sort donc
-       * au plus clair, et il sort en dernier. */
+       * qu'il traverse, il flambe à mesure que la pièce s'en va. Il sort donc au
+       * plus clair, et il sort en dernier. */
       if (plan !== null) {
         const [xd, xf] = MINUTAGE.extinction;
         tl.to(
           plan,
-          { "--expo": 0, duration: xf - xd, ease: "power2.inOut" },
+          { opacity: 0, duration: xf - xd, ease: "power2.inOut" },
           xd,
         );
       }

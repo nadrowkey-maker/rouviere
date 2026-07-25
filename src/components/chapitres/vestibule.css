@@ -97,13 +97,20 @@
      valeur absolue — la pièce passe de 10 à 61 au lieu de 18 à 111, et le saut
      est exactement le même.
 
-     `--expo` est le second scalaire du plan, à côté de `--eau`, et il est piloté
-     par la même timeline : le plan fini, on le ramène à zéro. **C'est cette
-     extinction qui sépare les deux temps du chapitre** — le manifeste ne se dit
-     plus par-dessus le séjour éclairé, il se dit dans le noir qui lui succède.
-     On baisse la lumière d'une pièce, exactement comme à la sortie du hero ; on
-     ne pose pas un voile par-dessus. */
-  filter: brightness(var(--expo, 0.55));
+     **C'est une valeur, pas une animation**, et c'est la troisième version de
+     cette ligne. Le plan arrivait et se retirait en faisant varier ce
+     `brightness` par une propriété personnalisée : à chaque frame, un recalcul
+     de style puis un refiltrage d'un canvas plein écran — et rien pour signaler
+     que la propriété ne s'animait pas. Le fondu a été manqué trois fois de
+     suite.
+
+     L'arrivée et le retrait vivent maintenant sur `opacity` (voir
+     `Vestibule.tsx`) : composée sur le GPU, gratuite, et impossible à rater. Ce
+     qu'on découvre sous le plan est l'encre du site — la pièce sort de l'encre
+     au lieu de s'allumer, ce qui est l'image qu'on cherchait. */
+  filter: brightness(0.55);
+  /* Absent tant que la timeline ne l'a pas fait venir. */
+  opacity: 0;
 }
 
 /* ---- Le bassin ----

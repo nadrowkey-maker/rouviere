@@ -75,9 +75,7 @@ export function EcranEntree({ pret, onEntrer, conteneurRef }: Props) {
             il porte à lui seul l'idée de plaque gravée. */}
         <span className="ecran-entree__filet" aria-hidden="true" />
 
-        <p className="ecran-entree__qualite technique">
-          {t("entreeTitre")} — {t("entreeLieu")}
-        </p>
+        <p className="ecran-entree__qualite technique">{t("entreeTitre")}</p>
 
         {/* Les deux portes, **dans le même bloc que le nom et juste sous lui**.
             Elles étaient renvoyées en bas de l'écran, en capitales de onze
