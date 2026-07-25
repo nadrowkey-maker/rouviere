@@ -121,7 +121,6 @@ export const INTERFACE = {
 
   /* ---- La Chambre ---- */
   chambreProgramme: { fr: "Programme", en: "Brief" },
-  chambreDefiler: { fr: "Défiler", en: "Scroll" },
   chambreLivraison: { fr: "livraison", en: "delivered" },
 
   /* ---- Les Archives ---- */

@@ -61,19 +61,63 @@
   transition: none;
 }
 
-/* Le repère de défilement, en couche technique, calé au bord droit — jamais
-   centré, et pas dans le coin bas gauche, occupé en permanence par le nom du
-   chapitre courant. Il ne paraît qu'une fois le plan installé : le délai est
-   celui d'une respiration, pas d'un effet. */
+/* Le repère de défilement : une piste verticale d'un pixel, et un segment qui
+   la descend. Il ne paraît qu'une fois le plan installé — le délai est celui
+   d'une respiration, pas d'un effet.
+
+   **Au milieu du bord bas**, et c'est une exception assumée à « rien n'est
+   centré » : c'est l'axe du plan, là où le regard tombe quand il a fini de
+   regarder. Le coin bas gauche ne pouvait pas le prendre — il est occupé en
+   permanence par le nom du chapitre courant.
+
+   Aucune couleur propre, comme le mot qu'il remplace : le `difference` en fait
+   le négatif de ce qu'il traverse, clair sur un plan sombre et sombre sur un
+   plan clair, sans qu'on ait à connaître la vidéo. */
 .chambre__defiler {
   position: absolute;
-  right: var(--marge);
+  left: 50%;
   bottom: clamp(1.5rem, 5vh, 3rem);
   z-index: 20;
+  width: 1px;
+  height: 3.5rem;
+  transform: translateX(-50%);
+  overflow: hidden;
   color: var(--color-craie);
   mix-blend-mode: difference;
   opacity: 0;
   transition: opacity var(--duree-objet) var(--ease-sortie) 0.5s;
+}
+
+/* La piste : le trajet entier, en retrait. Elle dit où ça va. */
+.chambre__defiler-piste {
+  position: absolute;
+  inset: 0;
+  background-color: currentColor;
+  opacity: 0.3;
+}
+
+/* Le segment qui descend. Il entre par le haut, sort par le bas, et
+   recommence — c'est le geste, pas son icône.
+
+   `translateY` en longueurs et non en pourcentages : le pourcentage se
+   rapporterait à la hauteur du segment, pas à celle de la piste, et la course
+   serait fausse dès qu'on toucherait à l'une des deux. */
+.chambre__defiler-curseur {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1rem;
+  background-color: currentColor;
+  animation: chambre-defiler 2.4s var(--ease-douce) infinite;
+}
+
+@keyframes chambre-defiler {
+  from {
+    transform: translateY(-1rem);
+  }
+  to {
+    transform: translateY(3.5rem);
+  }
 }
 
 /* Il attend le plan : tant que le flux n'a pas commencé, il n'y a rien à
@@ -83,17 +127,14 @@
   opacity: 1;
 }
 
-/* Un liseré d'un pixel sous le mot, et c'est tout l'écran. Il prend la couleur
-   du mot — donc aucune : comme lui, il est le négatif de ce qu'il traverse. Une
-   teinte propre ici serait inversée par le blend et ne vaudrait rien. */
-.chambre__defiler::after {
-  content: "";
-  display: block;
-  margin-top: calc(var(--spacing) * 1);
-  margin-left: auto;
-  width: 3rem;
-  height: 1px;
-  background-color: currentColor;
+/* Mouvement réduit : le repère n'est pas rendu du tout (voir `Chambre.tsx`).
+   La règle est là pour le cas où il le serait un jour — une marque qui bouge
+   en boucle est exactement ce qu'on ne veut pas là. */
+@media (prefers-reduced-motion: reduce) {
+  .chambre__defiler-curseur {
+    animation: none;
+    transform: none;
+  }
 }
 
 /* Le voile de sortie : noir, monté en scrub à mesure qu'on quitte le hero. */

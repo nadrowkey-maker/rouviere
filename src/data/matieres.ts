@@ -79,16 +79,16 @@ export const matieres: Matiere[] = [
     cle: "chaux-blanche",
     nom: { fr: "La trame", en: "The weave" },
     plan: media("chaux-blanche", {
-      fr: "Une façade blanche en plein soleil. Les balcons se répètent en bandes, la main courante file, les baies restent noires.",
-      en: "A white façade in full sun. Balconies repeat in bands, the handrail runs on, the openings stay black.",
+      fr: "Un salon sombre. Des banquettes de cuir capitonné se suivent le long de la pièce, des palmiers en bac derrière elles, une guirlande d'ampoules au plafond. La caméra glisse lentement.",
+      en: "A dark lounge. Buttoned leather benches follow one another down the room, potted palms behind them, a string of bulbs overhead. The camera drifts slowly.",
     }),
   },
   {
     cle: "voile-de-lin",
     nom: { fr: "Le relief", en: "The relief" },
     plan: media("voile-de-lin", {
-      fr: "Gros plan sur une toile de lin écrue. Le jour rasant fait saillir la trame et les irrégularités du fil.",
-      en: "Close on an unbleached linen cloth. Raking light raises the weave and the slubs in the thread.",
+      fr: "Un séjour vitré ouvert sur un jardin. Canapé bas, table basse, tapis rayé, baies toute hauteur d'un mur à l'autre. La caméra glisse lentement.",
+      en: "A glazed living room open onto a garden. Low sofa, low table, striped rug, full-height glazing from wall to wall. The camera drifts slowly.",
     }),
   },
 ];

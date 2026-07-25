@@ -287,12 +287,29 @@ export function Chambre({ projet }: { projet: Projet }) {
         <div className="chambre__voile" aria-hidden="true" />
 
         {/* Le repère de défilement. Il ne paraît qu'une fois le plan installé,
-            et il s'efface au premier tour de molette — c'est un repère, pas une
-            invitation à cliquer : pas de flèche, pas de rebond, pas de centre. */}
+            et il s'efface au premier tour de molette.
+
+            **Ce n'est plus un mot, c'est une marque.** « Défiler » disait à voix
+            haute ce que le geste montre : sur un plan qui tient l'écran entier,
+            un impératif écrit est la seule chose qu'on lit, et il devient la
+            seule chose qu'on regarde. La marque, elle, se comprend sans se lire
+            — et elle se comprend dans toutes les langues, ce que le mot ne
+            faisait même pas (il était codé en dur en français).
+
+            Elle reste dans le vocabulaire du site : deux filets d'un pixel,
+            angles vifs, aucune couleur propre. Pas de flèche, pas de rebond, pas
+            de souris arrondie — le Livre I interdit l'un et l'autre. Une piste
+            verticale, et un segment qui la descend : c'est le défilement lui-même,
+            pas son icône.
+
+            Le centre est demandé, et c'est une exception assumée à « rien n'est
+            centré » : le repère est sous le plan, au bord bas, là où le regard
+            tombe quand il a fini de regarder. */}
         {mouvementReduit ? null : (
-          <p className="chambre__defiler technique" aria-hidden="true">
-            Défiler
-          </p>
+          <span className="chambre__defiler" aria-hidden="true">
+            <span className="chambre__defiler-piste" />
+            <span className="chambre__defiler-curseur" />
+          </span>
         )}
       </section>
 
