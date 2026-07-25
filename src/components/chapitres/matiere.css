@@ -116,6 +116,41 @@
   mix-blend-mode: difference;
 }
 
+/* ---- L'arête du premier nom ----
+
+   Le premier nom est le seul qu'aucun masque ne porte : il se pose sur la
+   photographie que l'enfilade vient d'ouvrir, et rien d'autre ne bouge à cet
+   instant. Il a donc sa propre arrivée — un mot par ligne, chacun monté de
+   110 % derrière son arête, flou qui se résorbe (voir `Matiere.tsx`).
+
+   Le blend reste sur le nom ; la translation et le flou vivent deux crans plus
+   bas. C'est ce qui permet de composer cette apparition sans jamais toucher à
+   l'opacité, qui est exactement ce que ce nom ne supporte pas.
+
+   Les retraits compensés donnent de l'air à l'arête : une ligne à 0,82
+   d'interligne laisse dépasser ses jambages, et le flou déborde le glyphe de
+   dix pixels. Le padding les laisse passer, la marge négative rend la position
+   exacte — le nom reste calé au pixel où il était. */
+/* Le porteur des lignes est un bloc : une boîte en ligne qui contient des blocs
+   se fait couper en boîtes anonymes, et l'arête n'a plus de hauteur sûre. */
+.matiere__lignes {
+  display: block;
+}
+
+.matiere__mot {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+  padding-inline: 0.06em;
+  margin-inline: -0.06em;
+}
+
+.matiere__ligne {
+  display: block;
+  will-change: transform, filter;
+}
+
 /* ---- Mouvement réduit : trois plans posés, un par écran ---- */
 
 /* Ni course, ni collage, ni masque. Les trois matières sont simplement

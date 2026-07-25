@@ -68,6 +68,37 @@ const PASSAGE = 0.14;
 const FERME = "inset(0% 0% 100% 0%)";
 const OUVERT = "inset(0% 0% 0% 0%)";
 
+/**
+ * L'apparition du premier nom.
+ *
+ * Les deux autres matières n'en ont pas besoin : elles arrivent derrière un
+ * masque, et leur nom est peint dans le plan — il est découvert du même geste
+ * qu'elles. **Le premier nom, lui, n'a aucun masque pour le porter** : il se
+ * pose sur la photographie que l'enfilade vient de laisser ouverte, et rien
+ * d'autre ne se produit à cet instant. Il paraissait donc d'un coup, avec le
+ * cadre. C'était brutal, et il fallait le composer.
+ *
+ * La composition est un reveal ligne par ligne : chaque mot monte de 110 %
+ * derrière une arête, son flou se résorbe, sur neuf dixièmes de seconde en
+ * `--e-sortie`. Trois précisions comptent :
+ *
+ * — **Le décalage est écrit, pas calculé.** Un stagger régulier est la
+ *   signature d'un générateur. Les valeurs ci-dessous ne suivent aucune raison ;
+ *   c'est le propos.
+ * — **Rien n'anime l'opacité.** Le nom vit en `mix-blend-mode: difference`, et
+ *   une densité intermédiaire posée sur un nœud qui se mélange ne donne pas la
+ *   moitié du négatif : elle donne la couleur source, c'est-à-dire un blanc
+ *   pâle. C'est le défaut qu'on avait, et c'est la raison pour laquelle le nom
+ *   ne s'animait plus du tout. Une arête et une translation n'ont pas ce
+ *   problème : à tout instant, ce qui est visible est du négatif plein.
+ * — **La course est réversible.** Elle est jouée et rembobinée par la même
+ *   bascule que la pose du cadre : on remonte dans le couloir, le nom se
+ *   retire derrière son arête.
+ */
+const NOM_DUREE = 0.9;
+const NOM_DECALAGES = [0, 0.13, 0.07];
+const NOM_FLOU = 10;
+
 
 /**
  * Le minutage de la traversée, en fractions de la progression.
@@ -112,6 +143,30 @@ export function Matiere() {
 
       const departs = minutage(matieres.length);
 
+      /* ---- L'apparition du premier nom ----
+         Montée avant le déclencheur qui la joue. Voir `NOM_DUREE` pour le
+         pourquoi de chacun de ses termes. */
+      const lignesNom = gsap.utils.toArray<HTMLElement>(
+        ".matiere__plan:first-child .matiere__ligne",
+        cadre,
+      );
+      const apparition = gsap.timeline({ paused: true });
+      if (lignesNom.length > 0) {
+        gsap.set(lignesNom, { yPercent: 110, filter: `blur(${NOM_FLOU}px)` });
+        lignesNom.forEach((ligne, i) => {
+          apparition.to(
+            ligne,
+            {
+              yPercent: 0,
+              filter: "blur(0px)",
+              duration: NOM_DUREE,
+              ease: "expo.out",
+            },
+            NOM_DECALAGES[i % NOM_DECALAGES.length],
+          );
+        });
+      }
+
       /* ---- Le recouvrement de l'enfilade ----
        *
        * `.matiere` remonte d'un écran sur le chapitre précédent (voir
@@ -132,9 +187,14 @@ export function Matiere() {
         end: "max",
         onToggle: (self) => {
           cadre.dataset.pose = self.isActive ? "true" : "false";
+          if (self.isActive) apparition.play();
+          else apparition.reverse();
         },
       });
       cadre.dataset.pose = pose.isActive ? "true" : "false";
+      /* Rechargement en plein chapitre : le nom est déjà dit, il n'a pas à
+         rejouer son arrivée sous les yeux de quelqu'un qui est déjà là. */
+      if (pose.isActive) apparition.progress(1);
 
       /**
        * Quelle matière occupe l'écran. Le passage de relais est pris à
@@ -188,23 +248,57 @@ export function Matiere() {
           scrub: true,
           invalidateOnRefresh: true,
           onUpdate: (self) => nAJouer(indexActif(self.progress)),
-          onToggle: (self) => {
-            /* Hors du chapitre, plus rien ne décode. C'est le point qui tue
-               les sites mal finis : la vidéo qui tourne pendant qu'on lit
-               ailleurs. */
-            if (self.isActive) return;
-            joue = -1;
-            videosRef.current.forEach((video) => video?.pause());
-          },
         },
       });
 
-      /* Le nom du premier temps ne s'anime pas. Il était monté en densité, et
-         c'était une faute : à mi-course, un texte en `difference` à demi
-         transparent ne donne pas la moitié du négatif, il donne un gris pâle —
-         on voyait donc « Noyer fumé » passer par le blanc avant de devenir la
-         couleur inversée de l'image. Le nom paraît maintenant d'un coup, avec le
-         cadre lui-même, déjà inversé. */
+      /* ---- Ce qui arrête vraiment les vidéos ----
+       *
+       * La fin de la course **n'est pas** la sortie de l'écran, et c'était le
+       * défaut : le déclencheur ci-dessus rend la main quand le bas de la
+       * traversée atteint le bas du viewport, c'est-à-dire alors que le cadre
+       * collé occupe encore tout l'écran. Le voile de lin s'arrêtait donc net,
+       * en pleine vue, dès qu'on quittait sa plage — un plan macro qui se fige
+       * pendant qu'on le regarde se lit comme un chargement raté.
+       *
+       * La vraie question n'est pas « la course est-elle finie ? » mais « en
+       * reste-t-il un pixel à l'écran ? ». C'est exactement ce que dit un
+       * observateur d'intersection à seuil nul, et rien d'autre ne le dit. Le
+       * plan continue donc tant qu'on en voit quelque chose, et ne s'arrête
+       * qu'une fois entièrement sorti.
+       *
+       * `joue` n'est pas remis à zéro en sortant : on veut retrouver la même
+       * matière en revenant, et non attendre que le défilement veuille bien
+       * redonner un index. C'est la reprise explicite ci-dessous qui s'en
+       * charge. */
+      const reprendre = () => {
+        const video = videosRef.current[joue];
+        if (video != null) void video.play().catch(() => {});
+      };
+      const suspendre = () => {
+        videosRef.current.forEach((video) => video?.pause());
+      };
+
+      let aLEcran = false;
+      const vue = new IntersectionObserver(
+        (entrees) => {
+          const visible = entrees.some((entree) => entree.isIntersecting);
+          if (visible === aLEcran) return;
+          aLEcran = visible;
+          if (visible) reprendre();
+          else suspendre();
+        },
+        { threshold: 0 },
+      );
+      vue.observe(traversee);
+
+      /* L'onglet passe en arrière-plan : plus rien ne décode, et la matière
+         reprend telle quelle au retour. C'est le seul événement qui couvre le
+         cas où la page n'est plus regardée sans avoir quitté l'écran. */
+      const surVisibilite = () => {
+        if (document.visibilityState !== "visible") suspendre();
+        else if (aLEcran) reprendre();
+      };
+      document.addEventListener("visibilitychange", surVisibilite);
 
       /* Un palier, un passage, un palier… Le masque s'ouvre par le haut : le
          plan qui arrive descend sur celui qui part, dans le sens du
@@ -216,6 +310,14 @@ export function Matiere() {
       /* La ligne dure exactement 1 : sans cette borne, GSAP la clôturerait sur
          le dernier masque et la troisième matière n'aurait pas son palier. */
       ligne.set(cadre, {}, 1);
+
+      /* Ce que le contexte GSAP ne sait pas défaire tout seul : l'observateur
+         et l'écouteur. Une fonction rendue ici est appelée par `revert()`. */
+      return () => {
+        vue.disconnect();
+        document.removeEventListener("visibilitychange", surVisibilite);
+        suspendre();
+      };
     }, cadre);
 
     return () => {
@@ -223,18 +325,6 @@ export function Matiere() {
       delete cadre.dataset.pose;
     };
   }, [mouvementReduit]);
-
-  /* L'onglet passe en arrière-plan : on arrête tout. `visibilitychange` est le
-     seul événement qui couvre le cas où la page n'est plus regardée sans avoir
-     quitté l'écran. */
-  useEffetVisuel(() => {
-    const suspendre = () => {
-      if (document.visibilityState === "visible") return;
-      videosRef.current.forEach((video) => video?.pause());
-    };
-    document.addEventListener("visibilitychange", suspendre);
-    return () => document.removeEventListener("visibilitychange", suspendre);
-  }, []);
 
   return (
     <section
@@ -315,7 +405,25 @@ export function Matiere() {
                   fait pour qu'on regarde, et un nom suffit à dire ce qu'on
                   regarde. */}
               <figcaption className="matiere__legende">
-                <h3 className="matiere__nom display">{matiere.nom}</h3>
+                <h3 className="matiere__nom display">
+                  {index === 0 ? (
+                    <>
+                      {/* Le nom découpé est doublé d'un équivalent lisible : les
+                          mots sont des blocs, et rien ne garantit qu'un lecteur
+                          d'écran restitue l'espace qui les sépare. */}
+                      <span className="sr-only">{matiere.nom}</span>
+                      <span className="matiere__lignes" aria-hidden="true">
+                        {matiere.nom.split(" ").map((mot) => (
+                          <span className="matiere__mot" key={mot}>
+                            <span className="matiere__ligne">{mot}</span>
+                          </span>
+                        ))}
+                      </span>
+                    </>
+                  ) : (
+                    matiere.nom
+                  )}
+                </h3>
               </figcaption>
             </figure>
           ))}

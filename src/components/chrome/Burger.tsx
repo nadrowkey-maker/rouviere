@@ -4,10 +4,15 @@ import { useChrome } from "./ChromeProvider";
 import "./burger.css";
 
 /**
- * Le burger. Pas trois traits qui deviennent une croix : trois dalles fines qui
- * s'écartent et pivotent séparément, chacune décalée de 40 ms sur la
- * précédente. Le mouvement est une micro-interaction, donc il vit en CSS —
- * transitions et délais indexés — et ne prend pas une frame du ticker.
+ * Le burger. Pas trois traits qui deviennent une croix : une **portée** de trois
+ * traits d'un pixel, régulière au repos, qui s'ouvre en **éventail** — chaque
+ * dalle pivote autour d'un bord différent, s'écarte du centre et perd un peu de
+ * longueur, à 40 ms d'intervalle. Aucune ne croise sa voisine, la figure reste
+ * lisible à tout instant, et les deux états ne se ressemblent pas.
+ *
+ * Le dessin, les amplitudes et les raisons sont dans `burger.css`. Le mouvement
+ * est une micro-interaction : il vit en CSS — transitions et délais indexés — et
+ * ne prend pas une frame du ticker.
  *
  * Il n'émet pas de son lui-même : c'est le menu qui joue l'ouverture et la
  * fermeture, seul endroit qui couvre aussi `Échap` et le clic sur une entrée.

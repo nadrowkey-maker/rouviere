@@ -82,37 +82,44 @@ export function Chambre({ projet }: { projet: Projet }) {
 
   /* ---- Le flux du projet : adopté, jamais recréé ----
      Si une relève est armée pour ce projet — on vient de cliquer son entrée dans
-     le menu —, la vidéo joue déjà : on la déplace dans le hero et on n'y touche
-     pas. Elle est révélée sur-le-champ, sans fondu : à cet instant elle occupe
-     exactement le même rectangle qu'une seconde plus tôt dans l'aperçu du menu,
-     et le déplacement ne se voit donc pas.
+     le menu —, la vidéo joue déjà : `adopter` la déplace dans le hero **et
+     garantit qu'elle continue**. Elle est révélée sur-le-champ, sans fondu : à
+     cet instant elle occupe exactement le même rectangle qu'une frame plus tôt
+     dans l'aperçu du menu, et le déplacement ne se voit donc pas.
 
      Sinon — arrivée directe, ou entrée depuis l'enfilade — on la démarre, et le
-     hero tient sur sa poster jusqu'à ce qu'elle joue vraiment. */
+     hero tient sur sa poster jusqu'à ce qu'elle joue vraiment.
+
+     L'hôte est capturé ici, dans une variable locale, et non relu au nettoyage :
+     React détache les refs au démontage, et un `null` à cet instant priverait
+     l'arrêt de son propriétaire. */
   useEffetVisuel(() => {
     const hero = heroRef.current;
     const hote = fluxRef.current;
-    const attendu = consommerReleve();
     if (hero === null || hote === null || mouvementReduit) return;
 
-    const montrer = (immediat: boolean) => {
-      hero.dataset.flux = immediat ? "releve" : "pret";
-    };
+    /* La relève n'est consommée qu'une fois qu'on est sûr de pouvoir l'honorer :
+       une chambre en mouvement réduit n'a pas de flux à adopter, et le drapeau
+       doit rester intact pour que `Transition` sache quoi en faire. */
+    const attendu = consommerReleve();
 
-    flux.accueillir(projet.slug, hote);
+    if (attendu === projet.slug) {
+      flux.adopter(projet.slug, hote);
+      hero.dataset.flux = "releve";
+    } else {
+      flux.accueillir(projet.slug, hote);
+      flux.demarrer(projet.slug, () => {
+        hero.dataset.flux = "pret";
+      });
+    }
+
     /* La surface d'ouverture a fait son travail : le flux est ici. Elle se range
        dans la même frame, avant toute peinture — sans quoi son encre vide
        couvrirait la page qu'elle vient de découvrir. */
     ranger();
 
-    if (attendu === projet.slug) {
-      montrer(true);
-    } else {
-      flux.demarrer(projet.slug, () => montrer(false));
-    }
-
     return () => {
-      flux.arreter();
+      flux.arreter(hote);
       flux.accueillir(projet.slug, null);
     };
   }, [projet.slug, mouvementReduit, flux, ranger]);

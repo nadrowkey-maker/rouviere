@@ -48,7 +48,7 @@ import "./video-projet.css";
  *   l'avait laissé.
  * — **Pause et retour à zéro systématiques** à la sortie, par `arreter()`.
  *
- * ## La relève
+ * ## La relève, et à qui appartient le flux
  *
  * Un clic sur une entrée de projet du menu **arme une relève** : la vidéo ne
  * s'arrête pas, elle sera adoptée telle quelle par la chambre qui se monte, à sa
@@ -56,6 +56,21 @@ import "./video-projet.css";
  * contexte React, parce que `Transition` doit pouvoir le lire *pendant son
  * rendu* — c'est lui qui décide de ne pas poser de couture sur cette
  * navigation-là : la continuité du flux est la transition.
+ *
+ * **`arreter()` demande son hôte, et c'est tout le correctif.** La vidéo
+ * arrivait figée sur sa première image dans la page projet, et la cause était un
+ * ordre qu'aucun drapeau ne pouvait couvrir : le clic déplace le pointeur hors
+ * des entrées du menu, ce qui déclenche une sortie de survol *après* que la
+ * chambre a consommé la relève. Le verrou était alors levé, l'arrêt passait, et
+ * la vidéo qu'on venait d'emmener repartait à zéro, en pause, sous les yeux du
+ * visiteur.
+ *
+ * Il y avait plusieurs façons de quitter le menu et une seule qui devait laisser
+ * le flux tranquille ; les recenser toutes est un jeu qu'on perd. La question
+ * n'est donc plus *quand* on arrête, mais **qui** arrête : un appelant ne peut
+ * couper que le flux qu'il héberge encore. Dès que le nœud a changé de parent,
+ * l'ancien hôte n'a plus prise dessus — par construction, sans drapeau, sans
+ * ordre à respecter.
  */
 
 /**
@@ -66,6 +81,13 @@ import "./video-projet.css";
  */
 const FILET_IMAGE_MS = 80;
 
+/**
+ * Durée pendant laquelle une adoption garde la lecture ouverte. Une demi-seconde
+ * couvre largement le délai qu'un moteur média peut mettre à décider d'une pause
+ * après un changement de parent ; au-delà, une pause est une pause voulue.
+ */
+const GARDE_RELEVE_MS = 500;
+
 /* ---- La relève, au niveau du module ---- */
 
 let releve: string | null = null;
@@ -73,15 +95,10 @@ let releve: string | null = null;
 /**
  * Le clic sur une entrée de projet : la vidéo qui joue devient celle de la page.
  *
- * Armer la relève **verrouille aussi le flux** : `arreter()` devient sans effet
- * jusqu'à ce que la chambre l'adopte. Ce verrou n'est pas une précaution
- * décorative — il paie une leçon. Le clic déplace le pointeur hors des entrées du
- * menu, ce qui déclenche la sortie de survol ; celle-ci arrêtait le flux et le
- * rembobinait, et la chambre héritait d'une vidéo à l'arrêt sur sa première
- * image. Le même piège existe à la fermeture du menu, et il en existera d'autres :
- * il y a plusieurs façons de quitter le menu, et une seule d'entre elles doit
- * laisser la vidéo tranquille. Plutôt que de les recenser toutes, on rend
- * l'arrêt impossible pendant la relève.
+ * Le drapeau ne verrouille rien — c'est l'appartenance du nœud qui protège le
+ * flux (voir `arreter`). Il dit seulement deux choses, à deux endroits : à
+ * `Transition`, qu'il ne faut pas de couture sur cette navigation ; à la
+ * chambre, qu'elle doit adopter au lieu de démarrer.
  */
 export function armerReleve(slug: string): void {
   releve = slug;
@@ -117,8 +134,20 @@ type Flux = {
    * qu'il a une image à donner — tout de suite s'il est déjà chargé.
    */
   demarrer: (slug: string, montrer: () => void) => void;
-  /** Pause et retour à zéro du flux en cours. */
-  arreter: () => void;
+  /**
+   * **Adopte** un flux qui joue déjà : le déplace chez `hote` sans le rembobiner
+   * et garantit qu'il continue. Ne rembobine rien, ne remet rien à zéro — c'est
+   * tout l'intérêt de la relève.
+   */
+  adopter: (slug: string, hote: HTMLElement) => void;
+  /**
+   * Pause et retour à zéro du flux en cours — **si `hote` le tient encore.**
+   *
+   * L'hôte n'est pas une précaution : c'est ce qui rend l'arrêt impossible pour
+   * qui a déjà lâché le nœud. Le menu ne peut plus couper une vidéo partie dans
+   * une chambre, quel que soit l'ordre dans lequel leurs effets s'exécutent.
+   */
+  arreter: (hote: HTMLElement | null) => void;
   /**
    * Met tous les flux en chauffe. Appelé à l'ouverture du menu : c'est ce qui
    * fait qu'un survol n'attend plus rien.
@@ -283,14 +312,71 @@ export function VideoProjetProvider({
     [assurer],
   );
 
-  const arreter = useCallback(() => {
-    /* Le flux est promis à une chambre : personne ne l'arrête. Voir
-       `armerReleve`. */
+  /**
+   * La relève : le flux joue déjà, la chambre l'adopte.
+   *
+   * Rien n'est rembobiné et rien n'est révélé en différé — à cet instant le nœud
+   * occupe exactement le même rectangle qu'une frame plus tôt dans l'aperçu du
+   * menu, et le déplacement ne se voit pas.
+   *
+   * Deux garanties, et elles sont le correctif de la vidéo figée :
+   *
+   * — **On vérifie la lecture au lieu de la supposer.** Déplacer un élément média
+   *   dans le même document ne devrait pas l'interrompre : la spécification
+   *   n'appelle les étapes de pause que si l'élément n'est plus dans un document
+   *   une fois l'état stabilisé, et l'insertion a lieu dans la même tâche que le
+   *   retrait. « Ne devrait pas » n'est pas « ne peut pas », et le seul coût de
+   *   la vérification est un booléen.
+   * — **On tient la garde ouverte un instant.** Une pause décidée par le moteur
+   *   média n'arrive pas forcément dans la frame du déplacement. Pendant une
+   *   demi-seconde après l'adoption, toute pause qu'on n'a pas demandée est
+   *   annulée. Passé ce délai, le flux appartient à la page et on ne le
+   *   surveille plus.
+   */
+  const adopter = useCallback(
+    (slug: string, hote: HTMLElement) => {
+      const video = assurer(slug);
+      if (video === null) return;
+
+      /* Toute révélation encore en attente est périmée : celle-ci prend la
+         main, et elle est immédiate. */
+      jetonRef.current += 1;
+      actifRef.current = slug;
+
+      accueillir(slug, hote);
+
+      const reprendre = () => {
+        if (video.paused) void video.play().catch(() => {});
+      };
+      reprendre();
+
+      video.addEventListener("pause", reprendre);
+      window.setTimeout(
+        () => video.removeEventListener("pause", reprendre),
+        GARDE_RELEVE_MS,
+      );
+    },
+    [assurer, accueillir],
+  );
+
+  /**
+   * L'arrêt, et ses **deux** gardes. Elles couvrent deux fenêtres différentes,
+   * et c'est parce qu'une seule était posée que la vidéo arrivait figée.
+   *
+   *   1. `releve !== null` — entre le clic et l'adoption. Le nœud est encore
+   *      chez le menu, mais il est promis : personne ne le coupe.
+   *   2. `parentElement !== hote` — après l'adoption. Le drapeau est consommé,
+   *      donc la première garde est retombée ; c'est l'appartenance qui prend le
+   *      relais. Le menu, qui reçoit sa sortie de survol quelque part par là,
+   *      n'a plus prise sur un nœud qu'il ne loge plus.
+   */
+  const arreter = useCallback((hote: HTMLElement | null) => {
     if (releve !== null) return;
     const slug = actifRef.current;
     if (slug === null) return;
     const video = nœudsRef.current.get(slug);
     if (video === undefined) return;
+    if (video.parentElement !== hote) return;
     /* La demande en cours est périmée : rien de ce qu'elle attend ne paraîtra. */
     jetonRef.current += 1;
     video.pause();
@@ -298,8 +384,8 @@ export function VideoProjetProvider({
   }, []);
 
   const valeur = useMemo<Flux>(
-    () => ({ accueillir, demarrer, arreter, prechauffer }),
-    [accueillir, demarrer, arreter, prechauffer],
+    () => ({ accueillir, demarrer, adopter, arreter, prechauffer }),
+    [accueillir, demarrer, adopter, arreter, prechauffer],
   );
 
   return (

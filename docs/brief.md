@@ -34,35 +34,45 @@ Détails d'implémentation : `autoplay muted playsinline preload="auto"` plus un
 
 **C'est le cœur du site.** Ce n'est plus un bloc de texte qui monte ligne par ligne : c'est une séquence en **sept temps**, entièrement pilotée au défilement, où le manifeste de Camille Rouvière se dit un morceau à la fois. Chaque temps a sa place, on respire entre chacun, rien n'apparaît d'un bloc. Tout est en scrub — donc tout se rembobine.
 
-Un cadre collé en haut du viewport, une course de neuf écrans, et des couches qui se relaient dedans. Le cadre est pleine largeur et sans marge propre : son repère local est celui du viewport, ce qui permet au halo du quatrième temps de se caler sur le pointeur sans qu'aucun rect ne soit lu.
+Un cadre collé en haut du viewport, une course de neuf écrans, et des couches qui se relaient dedans. Le cadre est pleine largeur et sans marge propre ; il n'a **pas de fond à lui**, parce que le fond est un plan filmé.
 
-**L'apparition des phrases est délibérément nue.** Pas de ligne masquée qui monte de 110 %, pas de flou qui se résorbe, pas de découpe : la phrase paraît, et se pose de huit pixels. Le reveal masqué avec flou est *le* geste que produit n'importe quel générateur sur n'importe quel manifeste — spectaculaire une fois, reconnaissable toujours. La mise en scène de ce chapitre est ailleurs : dans le minutage, dans le noir, dans le halo. Le texte, lui, se contente d'être là.
+**Le décor : un appartement qui s'allume.** `public/media/manifeste/allumage.mp4` — huit secondes dans une pièce obscure dont les lumières se lèvent à 2,8 s. C'est lui, et rien d'autre, qui porte la lumière du chapitre : il n'y a plus de voile d'encre qu'on éteint, et plus de halo qui suit le curseur.
 
-**Un.** « Je ne décore pas. » paraît seul, tient, puis se retire.
+Le plan n'est **pas** un élément vidéo dont on force le `currentTime` — le seek saccade sur Safari et iOS, où il est asynchrone et coalescé : on demande vingt positions par seconde, on en obtient trois. C'est la mécanique des chambres qui s'applique : `ffmpeg` extrait les cent quatre-vingt-douze images à la cadence de la source, en AVIF de 1280 px passées par l'étalonnage commun, et un canvas 2D les redessine, l'index piloté par le même scrub que le reste du chapitre. La molette donne donc un contrôle continu — on avance, on recule, on accélère, la pièce s'allume et s'éteint sous la main. Le premier tiers est bloquant, le reste se charge dans l'ordre pendant la lecture.
 
-**Deux.** « Je règle la » paraît de la même façon, au même endroit.
+**L'index de l'allumage est calculé, jamais estimé** : `round(2,8 × 24) = 67`. C'est le seul repère de mise en scène du chapitre, et il est exporté au manifeste (`src/data/manifeste.ts`) plutôt qu'écrit dans un composant. L'index étant mappé linéairement sur la course, il vaut aussi une part de progression — et c'est de cette part-là que descend le minutage du mot LUMIÈRE.
 
-**Trois.** Le fond descend jusqu'au noir complet pendant que « Je règle la » s'éteint **avec** lui. La plage est large — un huitième de la course — et la courbe est symétrique (`power1.inOut`) : le fond ne *tombe* pas dans le noir, il y descend. Un passage court sur cette amplitude se lit comme une coupure, et c'est exactement ce qu'on ne veut pas : l'écran s'éteint, il ne s'interrompt pas. La phrase disparaît sur les trois premiers quarts de la plage, si bien qu'on ne voit jamais l'un attendre l'autre. La couche technique de la marge droite (`ATELIER FONDÉ 2011 — PARIS VII`, `CINQ CHANTIERS PAR AN`) part avec, et ne revient pas.
+**L'apparition des phrases est délibérément nue.** Pas de ligne masquée qui monte de 110 %, pas de flou qui se résorbe, pas de découpe : la phrase paraît, et se pose de huit pixels. Le reveal masqué avec flou est *le* geste que produit n'importe quel générateur sur n'importe quel manifeste — spectaculaire une fois, reconnaissable toujours. La mise en scène de ce chapitre est ailleurs : dans le minutage, et dans la pièce qui s'allume. Le texte, lui, se contente d'être là.
 
-**Quatre.** Dans le noir total, le mot **lumière**, dans une graisse et une taille différentes du reste — mais dans l'autre sens que le réflexe. Il est **plus petit** que les phrases qui l'entourent (0,58 × l'échelle titre, plancher de 40 px tenu), dans le maigre de Gambetta et en italique — le seul italique du site, et c'est la lumière. Un mot seul et monumental au milieu du noir est le monolithe que produit n'importe quel générateur ; la différence se lit ici à la retenue, pas à la taille. Il n'est pas éclairé au départ : il est là, invisible. Un halo doux suit le curseur et ne révèle que la portion des lettres qu'il touche.
+**Ce qui rend le manifeste lisible.** Le décor va de l'obscurité totale au séjour éclairé au milieu du chapitre : la lisibilité des phrases est un vrai problème. Ce n'est **pas** `mix-blend-mode: difference` qui le règle — le négatif est aveugle sur un fond de luminance moyenne, la craie sur un mi-gris rend un mi-gris, et la bande où s'écrivent les phrases sort précisément à une luminance moyenne une fois la pièce allumée. C'est l'**exposition du plan** : le film est rendu à un peu plus de la moitié de sa lumière. La craie y tient largement le seuil AA, la pièce a l'exposition d'une photographie d'architecture plutôt que d'une brochure d'hôtel, et l'allumage n'y perd rien — ce qu'on lit à l'écran est un rapport, pas une valeur absolue.
 
-*Aucun objet lumineux n'est visible à l'écran* — pas de pastille, pas de forme, pas de source. Uniquement un dégradé radial peint sur toute la surface du cadre et découpé par les lettres (`background-clip: text`) : ce que le halo ne touche pas n'est pas peint, donc n'existe pas. Le blanc de `--craie` vire vers `--laiton` à mi-course, ce qui donne une lumière de tungstène plutôt qu'une lampe de bureau.
+Un seul mot du chapitre se mélange encore, et c'est le seul qui en ait besoin : *silence*, qui tient sur l'eau, c'est-à-dire sur une surface qu'on ne contrôle pas.
 
-Le composant `InteractiveLight` fourni n'est **pas** employé : son bleu, son `borderRadius` et sa pile de `box-shadow` violent trois règles du Livre I d'un coup. Le masque est écrit à la main. Le suivi est une **interpolation par cadre** sur le ticker partagé, jamais une transition CSS — une transition rattraperait le pointeur par paliers et on verrait la lumière avancer par saccades. Sans mouvement pendant deux secondes, le halo dérive de lui-même sur une somme de sinusoïdes incommensurables, pour que la mécanique se découvre seule ; sur pointeur grossier il dérive en permanence. En mouvement réduit, le mot est simplement éclairé en entier.
+**Un.** « Je ne décore pas. » paraît seul, dans le noir de la pièce, tient, puis se retire.
 
-**Cinq.** « la matière et le silence. » paraît, la lumière se retire — la même course pour les deux.
+**Deux.** « Je règle la » paraît de la même façon, au même endroit — et **reste** : la phrase attend son mot. La couche technique de la marge droite (`ATELIER FONDÉ 2011 — PARIS VII`, `CINQ CHANTIERS PAR AN`) s'efface avant l'allumage, et ne revient pas.
 
-**Six.** Tout disparaît **sauf le mot « silence »**, qui reste seul et à sa place dans la phrase : ce n'est pas lui qui bouge, c'est ce qui l'entoure qui s'en va. Puis, au défilement, le bassin d'eau interactif monte en plein écran derrière lui. Le voile se rétracte par le haut pendant que l'ancre du bassin remonte du bas, sur la même course et la même courbe : la ligne de partage est exacte, et l'eau *monte* au lieu d'être découverte. Le mot silence reste par-dessus, en `mix-blend-mode: difference`.
+**Trois.** À l'index exact de l'allumage, la pièce s'éclaire et le mot **LUMIÈRE** arrive au centre, en très grand, en `mix-blend-mode: difference`. Son apparition est **celle du logotype au seuil** : opacité 0 → 1, échelle 1,06 → 1, flou 10 px → 0, en `--e-sortie`. Il s'allume avec la pièce, pas avant, pas après. Le site n'a qu'un geste d'apparition monumentale ; il s'en sert deux fois, aux deux seuls endroits où un mot seul tient l'écran, et jamais ailleurs.
+
+Le centrage est la seule autre exception à « rien n'est centré » du Livre I, et c'est ce qu'il cite qui la justifie — pas un réflexe de mise en page.
+
+**Quatre.** « Je règle la » se retire, puis la lumière avec elle : la phrase est dite.
+
+**Cinq.** « la matière et le silence. » paraît à la place de la première.
+
+**Six.** Tout disparaît **sauf le mot « silence »**, qui reste seul et à sa place dans la phrase : ce n'est pas lui qui bouge, c'est ce qui l'entoure qui s'en va. Puis, au défilement, le bassin d'eau interactif monte en plein écran derrière lui. Le plan de la pièce — seule surface opaque du cadre — se rétracte par le haut pendant que l'ancre du bassin remonte du bas, sur la même course et la même courbe : la ligne de partage est exacte, et l'eau *monte* au lieu d'être découverte. Le mot silence reste par-dessus, en `mix-blend-mode: difference`.
 
 La nappe d'ambiance du site **se coupe entièrement ici** — fondu de sortie de 1,5 s sur le bus des nappes — pour ne laisser que le son de l'eau, piloté par la vélocité du curseur. Elle revient à la sortie de la section. Aucun texte, aucune interface, rien d'autre que le mot : c'est l'endroit où l'on doit avoir envie de jouer avec l'eau.
 
-**Sept.** L'eau redescend exactement comme elle est montée, le noir rend la main à l'encre, et « Le reste appartient aux gens qui vivent là. » paraît. Le site reprend.
+**Sept.** L'eau redescend exactement comme elle est montée, la pièce allumée reprend le cadre, et « Le reste appartient aux gens qui vivent là. » paraît. Le site reprend.
 
-**Point structurel.** Le bassin a quitté *La Matière* pour venir ici. Il n'existe qu'**une seule scène d'eau dans tout le site** — deux seraient une faute de composition et un coût GPU sans contrepartie. *La Matière* garde ses trois matières en plein écran, et rien d'autre.
+**Point structurel.** Le bassin a quitté *La Matière* pour venir ici. Il n'existe qu'**une seule scène d'eau dans tout le site**, et c'est désormais la seule scène WebGL lourde du projet — deux seraient une faute de composition et un coût GPU sans contrepartie. *La Matière* garde ses trois matières en plein écran, et rien d'autre.
 
-**Accessibilité.** La séquence fragmente le manifeste : il est donc donné d'un seul tenant en `sr-only`, dans l'ordre, et les couches visuelles sont `aria-hidden`. C'est la seule façon de rendre un texte découpé en sept temps lisible d'un trait. En mouvement réduit, le composant rend un autre sous-arbre — le manifeste posé d'un bloc sur la colonne 2, *lumière* en italique, et la plaque du bassin plein cadre — et non la séquence à laquelle on aurait retiré le mouvement.
+*Le piège d'ordonnancement, et il a été payé une fois :* l'inscription WebGL du bassin doit être un **frère** de son ancre, jamais son enfant. React attache la ref d'un élément après avoir exécuté les effets de ses descendants ; une scène montée sous son ancre trouve `null` au moment de s'inscrire et ne réessaie jamais. Le défaut ne se voyait qu'au **second** passage : au premier chargement l'import dynamique arrive dans un commit ultérieur et sauve la mise, au retour d'une page projet le module est en cache et l'eau ne se rallume plus. `useGLProxy` porte un filet — une microtâche, après le commit, toutes les refs posées — mais l'ordre correct reste celui de tous les autres chapitres.
 
-**Effets :** la montée derrière une arête vient de `onscroll-typography-animations` ; `waterwebgl-shader` pour le bassin. Le halo, le voile et le minutage sont des timelines GSAP maison.
+**Accessibilité.** La séquence fragmente le manifeste : il est donc donné d'un seul tenant en `sr-only`, dans l'ordre, et les couches visuelles sont `aria-hidden`. C'est la seule façon de rendre un texte découpé en sept temps lisible d'un trait. En mouvement réduit, le composant rend un autre sous-arbre — le manifeste posé d'un bloc sur la colonne 2, *lumière* en italique, puis les deux plans du chapitre en plaques : la pièce allumée, et le bassin calculé — et non la séquence à laquelle on aurait retiré le mouvement.
+
+**Effets :** la montée derrière une arête vient de `onscroll-typography-animations` ; `waterwebgl-shader` pour le bassin. La séquence de frames, le minutage et l'apparition du mot sont maison — l'apparition étant, à la valeur près, celle du logotype du seuil.
 
 ## L'Enfilade
 
@@ -136,15 +146,19 @@ Au survol d'une ligne d'archive, rien de spectaculaire : la ligne se décale de 
 
 ## La Sortie
 
-Fond `--encre`, silence.
+Un plan, un mot, une adresse.
 
-Le nom de l'atelier flotte une dernière fois, mais cette fois **il est en verre** : un nœud torique en verre réfractant tourne lentement devant le titre plein écran et le déforme optiquement. Transmission, dispersion chromatique, réflexions issues d'un environnement de pièce.
+**Le verre a quitté le chapitre**, et avec lui `glass-hero` et sa pile de transmission (voir Livre III pour le pourquoi : une seule scène lourde, un seul morceau de bravoure). À sa place, `public/media/sortie/sortie.mp4` en fond plein cadre, en boucle : la nuée qui passe sur la crête. Gris, froid, sans personne — c'est la thèse du Livre I en une image.
 
-En dessous, sec : l'adresse, un téléphone, un courriel. Pas de formulaire à six champs, pas de « Parlons de votre projet ». Le courriel est un lien `mailto:` qui copie l'adresse au clic avec un retour discret.
+Le mot **ROUVIÈRE** reste par-dessus, en `mix-blend-mode: difference`. Il n'est jamais recoloré : il est le négatif exact de ce qu'il traverse, du logotype du seuil jusqu'ici. Le fil rouge se referme sur lui-même, et il ne coûte pas un draw call. `isolation: isolate` borne le groupe de mélange à la section, sans quoi il serait `<main>`, c'est-à-dire tout le parcours.
 
-Attention : le titre en verre est peint dans un canvas, donc invisible pour les moteurs et les lecteurs d'écran. Le `<h2>` réel reste en `sr-only`. Attendre `document.fonts.ready` avant de peindre. `transmission` + `dispersion` sont coûteux sur mobile → sur pointeur grossier, remplacer par le titre DOM avec un simple `backdrop-filter`.
+**Le son change de pièce.** La nappe d'ambiance du site s'efface entièrement à l'entrée du chapitre — le même bus et la même coupure d'une seconde et demie qu'au bassin — et `public/audio/sortie.mp3` prend le cadre. On remonte, elle s'arrête et le parcours reprend là où il en était. La nappe de la sortie vit sur le bus d'**ambiance** et non sur celui des nappes : c'est ce dernier qu'on est en train de couper. C'est la seule autre fois du site où le son dit qu'on a changé d'endroit sans qu'on ait changé de route.
 
-**Effets :** `glass-hero` (Three.js `MeshPhysicalMaterial`, `transmission: 1`, `ior: 1.45`, `dispersion: 4`, `RoomEnvironment` + `PMREMGenerator`).
+Les coordonnées restent **dispersées dans la composition**, jamais empilées en pied de page : l'adresse en bas à gauche, le contact décroché à droite et plus haut, la mention d'atelier isolée en marge haute, les repères en bas à droite. Ce n'est pas un pied de page, c'est la dernière pièce. Pas de formulaire à six champs, pas de « Parlons de votre projet ». Le courriel est un lien `mailto:` qui copie l'adresse au clic avec un retour discret.
+
+Le plan est en `preload="none"` et ne décode que lorsqu'un pixel de la section est à l'écran ; il s'arrête sur onglet inactif. En mouvement réduit, sa poster tient le cadre — une image fixe de nuée est une image, pas une punition.
+
+**Effets :** aucun effet de bibliothèque. Le plan est une vidéo étalonnée, le mot est le geste signature, et il n'y a rien d'autre.
 
 ## Le Menu
 
@@ -173,7 +187,7 @@ Ouverture 0,86 s, fermeture 0,62 s — la fermeture est toujours plus rapide que
 
 # LIVRE III — CASTING DES SEIZE EFFETS
 
-Un site qui utilise seize effets n'est pas un site, c'est une démo technique. Onze sont retenus, cinq sont écartés — et écarter est une décision de direction artistique, pas un renoncement.
+Un site qui utilise seize effets n'est pas un site, c'est une démo technique. Dix sont retenus, six sont écartés — et écarter est une décision de direction artistique, pas un renoncement.
 
 **Retenus, et à quel endroit :**
 
@@ -187,7 +201,6 @@ Un site qui utilise seize effets n'est pas un site, c'est une démo technique. O
 `shadow` → les échantillons de matière.
 `waterwebgl-shader` → le bassin, une seule fois, au sixième temps du vestibule.
 `beautiful-typography` → le mot `ARCHIVES`, statique.
-`glass-hero` → la sortie.
 
 **Le passage : une seule grammaire de transition.**
 
@@ -200,6 +213,14 @@ Tout tient dans un scalaire, `--passage`, de 0 (surface retirée) à 1 (surface 
 **Écartés, et pourquoi :**
 
 `scroll-transition` — il fournissait les masques SVG du menu et des transitions de chapitre. Le vocabulaire de transition est réduit à un seul passage : le quadrillage qui fait apparaître et disparaître des carrés et la transition par barres horizontales successives sortent du projet, et avec eux la dépendance entière. Une seule grammaire de transition dans tout le site vaut mieux que trois qui se contredisent.
+
+`glass-hero` — le nœud torique en verre réfractant portait le titre de la sortie. Il sort du projet, avec `MeshPhysicalMaterial`, `transmission`, `dispersion`, `RoomEnvironment` et le `PMREMGenerator`.
+
+La raison est d'abord de composition. Le Livre VI demande **un** moment dont on se souvienne une semaine plus tard, et prévient que trois relèvent de la surenchère. Le site en a un, et c'est l'eau derrière le mot *silence*. Un second morceau de bravoure optique, posé sur le dernier écran, n'ajoutait pas un souvenir : il en enlevait un, en donnant à croire que le bassin était un effet parmi d'autres.
+
+Elle est ensuite technique, et elle est chiffrée. `transmission` avec `dispersion` est ce que Three.js sait faire de plus cher : le rendu du fond est repris pour chaque échantillon de réfraction, trois fois s'il y a dispersion chromatique. Deux scènes lourdes dans le même parcours contredisent frontalement le budget de CLAUDE.md — « une seule scène lourde visible à la fois » — et la contredisaient en pure perte, la sortie n'ayant rien à simuler.
+
+Le chapitre est refait à la place autour d'un plan filmé en boucle et du mot **ROUVIÈRE** en `mix-blend-mode: difference` : le geste signature ferme le site avec ce qui l'a ouvert, et ne coûte pas un draw call.
 
 
 `react-scroll-rig-webgl` — on garde le **motif** (proxy DOM ↔ WebGL, canvas global) et on jette la dépendance. Importer toute la pile React Three Fiber pour un seul chapitre alors que le reste du site est en Three.js impératif, c'est deux architectures qui cohabitent mal et un poids injustifiable.
@@ -294,11 +315,11 @@ Règle de conduite : une mission par session, `/clear` entre chaque, un commit g
 >
 > Sept temps, un cadre collé, une course de neuf écrans, tout en scrub. Chaque phrase monte de `translateY(110%)` derrière une arête en `overflow: hidden`, flou de 6 px qui se résorbe ; les temps se relaient dans la même cellule de grille, ils ne se poussent pas.
 >
-> Traite explicitement : le fond en un seul élément et deux scalaires (`--nuit` de l'encre au noir, `--eau` qui le rétracte pour laisser monter le bassin) ; le halo écrit à la main en `background-clip: text`, suivi par interpolation sur le ticker partagé, dérive après deux secondes d'inaction et en permanence sur pointeur grossier ; le lock-step entre le retrait du voile et la remontée de l'ancre du bassin ; la coupure du bus des nappes en 1,5 s à l'entrée de l'eau et son retour à la sortie ; le manifeste en `sr-only` d'un seul tenant, les couches visuelles en `aria-hidden` ; et un sous-arbre distinct en mouvement réduit, pas la séquence dont on aurait retiré le mouvement.
+> Traite explicitement : la séquence de frames du décor, extraite par `scripts/manifeste.mjs` et pilotée par `useSequence` — jamais un `video.currentTime` ; l'index de l'allumage calculé et exporté au manifeste, dont descend le minutage du mot LUMIÈRE ; le plan de la pièce comme seule surface opaque du cadre, rétracté par `--eau` en lock-step avec la remontée de l'ancre du bassin ; le manifeste en `mix-blend-mode: difference`, blend sur le paragraphe et opacités un cran plus bas ; la coupure du bus des nappes en 1,5 s à l'entrée de l'eau et son retour à la sortie ; le manifeste en `sr-only` d'un seul tenant, les couches visuelles en `aria-hidden` ; et un sous-arbre distinct en mouvement réduit, pas la séquence dont on aurait retiré le mouvement.
 >
-> N'emploie pas `InteractiveLight` : son bleu, son `borderRadius` et sa pile de `box-shadow` violent trois règles du Livre I.
+> L'inscription WebGL du bassin est un **frère** de son ancre, jamais son enfant : voir le piège d'ordonnancement du Livre II.
 >
-> **Terminé quand** les sept temps s'enchaînent sans qu'aucun n'apparaisse d'un bloc, que la séquence se rembobine à l'identique, que le halo se découvre seul sans qu'on ait bougé la souris, qu'il n'existe qu'une seule scène d'eau dans tout le projet, et que le manifeste est intégralement lisible par un lecteur d'écran.
+> **Terminé quand** les sept temps s'enchaînent sans qu'aucun n'apparaisse d'un bloc, que la séquence se rembobine à l'identique, que la molette allume et éteint la pièce sans à-coup dans les deux sens, que le mot se lève à l'image exacte de l'allumage, qu'il n'existe qu'une seule scène d'eau dans tout le projet — encore présente après plusieurs allers-retours vers une page projet —, et que le manifeste est intégralement lisible par un lecteur d'écran.
 
 ---
 
@@ -350,9 +371,9 @@ Règle de conduite : une mission par session, `/clear` entre chaque, un commit g
 
 > [Recoller les trois sections]
 >
-> L'atelier est une séquence filmée : guichet fixe, image qui le traverse, dominance au centre du cadre — et **une plongée**, une seule, sur la planche déclarée `plongee` dans le manifeste. Pilotée en scrub, palier compris ; les deux planches voisines s'assagissent pour la préparer. Les archives sont une liste austère ouverte par le mot `ARCHIVES` en filtre SVG statique repris de `beautiful-typography` (recopier le `<filter>` en JSX, jeter le panneau de contrôle). La sortie porte `glass-hero` avec son `<h2>` doublé en `sr-only` et son repli sur pointeur grossier.
+> L'atelier est une séquence filmée : guichet fixe, image qui le traverse, dominance au centre du cadre — et **une plongée**, une seule, sur la planche déclarée `plongee` dans le manifeste. Pilotée en scrub, palier compris ; les deux planches voisines s'assagissent pour la préparer. Les archives sont une liste austère ouverte par le mot `ARCHIVES` en filtre SVG statique repris de `beautiful-typography` (recopier le `<filter>` en JSX, jeter le panneau de contrôle). La sortie est un plan filmé en boucle, le mot ROUVIÈRE en `difference` par-dessus, sa nappe propre sur le bus d'ambiance, et les coordonnées dispersées dans la composition.
 >
-> **Terminé quand** les trois chapitres s'enchaînent, que la plongée se rembobine à l'identique et n'a lieu qu'une fois, que le contraste des textes passe AA partout, et que le titre en verre est lu correctement par VoiceOver.
+> **Terminé quand** les trois chapitres s'enchaînent, que la plongée se rembobine à l'identique et n'a lieu qu'une fois, que le contraste des textes passe AA partout, que le plan de la sortie ne décode que lorsqu'on le voit, et que sa nappe s'arrête si l'on remonte.
 
 ---
 

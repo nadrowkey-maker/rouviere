@@ -226,12 +226,37 @@ export function Menu() {
   const quitterApercu = useCallback(() => {
     if (releveRef.current) return;
     survolRef.current = null;
-    flux.arreter();
+    /* On arrête **le flux qu'on héberge**, jamais celui d'un autre : un clic
+       vient peut-être de l'envoyer dans une chambre, et cette sortie de survol
+       est justement ce que le clic déclenche en éloignant le pointeur. Voir
+       `VideoProjet.arreter`. */
+    flux.arreter(hoteRef.current);
     if (apercuRef.current !== null) apercuRef.current.dataset.mode = "vide";
   }, [flux]);
 
   /* ---- Ouverture et fermeture ---- */
-  const ouvrir = useCallback((anime: boolean) => {
+
+  /**
+   * L'ouverture. `apres` court à la fin naturelle de la course, et pas si elle
+   * est préemptée.
+   *
+   * **Ce qui saccadait, et ce qui a été fait.** Trois choses se produisaient
+   * dans la même frame, et une seule était l'animation :
+   *
+   *   1. `--recul` était une propriété personnalisée non déclarée, donc
+   *      héritée. L'écrire sur `.scene-page` invalidait le style de tout le
+   *      parcours, à chaque frame. C'est le poste principal, et il est traité
+   *      dans `tokens.css` par un `@property … inherits: false` — le reste de
+   *      cette fonction n'a pas bougé d'une ligne pour ça.
+   *   2. Les cinq flux vidéo se mettaient en chauffe **ici**, c'est-à-dire cinq
+   *      `load()` lancés pendant la course : cinq requêtes et cinq décodages de
+   *      première image en concurrence avec l'animation. Ils sont maintenant
+   *      différés à la fin de l'ouverture (voir l'appelant). On ne peut de toute
+   *      façon pas survoler une entrée qui n'est pas encore arrivée.
+   *   3. La durée n'a **pas** été allongée. Rallonger une course pour cacher un
+   *      coût de style, c'est déplacer la saccade, pas la retirer.
+   */
+  const ouvrir = useCallback((anime: boolean, apres: () => void) => {
     const scene = document.getElementById("scene-page");
     const menu = menuRef.current;
     const surface = surfaceRef.current;
@@ -250,10 +275,16 @@ export function Menu() {
 
     if (!anime) {
       finaliser();
+      apres();
       return;
     }
 
-    const tl = gsap.timeline({ onComplete: () => liberer(tl) });
+    const tl = gsap.timeline({
+      onComplete: () => {
+        liberer(tl);
+        apres();
+      },
+    });
     tl.add(poser(surface), 0);
     if (scene) {
       tl.to(scene, { "--recul": 1, duration: 0.9, ease: "power2.out" }, 0);
@@ -315,7 +346,7 @@ export function Menu() {
     releveRef.current = false;
     survolRef.current = null;
     if (!releve) {
-      flux.arreter();
+      flux.arreter(hoteRef.current);
       if (apercuRef.current !== null) apercuRef.current.dataset.mode = "vide";
     }
 
@@ -429,11 +460,15 @@ export function Menu() {
       arreter("menu");
       html.classList.add("menu-ouvert");
       jouer("ouvrir");
-      ouvrir(!mouvementReduit);
-      /* Les cinq flux se mettent en chauffe dès l'ouverture. C'est le geste qui
-         supprime le noir entre deux survols : quand on désigne un projet, sa
-         première image est déjà décodée et n'attend plus rien. */
-      if (!mouvementReduit && !donneesEconomes()) flux.prechauffer();
+      /* Les cinq flux se mettent en chauffe **une fois la pièce ouverte**, et
+         non pendant qu'elle s'ouvre. C'est le geste qui supprime le noir entre
+         deux survols — quand on désigne un projet, sa première image est déjà
+         décodée —, mais cinq `load()` simultanés dans la frame de départ
+         faisaient décoder cinq vidéos par-dessus l'animation. On ne perd rien à
+         attendre : aucune entrée ne peut être survolée avant d'être arrivée. */
+      ouvrir(!mouvementReduit, () => {
+        if (!mouvementReduit && !donneesEconomes()) flux.prechauffer();
+      });
 
       const focusables = Array.from(
         menu.querySelectorAll<HTMLElement>(SELECTEUR_FOCUS),

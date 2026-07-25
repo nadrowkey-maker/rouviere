@@ -1,13 +1,12 @@
-/* Le Vestibule — la séquence en sept temps.
+/* Le Vestibule — la séquence en sept temps, dans un appartement qui s'allume.
 
    Une course de plusieurs écrans, un cadre collé en haut, et des couches qui se
-   relaient dedans. Le cadre est **pleine largeur et sans marge propre** : c'est
-   ce qui fait que son repère local est celui du viewport, donc que le halo de la
-   lumière se cale sur le pointeur sans qu'on ait à mesurer quoi que ce soit.
-   Toutes les marges de composition vivent un cran plus bas, dans `.__bloc`.
+   relaient dedans. Le cadre est pleine largeur et sans marge propre ; toutes les
+   marges de composition vivent un cran plus bas, dans `.__bloc`.
 
-   Rien n'est centré : les phrases tiennent la colonne 2, la couche technique
-   traîne dans la marge droite, le mot lumière est calé à gauche. */
+   Rien n'est centré — sauf le mot LUMIÈRE, et c'est la citation du logotype au
+   seuil qui l'autorise (voir plus bas). Les phrases tiennent la colonne 2, la
+   couche technique traîne dans la marge droite. */
 
 .vestibule {
   position: relative;
@@ -21,7 +20,11 @@
 
 /* Le cadre tient par `sticky`, pas par un `pin` GSAP : rien n'est sorti du
    flux, rien n'est compensé par de l'espace inséré, et le retour en arrière est
-   exact au pixel près. */
+   exact au pixel près.
+
+   Il n'a **pas** de fond : le canvas du rig est fixe derrière la page, et c'est
+   par le trou laissé dans le plan de la pièce qu'on voit l'eau monter. Un fond
+   ici bloquerait tout le sixième temps. */
 .vestibule__cadre {
   position: sticky;
   top: 0;
@@ -29,26 +32,47 @@
   overflow: clip;
 }
 
-/* ---- Le fond ----
+/* ---- Le décor : la pièce, image par image ----
 
-   Un seul élément, deux scalaires. `--nuit` va de 1 (l'encre du site) à 0 (le
-   noir complet) : `brightness` sur un aplat d'encre donne exactement l'un puis
-   l'autre, sans qu'on ait à interpoler deux couleurs ni à écrire un noir
-   hors-jetons. `--eau` rétracte le fond par le bas, de 0 à 1 : c'est lui qui
-   laisse monter le bassin, en lock-step avec la remontée de son ancre. */
-.vestibule__voile {
+   Le plan de l'appartement, redessiné sur un canvas 2D. C'est la seule surface
+   opaque du cadre, donc c'est lui qui joue le rôle qu'avait le voile d'encre :
+   il couvre, et on le rétracte.
+
+   `--eau` (0 → 1) le clippe par le bas pour laisser monter le bassin, en
+   lock-step avec la remontée de son ancre. Il n'y a plus de `--nuit` : le noir
+   du chapitre n'est pas peint, il est filmé. */
+.vestibule__film {
   position: absolute;
   inset: 0;
-  background-color: var(--color-encre);
-  filter: brightness(var(--nuit, 1));
+  display: block;
+  width: 100%;
+  height: 100%;
   clip-path: inset(0 0 calc(var(--eau, 0) * 100%) 0);
+
+  /* ---- L'exposition du plan ----
+
+     Un multiplicateur plat, pas un voile, pas un dégradé : on baisse la lumière
+     de la pièce, on ne pose rien dessus.
+
+     Il tient deux choses à la fois. La première est mesurée : la bande où
+     s'écrivent les phrases sort à une luminance de 111 une fois la pièce
+     allumée, et la craie posée dessus n'y tient pas le seuil AA. À un peu plus
+     de la moitié de sa lumière, elle donne près de 9:1. La seconde est de
+     direction : une pièce éclairée rendue à pleine exposition est une image de
+     brochure d'hôtel ; c'est le Livre I qu'on rouvrirait.
+
+     L'allumage n'y perd rien. Ce qu'on lit à l'écran est un rapport, pas une
+     valeur absolue — la pièce passe de 10 à 61 au lieu de 18 à 111, et le saut
+     est exactement le même. */
+  filter: brightness(0.55);
 }
 
 /* ---- Le bassin ----
 
-   L'unique scène d'eau du site. Elle attend sous le cadre — son ancre est
-   translatée d'une hauteur de fenêtre, donc hors du viewport, donc la
-   simulation est suspendue par le rig — et remonte au sixième temps.
+   L'unique scène d'eau du site, et la seule scène WebGL lourde du projet. Elle
+   attend sous le cadre — son ancre est translatée d'une hauteur de fenêtre,
+   donc hors du viewport, donc la simulation est suspendue par le rig — et
+   remonte au sixième temps.
 
    Elle ne capte le pointeur que pendant sa plage : ailleurs, elle ne doit rien
    intercepter du parcours. */
@@ -99,61 +123,54 @@
   opacity: 0;
 }
 
-/* ---- Le mot lumière, et son halo ----
+/* ---- Le mot LUMIÈRE ----
 
-   Il n'y a **aucun objet lumineux** dans cette règle : il n'y a qu'un dégradé
-   radial peint sur toute la surface du cadre et découpé par les lettres. Ce que
-   le halo ne touche pas n'est pas peint, donc n'existe pas.
+   Il se lève avec la pièce, à l'image exacte de l'allumage. Trois partis pris,
+   et chacun est une citation du seuil plutôt qu'une invention :
 
-   Le blanc de la craie vire vers le laiton à mi-course : c'est ce virage qui
-   donne la lumière de tungstène plutôt qu'une lampe de bureau.
+   **Le centre.** C'est la seule autre exception à « rien n'est centré » du
+   Livre I, et elle tient à ce qu'elle cite : le logotype pendant les premières
+   secondes du seuil. Le site n'a qu'un endroit où un mot seul tient l'écran ; il
+   s'en sert deux fois, de la même façon, et jamais ailleurs.
 
-   `--halo-x` et `--halo-y` sont écrits par le composant, en pixels du viewport,
-   une fois par cadre. `--halo-rayon` est piloté par la séquence : c'est lui qui
-   ouvre et referme la lumière. Aucune transition CSS ici — le suivi est une
-   interpolation par cadre, une transition le hacherait. */
+   **Le négatif.** Aucune couleur propre : `difference`, comme le logotype. Il
+   est ici au bon endroit, ce qu'il ne serait pas sur les phrases : le mot ne
+   vit que pendant la montée de la lumière, sur une pièce qui va d'une luminance
+   de 21 à 51 — loin du mi-gris où le négatif s'éteint. Il est donc à son plus
+   clair à l'instant exact de l'allumage, et se retire à mesure que la pièce
+   prend le relais. Le mot s'efface devant ce qu'il nomme.
+
+   **Le blend est ici, les transformations sont un cran plus bas.** Une opacité
+   posée sur le nœud qui se mélange l'isole de son fond, et un `difference` sans
+   fond ne rend pas la moitié du négatif : il rend la couleur source, un blanc
+   pâle. C'est le défaut déjà payé une fois sur le nom de *La Matière*. Le
+   paragraphe se mélange, le mot s'anime. */
 .vestibule__lumiere {
   position: absolute;
   inset: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
-  column-gap: var(--gouttiere);
-  padding-inline: var(--marge);
-  align-content: center;
+  place-content: center;
   pointer-events: none;
 
-  font-family: var(--font-display);
-  /* Une graisse et une taille différentes du reste du manifeste — mais dans
-     l'autre sens que le réflexe.
+  font-size: var(--text-monument);
+  line-height: 0.84;
+  text-transform: uppercase;
+  color: var(--color-craie);
+  mix-blend-mode: difference;
+}
 
-     Le mot était en échelle monument, en capitales : un monolithe au milieu de
-     l'écran, c'est-à-dire le geste que produit n'importe quel générateur dès
-     qu'on lui dit « un mot seul dans le noir ». Il est maintenant **plus petit**
-     que les phrases qui l'entourent, dans le maigre de Gambetta et en italique
-     — le seul italique du site, et c'est la lumière. La différence se lit à la
-     retenue, pas à la taille. Le plancher de 40 px du document est tenu. */
-  font-weight: 300;
-  font-style: italic;
-  font-size: max(2.5rem, calc(var(--text-titre) * 0.58));
-  line-height: 1;
-  letter-spacing: var(--tracking-titre);
-
-  background-image: radial-gradient(
-    circle var(--halo-rayon, 0vmax) at var(--halo-x, 50%) var(--halo-y, 50%),
-    var(--color-craie) 0%,
-    var(--color-laiton) 58%,
-    transparent 100%
-  );
-  background-repeat: no-repeat;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+@supports not (mix-blend-mode: difference) {
+  .vestibule__lumiere {
+    mix-blend-mode: normal;
+  }
 }
 
 .vestibule__lumiere-mot {
-  grid-column: 2 / span 10;
+  display: block;
+  /* Le flou de l'apparition déborde le glyphe : on lui laisse la place plutôt
+     que de le voir rogné par le cadre. */
+  padding: 0.04em 0.06em;
 }
 
 /* ---- Les phrases du manifeste ----
@@ -177,6 +194,13 @@
   pointer-events: none;
 }
 
+/* Les phrases restent en craie pleine, et **ne se mélangent pas.**
+
+   Le régime du logotype a été essayé ici, et il est faux : `difference` est
+   aveugle sur un fond de luminance moyenne — la craie sur un mi-gris rend un
+   mi-gris, et le texte disparaît. C'est exactement ce que devient la bande où
+   s'écrivent les phrases une fois la pièce allumée. C'est l'exposition du plan
+   qui règle la lisibilité (voir `.vestibule__film`), pas un mode de fusion. */
 .vestibule__temps {
   grid-column: 2 / span 8;
   grid-row: 1;
@@ -195,16 +219,17 @@
   will-change: transform, opacity;
 }
 
-/* Le mot qui reste seul au sixième temps. Régime du logotype : il n'a pas de
-   couleur propre, il est le négatif de ce qu'il traverse.
+/* Le mot qui reste seul au sixième temps, quand l'eau emplit l'écran derrière
+   lui. C'est le seul mot du chapitre qui se mélange, et le seul qui en ait
+   besoin : il est le seul à tenir sur une surface qu'on ne contrôle pas.
 
    Une limite honnête, qui tient à l'architecture à canvas unique : l'eau est
    peinte par le rig, dans un canvas fixe qui vit **hors** du contexte
    d'empilement de ce chapitre. Le blend a donc un fond de référence tant que le
-   voile est là — la montée et la descente de l'eau —, et n'en a plus quand l'eau
-   occupe seule l'écran, où le mot se peint alors en craie. C'est le seul endroit
-   du site où la règle du négatif bute sur la frontière DOM / WebGL, et on
-   préfère le dire que le maquiller. */
+   plan de la pièce est là — la montée et la descente de l'eau —, et n'en a plus
+   quand l'eau occupe seule l'écran, où le mot se peint alors en craie. C'est le
+   seul endroit du site où la règle du négatif bute sur la frontière DOM / WebGL,
+   et on préfère le dire que le maquiller. */
 .vestibule__silence {
   color: var(--color-craie);
   mix-blend-mode: difference;
@@ -220,8 +245,14 @@
   color: inherit;
 }
 
-/* La couche technique, décrochée dans la marge droite. Elle ne survit pas au
-   noir du troisième temps : à partir de là, l'écran ne porte que le manifeste. */
+/* La couche technique, décrochée dans la marge droite. Elle ne survit pas à
+   l'allumage : à partir de là, l'écran ne porte que le manifeste.
+
+   Elle ne se mélange pas, et c'est délibéré : c'est sa densité qu'on anime
+   pour la retirer, et une opacité posée sur un nœud en `difference` l'isole de
+   son fond — le négatif y vire au blanc pâle au lieu de s'effacer. Elle n'en a
+   pas besoin de toute façon : elle a disparu avant que la pièce ne s'allume,
+   donc elle ne connaît que le noir. */
 .vestibule__marge {
   position: absolute;
   top: clamp(6rem, 16vh, 10rem);
@@ -237,9 +268,9 @@
    ------------------------------------------------------------------
    Ce n'est pas la séquence à laquelle on aurait retiré le mouvement : c'est un
    autre objet, plus court, qui dit la même chose. Le manifeste tient d'un bloc
-   sur la colonne 2, et le bassin est sa plaque, plein cadre, sans simulation.
-   Le composant rend ce sous-arbre-là et pas l'autre — d'où des règles qui ne
-   défont rien.
+   sur la colonne 2, puis les deux plans du chapitre sont donnés en plaques —
+   la pièce allumée, et le bassin calculé. Le composant rend ce sous-arbre-là et
+   pas l'autre, d'où des règles qui ne défont rien.
    ------------------------------------------------------------------ */
 .vestibule__pose {
   position: relative;
@@ -276,7 +307,7 @@
   align-self: start;
 }
 
-/* La plaque du bassin, plein cadre, avec sa seule ligne de couche technique. */
+/* Les plaques : un plan par écran, avec sa seule ligne de couche technique. */
 .vestibule__plaque {
   position: relative;
   height: 100vh;
@@ -317,10 +348,6 @@
   .vestibule__temps {
     grid-column: 1 / -1;
     max-width: none;
-  }
-
-  .vestibule__lumiere-mot {
-    grid-column: 1 / -1;
   }
 
   /* La couche technique ne tient plus dans une marge qui n'existe plus : elle

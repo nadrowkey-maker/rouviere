@@ -1,108 +1,144 @@
-/* La Sortie. Fond encre, silence. Le nom en verre, puis les coordonnées, sèches.
-   Le titre plein cadre est peint par le WebGL ; en repli il reste en DOM. */
+/* La Sortie. Un plan en boucle, le nom en négatif, et les coordonnées posées
+   dans la composition.
+
+   Le verre réfractant a quitté le chapitre : il n'y a plus ici ni canvas, ni
+   scène, ni repli sur pointeur grossier. Une vidéo, un titre, quatre blocs de
+   texte — et le titre est le seul nœud du chapitre qui se mélange.
+
+   `isolation: isolate` borne le groupe de mélange à la section : le négatif du
+   nom se calcule sur le plan qui est derrière lui, et sur rien d'autre. Sans
+   cette ligne, le groupe serait `<main>`, c'est-à-dire tout le parcours. */
 
 .sortie {
   position: relative;
   min-height: 100vh;
   display: grid;
-  grid-template-rows: 1fr auto;
-  padding: clamp(6rem, 14vh, 11rem) var(--marge) clamp(4rem, 10vh, 8rem);
-  /* Un halo très bas donne au verre — et au backdrop-filter du repli — quelque
-     chose à réfracter. Radial, sans bord, sans couleur de monde : pas un
-     dégradé décoratif interdit. */
-  background:
-    radial-gradient(
-      90% 70% at 68% 32%,
-      color-mix(in oklab, var(--color-plomb) 45%, transparent),
-      transparent 62%
-    );
+  align-content: center;
+  padding: clamp(6rem, 14vh, 11rem) var(--marge) clamp(5rem, 12vh, 8rem);
+  background-color: var(--color-encre);
   overflow: clip;
+  isolation: isolate;
 }
 
-/* L'ancre du verre : plein cadre, sous le titre, inerte au pointeur (le pointeur
-   est capté au niveau de la section). */
-.sortie__scene {
+/* ---- Le plan ---- */
+
+.sortie__plan {
   position: absolute;
   inset: 0;
   z-index: 0;
-  pointer-events: none;
 }
 
-/* ---- Le titre ---- */
+.sortie__media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* On baisse la lumière de la pièce. Ce n'est pas un voile décoratif — c'est
+     un multiplicateur plat, sans dégradé, appliqué au plan lui-même.
+
+     Il tient une contrainte mesurée : la nuée sort à une moyenne de 106/116/128,
+     et la craie posée dessus donne 3,8:1 — sous le seuil AA. À la moitié de sa
+     lumière, la même craie donne près de 9:1 sur la moyenne et 5:1 sur les
+     hautes lumières du plan. Le chapitre s'appelle « silence » et le Livre II le
+     voulait sombre : la contrainte d'accessibilité et l'intention se
+     rejoignent, ce qui est rare et vaut d'être noté. */
+  filter: brightness(0.5);
+}
+
+/* ---- Le nom ----
+
+   Aucune couleur propre : `difference`, comme le logotype du seuil, comme les
+   noms de *La Matière*, comme le manifeste du vestibule. Il est le négatif exact
+   de la nuée qui passe dessous — et il change donc en permanence, sans qu'aucune
+   valeur ne soit animée. C'est le dernier mot du site et le dernier emploi du
+   geste signature : le fil se referme là où il a commencé.
+
+   Calé à gauche, jamais centré : le centre est réservé au seuil et au mot
+   LUMIÈRE, et il n'a rien à faire ici. */
 
 .sortie__titre {
   grid-row: 1;
-  align-self: center;
   justify-self: start;
   margin: 0;
-  max-width: 14ch;
+  max-width: 100%;
   font-size: var(--text-monument);
-  line-height: 0.82;
+  line-height: 0.84;
   color: var(--color-craie);
-  /* Repli DOM : frosté d'un simple backdrop-filter, comme un verre dépoli. */
-  padding: 0.1em 0.2em;
-  backdrop-filter: blur(10px) saturate(1.1) brightness(1.05);
-  -webkit-backdrop-filter: blur(10px) saturate(1.1) brightness(1.05);
+  mix-blend-mode: difference;
+  pointer-events: none;
 }
 
-/* Quand le verre WebGL peint le titre, le DOM se cache aux yeux mais reste lu
-   par les lecteurs d'écran — le canvas, lui, ne l'est pas. */
-.sortie__titre[data-verre="true"] {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+@supports not (mix-blend-mode: difference) {
+  .sortie__titre {
+    mix-blend-mode: normal;
+    /* Sans mélange, le nom a besoin d'un fond à lui : un verre dépoli, pas un
+       aplat — le plan continue de passer derrière. */
+    backdrop-filter: blur(14px) brightness(0.5);
+    -webkit-backdrop-filter: blur(14px) brightness(0.5);
+    padding: 0.06em 0.12em;
+  }
 }
 
-/* ---- Les coordonnées ---- */
+/* ---- Les coordonnées, dispersées ----
+
+   Ce n'est pas un pied de page : c'est la dernière pièce, et on y pose les
+   choses aux endroits où on les pose. L'adresse en bas à gauche, le contact
+   décroché à droite et plus haut, la mention d'atelier isolée en marge haute,
+   les repères en bas à droite. Rien n'est empilé, rien ne se centre, et les
+   quatre blocs ne partagent aucune ligne.
+
+   Le calque ne prend pas le pointeur ; seuls les liens le prennent. Sans quoi il
+   couvrirait tout le chapitre et le curseur ne verrait plus le plan. */
 
 .sortie__coordonnees {
-  grid-row: 2;
-  z-index: 1;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, auto));
-  justify-content: space-between;
-  align-items: end;
-  gap: clamp(1.5rem, 4vw, 4rem);
+  grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
+  column-gap: var(--gouttiere);
+  /* Quatre rangées, deux pleines et deux d'air : c'est la structure qui
+     disperse, pas des décalages écrits un par un. */
+  grid-template-rows: 1fr auto 1fr auto;
+  padding: clamp(6rem, 14vh, 11rem) var(--marge) clamp(5rem, 12vh, 8rem);
+  pointer-events: none;
   font-style: normal;
 }
 
 .sortie__adresse {
+  grid-column: 2 / span 4;
+  grid-row: 4;
+  align-self: end;
   margin: 0;
   font-size: var(--text-chapo);
-  color: var(--color-craie);
   line-height: 1.3;
+  color: var(--color-craie);
 }
 
 .sortie__contact {
+  grid-column: 8 / span 5;
+  grid-row: 2;
   display: grid;
   gap: calc(var(--spacing) * 1.5);
-  margin: 0;
   justify-items: end;
   text-align: right;
+  margin: 0;
 }
 
 .sortie__lien {
   position: relative;
-  color: var(--color-pierre);
+  color: var(--color-craie);
   text-decoration: none;
+  pointer-events: auto;
   transition: color var(--duree-micro) var(--ease-seche);
 }
 
 .sortie__lien:hover,
 .sortie__lien:focus-visible {
-  color: var(--color-craie);
+  color: var(--color-laiton);
 }
 
-/* Le liseré des liens prend le monde courant s'il y en a un — ici, l'encre. */
+/* Le liseré du courriel : un trait de laiton d'un pixel, et rien d'autre. */
 .sortie__courriel {
   padding-bottom: 2px;
   border-bottom: 1px solid var(--color-laiton);
@@ -115,7 +151,8 @@
   color: var(--color-laiton);
   opacity: 0;
   transform: translateY(-4px);
-  transition: opacity var(--duree-micro) var(--ease-seche),
+  transition:
+    opacity var(--duree-micro) var(--ease-seche),
     transform var(--duree-micro) var(--ease-seche);
   pointer-events: none;
   white-space: nowrap;
@@ -126,28 +163,59 @@
   transform: translateY(0);
 }
 
-.sortie__pied {
-  grid-column: 1 / -1;
+/* La mention d'atelier, seule en marge haute, à l'opposé de tout le reste. */
+.sortie__mention {
+  position: absolute;
+  top: clamp(6rem, 14vh, 11rem);
+  right: var(--marge);
+  z-index: 2;
   margin: 0;
-  margin-top: calc(var(--spacing) * 2);
-  color: var(--color-zinc);
+  text-align: right;
+  color: var(--color-pierre);
+  pointer-events: none;
+}
+
+/* Les repères, dans le coin opposé au nom du chapitre courant que le chrome
+   tient en permanence en bas à gauche.
+
+   Pierre et non le zinc par défaut de la couche technique : le zinc tient tout
+   juste le seuil AA sur l'encre, et il le perd sur un plan qui n'est pas noir. */
+.sortie__reperes {
+  position: absolute;
+  bottom: clamp(1.5rem, 5vh, 3rem);
+  right: var(--marge);
+  z-index: 2;
+  margin: 0;
+  color: var(--color-pierre);
+  pointer-events: none;
 }
 
 @media (max-width: 48rem) {
   .sortie__coordonnees {
-    grid-template-columns: 1fr;
-    justify-items: start;
-    gap: clamp(1.5rem, 6vh, 3rem);
+    grid-template-rows: 1fr auto auto;
+  }
+
+  .sortie__adresse {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-self: end;
   }
 
   .sortie__contact {
+    grid-column: 1 / -1;
+    grid-row: 3;
     justify-items: start;
     text-align: left;
+    margin-top: calc(var(--spacing) * 4);
   }
 
   .sortie__copie {
     right: auto;
     left: 0;
+  }
+
+  .sortie__reperes {
+    display: none;
   }
 }
 

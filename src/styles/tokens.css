@@ -95,3 +95,45 @@
   --marge: clamp(1.5rem, 4vw, 5rem);
   --mesure: 58ch; /* longueur de ligne maximale du corps de texte */
 }
+
+/* ------------------------------------------------------------------
+   Les scalaires animés, déclarés.
+   ------------------------------------------------------------------
+   Trois propriétés personnalisées du site sont écrites par GSAP à chaque
+   frame — le recul de la page derrière le menu, la pose d'une surface de
+   passage, la montée de l'eau au vestibule. Les déclarer ici n'est pas de la
+   coquetterie : c'est **le correctif de la saccade à l'ouverture du menu**.
+
+   Une propriété personnalisée non déclarée est héritée. Changer `--recul` sur
+   `.scene-page` invalidait donc le style de tout ce qu'elle contient — le
+   parcours entier, ses neuf écrans, ses milliers de nœuds —, soixante fois par
+   seconde pendant les neuf dixièmes de seconde de l'ouverture. Le profil ne
+   montrait aucune frame de peinture longue : le coût était en recalcul de
+   style, avant même qu'on parle de flou.
+
+   `inherits: false` borne l'invalidation au seul élément qui porte la
+   propriété. Le typage en `<number>` fait le reste : la valeur est analysée
+   une fois pour toutes au lieu d'être re-parsée à chaque lecture de `calc()`.
+
+   Un navigateur qui ne connaît pas `@property` retombe sur l'ancien
+   comportement : rien ne change à l'écran, seul le gain de performance est
+   perdu. C'est la bonne dégradation.
+   ------------------------------------------------------------------ */
+
+@property --recul {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --passage {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --eau {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}

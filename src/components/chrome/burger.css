@@ -1,25 +1,52 @@
-/* Le burger : trois dalles fines. À l'ouverture elles s'écartent et pivotent
-   chacune de son côté, décalées de 40 ms. Ce n'est pas une croix — c'est un
-   store qu'on entrouvre.
+/* Le burger. Trois dalles fines, aucun arrondi, une forme lisible à tout
+   instant de la course.
 
    ------------------------------------------------------------------
-   Pourquoi les dalles s'écartent, et ne se rejoignent pas
+   Ce que c'est, et ce que ce n'est pas
    ------------------------------------------------------------------
-   L'état ouvert ramenait la dalle du haut de +6,5 px et celle du bas de −6,5 px,
-   c'est-à-dire exactement l'écart qui les sépare du milieu : les trois se
-   retrouvaient empilées sur la ligne médiane, et l'ouverture produisait un pâté.
-   La forme ouverte est maintenant **plus haute** que la forme fermée : chaque
-   dalle s'éloigne du centre au lieu d'y tomber. Aucune ne croise sa voisine, à
-   aucun instant de la course — la figure reste donc lisible du début à la fin,
-   dans les deux sens. */
+   Ce n'est pas un hamburger, et ce n'est pas une croix. Fermé, c'est une
+   **portée** : trois traits d'un pixel, de même longueur, à intervalle égal.
+   Un signe de plan, pas un pictogramme d'application. La régularité est le
+   propos — c'est le seul endroit du chrome où trois choses sont exactement
+   pareilles.
+
+   Ouvert, la portée **s'ouvre en éventail** : chaque dalle pivote autour d'un
+   bord différent, s'écarte du centre, et perd un peu de longueur — sauf celle
+   du milieu, qui reste pleine et tient la figure. On passe d'un signe régulier
+   à un signe déployé. Aucun état ne ressemble à l'autre, et on lit l'un comme
+   l'autre sans légende.
+
+   ------------------------------------------------------------------
+   Pourquoi les dalles s'écartent, et ne se rejoignent jamais
+   ------------------------------------------------------------------
+   L'état ouvert ramenait autrefois la dalle du haut et celle du bas vers la
+   ligne médiane, exactement de l'écart qui les en séparait : les trois se
+   retrouvaient empilées et l'ouverture produisait un pâté. La forme ouverte est
+   donc **plus haute** que la forme fermée, et les deux dalles extrêmes ne se
+   déplacent que vers l'extérieur : partant d'un écart de repos de 6 px, elles
+   l'ouvrent à plus de huit, rotations comprises. L'ordre vertical est conservé,
+   aucune dalle ne croise sa voisine, à aucun instant de la course.
+
+   ------------------------------------------------------------------
+   Les gestes sont trois, pas un
+   ------------------------------------------------------------------
+   Trois origines de pivot différentes — gauche, droite, gauche —, trois angles,
+   trois longueurs, et un décalage de 40 ms entre les dalles. Ce sont trois
+   gestes qui se suivent, pas une figure qui tourne. La fermeture reprend les
+   délais dans l'ordre inverse : la dalle du bas se referme la première, celle du
+   haut la dernière — on referme un éventail par le bas.
+
+   Le mouvement est une micro-interaction : il vit en CSS, en transitions et
+   délais indexés, et ne prend pas une frame du ticker. */
 
 .burger {
-  --dalle: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--dalle);
-  height: var(--dalle);
+  position: relative;
+  display: block;
+  /* La marque fait 30 × 16 : trois traits d'un pixel séparés de 7. Le bouton
+     n'est pas plus grand que ce qu'il dessine — il ne doit pas l'être, sinon il
+     décalerait la ligne du chrome, dont le son est l'autre habitant. */
+  width: 30px;
+  height: 15px;
   background: none;
   border: 0;
   padding: 0;
@@ -27,67 +54,71 @@
   cursor: pointer;
 }
 
+/* La cible du pointeur, elle, fait 44 px dans les deux sens : elle déborde le
+   bouton sans occuper de place dans la mise en page, et sans rien peindre. Un
+   trait d'un pixel n'est pas une cible tactile. */
+.burger::before {
+  content: "";
+  position: absolute;
+  inset: -15px;
+}
+
 .burger__dalles {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 5px;
+  justify-content: space-between;
   width: 100%;
   height: 100%;
 }
 
 .burger__dalle {
-  height: 1.5px;
+  /* Un pixel, jamais un pixel et demi : une dalle de 1,5 px tombe entre deux
+     rangées de pixels et rend un gris sale au lieu d'un trait. */
+  height: 1px;
   width: 100%;
   background-color: currentColor;
-  /* Chaque dalle pivote autour de son propre bord, pas d'un centre commun :
-     c'est ce qui fait trois gestes distincts et non une figure qui tourne. */
   transform-origin: left center;
-  /* Le décalage de 40 ms est porté par les délais indexés plus bas. */
+  /* La longueur est animée par `scaleX` et non par `width` : une largeur qui
+     change relaie la mise en page, une échelle ne relaie rien. L'origine de
+     pivot sert donc aux deux à la fois — la dalle tourne et se raccourcit
+     depuis le même bord, ce qui est précisément la mécanique d'un éventail. */
+  transform: scaleX(1);
   transition:
     transform var(--duree-micro) var(--ease-seche),
-    width var(--duree-micro) var(--ease-seche);
+    opacity var(--duree-micro) var(--ease-seche);
 }
 
+/* La dalle du milieu pivote par la droite : c'est ce qui empêche l'éventail de
+   n'être qu'un balayage dans un sens. */
 .burger__dalle:nth-child(2) {
   transform-origin: right center;
 }
 
-/* Au survol, les dalles se resserrent légèrement — la barre respire avant même
-   qu'on l'ouvre. */
-.burger:hover .burger__dalle:nth-child(1),
-.burger:focus-visible .burger__dalle:nth-child(1) {
-  width: 70%;
-}
-.burger:hover .burger__dalle:nth-child(3),
-.burger:focus-visible .burger__dalle:nth-child(3) {
-  width: 85%;
+/* ---- Fermé, au survol ----
+   La portée respire : la dalle du milieu se retire d'un tiers, les deux autres
+   ne bougent pas. Un seul trait change, et c'est assez pour que le signe soit
+   vivant sans annoncer l'ouverture. */
+.burger[data-ouvert="false"]:hover .burger__dalle:nth-child(2),
+.burger[data-ouvert="false"]:focus-visible .burger__dalle:nth-child(2) {
+  transform: scaleX(0.66);
 }
 
-/* Ouvert : chaque dalle s'écarte du centre et pivote de son propre angle, avec
-   un délai croissant de 40 ms. Les amplitudes (−4 px, 0, +4 px) sont plus
-   petites que l'écart qui sépare deux dalles au repos (6,5 px) : l'ordre
-   vertical est conservé, la superposition est impossible.
-
-   La fermeture reprend les délais dans l'ordre inverse, pour que la dalle du
-   bas se referme la première. */
+/* ---- Ouvert : l'éventail ---- */
 .burger[data-ouvert="true"] .burger__dalle:nth-child(1) {
-  transform: translateY(-4px) rotate(-13deg);
-  width: 64%;
+  transform: translateY(-3.5px) rotate(-11deg) scaleX(0.6);
   transition-delay: 0ms;
 }
 .burger[data-ouvert="true"] .burger__dalle:nth-child(2) {
-  transform: rotate(5deg);
-  width: 100%;
+  transform: rotate(4deg) scaleX(1);
   transition-delay: 40ms;
 }
 .burger[data-ouvert="true"] .burger__dalle:nth-child(3) {
-  transform: translateY(4px) rotate(9deg);
-  width: 78%;
+  transform: translateY(3.5px) rotate(8deg) scaleX(0.78);
   transition-delay: 80ms;
 }
 
+/* On referme par le bas. */
 .burger[data-ouvert="false"] .burger__dalle:nth-child(1) {
   transition-delay: 80ms;
 }
@@ -96,4 +127,13 @@
 }
 .burger[data-ouvert="false"] .burger__dalle:nth-child(3) {
   transition-delay: 0ms;
+}
+
+/* En mouvement réduit, la marque bascule sans course : les deux états restent
+   distincts, et c'est tout ce qu'on lui demande. */
+@media (prefers-reduced-motion: reduce) {
+  .burger__dalle {
+    transition: none;
+    transition-delay: 0ms !important;
+  }
 }

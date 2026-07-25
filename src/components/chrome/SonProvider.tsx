@@ -90,6 +90,11 @@ type Son = {
    * s'en sert : le bassin du vestibule, où il ne doit plus rester que l'eau.
    */
   couperNappes: (coupees: boolean) => void;
+  /**
+   * L'entrée et la sortie du dernier chapitre. La nappe du site s'efface, celle
+   * de la sortie prend le cadre ; on remonte, elle s'arrête et le site revient.
+   */
+  reglerSortie: (dans: boolean) => void;
 };
 
 const ContexteSon = createContext<Son | null>(null);
@@ -141,6 +146,12 @@ const FONDU_NAPPES = 1.5;
 
 /** Gain de l'eau à pleine vitesse. */
 const EAU_MAX = 0.6;
+/**
+ * Niveau de la nappe de la sortie. Elle vit sur le bus d'ambiance, qui est à
+ * gain plein : cette valeur la met à peu près au niveau qu'avaient les nappes
+ * du parcours (0,5), pour que l'échange ne s'entende pas comme une montée.
+ */
+const SORTIE_MAX = 0.55;
 /**
  * Vitesse du pointeur, en pixels par frame, au-delà de laquelle l'eau est à
  * son plein. Trente pixels par frame à soixante hertz, c'est un balayage franc
@@ -245,9 +256,22 @@ type Moteur = {
   eau: Nappe;
   /** La nappe du projet visité, montée à la demande puis libérée. */
   projet: (Nappe & { rang: number }) | null;
+  /**
+   * La nappe du dernier chapitre, montée au premier passage et gardée ensuite.
+   * Elle vit sur le bus d'**ambiance** et non sur celui des nappes — c'est ce
+   * dernier qu'on est justement en train de couper en entrant. Le bassin y est
+   * déjà, pour la même raison : ce ne sont pas des bandes-son, ce sont les
+   * pièces dans lesquelles on entre.
+   */
+  sortie: Nappe | null;
   /** Bruit blanc court, source de toutes les impulsions d'interface. */
   bruit: AudioBuffer;
 };
+
+/** Toutes les lectures en cours, celles du moteur. Sert aux bascules globales. */
+function lectures(moteur: Moteur): Array<Nappe | null> {
+  return [moteur.hero, moteur.site, moteur.eau, moteur.projet, moteur.sortie];
+}
 
 /**
  * Joue une impulsion sur le bus d'interface. Hors du composant : la bascule du
@@ -319,6 +343,12 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
    * nappe doit démarrer au bon niveau, pas à zéro.
    */
   const sortieHero = useRef(0);
+  /**
+   * Est-on dans le dernier chapitre ? Lu par la bascule du son — qui ne doit
+   * pas relancer une nappe qu'on a quittée — et par la minuterie d'arrêt, qui
+   * ne doit pas couper une nappe qu'on vient de reprendre.
+   */
+  const sortieDans = useRef(false);
 
   /* --- Construction, une seule fois, dans le geste de l'utilisateur --- */
 
@@ -385,6 +415,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       site,
       eau,
       projet: null,
+      sortie: null,
       bruit,
     };
     moteurRef.current = moteur;
@@ -409,10 +440,14 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
         void moteur.ctx.resume().then(() => {
           if (avecRetour) impulsion(moteur, "bascule");
         });
-        for (const lecture of [moteur.hero, moteur.site, moteur.eau, moteur.projet]) {
+        for (const lecture of lectures(moteur)) {
+          if (lecture === null) continue;
+          /* La nappe de la sortie ne se relance que si l'on y est : sinon elle
+             décoderait en silence tout le reste du parcours. */
+          if (lecture === moteur.sortie && !sortieDans.current) continue;
           /* La lecture peut être refusée : on ne traite pas le refus comme
              une erreur, le gain restera simplement muet. */
-          void lecture?.element.play().catch(() => {});
+          void lecture.element.play().catch(() => {});
         }
         /* La première fois, la nappe du hero **émerge** sur quatre secondes ;
            ensuite, le bouton obéit en quatre dixièmes. */
@@ -440,9 +475,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
         window.setTimeout(() => {
           const courant = moteurRef.current;
           if (courant === null) return;
-          for (const n of [courant.hero, courant.site, courant.eau, courant.projet]) {
-            n?.element.pause();
-          }
+          for (const n of lectures(courant)) n?.element.pause();
           void courant.ctx.suspend();
         }, FONDU_MAITRE * 1000 + 60);
       }
@@ -590,6 +623,51 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  /* --- La sortie ---
+     Le dernier chapitre est le seul du parcours à avoir sa propre nappe. Elle
+     ne remplace pas celle du site sur le même bus : c'est le bus des nappes
+     entier qui s'efface — la même coupure qu'au bassin, pour la même raison —
+     et la sortie entre par le bus d'ambiance. On remonte, elle s'arrête et le
+     parcours reprend là où il en était. */
+  const reglerSortie = useCallback((dans: boolean) => {
+    sortieDans.current = dans;
+    const moteur = moteurRef.current;
+    if (moteur === null) return;
+
+    const { ctx, ambiance } = moteur;
+    const t = ctx.currentTime;
+
+    if (dans && moteur.sortie === null) {
+      const element = new Audio("/audio/sortie.mp3");
+      element.loop = true;
+      element.preload = "auto";
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      ctx.createMediaElementSource(element).connect(gain);
+      gain.connect(ambiance);
+      moteur.sortie = { element, sortie: gain };
+    }
+
+    rampe(moteur.musique.gain, dans ? 0 : NIVEAU_MUSIQUE, FONDU_NAPPES, t);
+
+    const nappe = moteur.sortie;
+    if (nappe === null) return;
+
+    if (dans) void nappe.element.play().catch(() => {});
+    rampe(nappe.sortie.gain, dans ? SORTIE_MAX : 0, FONDU_NAPPES, t);
+
+    if (!dans) {
+      /* On arrête vraiment après le fondu : un `<audio>` en lecture continue de
+         télécharger et de décoder même à gain nul. La garde est là parce qu'on
+         peut être redescendu entre-temps — auquel cas c'est la nappe en cours
+         qu'on couperait. */
+      window.setTimeout(() => {
+        if (sortieDans.current) return;
+        moteurRef.current?.sortie?.element.pause();
+      }, FONDU_NAPPES * 1000 + 80);
+    }
+  }, []);
+
   /* --- Les micro-sons --- */
 
   const jouer = useCallback((micro: Micro) => {
@@ -658,9 +736,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       const moteur = moteurRef.current;
       moteurRef.current = null;
       if (moteur === null) return;
-      for (const nappe of [moteur.hero, moteur.site, moteur.eau, moteur.projet]) {
-        nappe?.element.pause();
-      }
+      for (const nappe of lectures(moteur)) nappe?.element.pause();
       void moteur.ctx.close();
     };
   }, []);
@@ -676,6 +752,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       quitterProjet,
       reglerEau,
       couperNappes,
+      reglerSortie,
     }),
     [
       sonActif,
@@ -687,6 +764,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       quitterProjet,
       reglerEau,
       couperNappes,
+      reglerSortie,
     ],
   );
 

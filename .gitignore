@@ -43,3 +43,12 @@ yarn-error.log*
 
 # Déploiement
 .vercel
+
+# Les deux rushes du dernier lot, laissés là où ils ont été déposés plutôt que
+# déplacés sous `medias-source/`. Ce sont des entrées de fabrication, pas des
+# actifs : `scripts/manifeste.mjs` en tire les 192 frames du vestibule,
+# `scripts/sortie.mjs` en tire le plan étalonné du dernier chapitre. Vingt
+# mégaoctets que le site ne sert jamais n'ont rien à faire dans l'index —
+# et une fois dans l'historique, ils n'en sortent plus.
+public/media/manifeste/allumage.mp4
+public/media/sortie/sortie.mp4
