@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import { useEffetVisuel } from "@/lib/isomorphe";
-import { useMouvement } from "@/components/motion/MotionProvider";
 
 /**
  * Le son. Web Audio natif, pas de bibliothèque.
@@ -66,14 +65,43 @@ export type Micro =
   | "copie"
   | "bascule";
 
+/**
+ * Les deux effets ponctuels du parcours. Ce ne sont pas des impulsions
+ * synthétisées comme les `Micro` : ce sont deux fichiers, courts, décodés en
+ * `AudioBuffer` à la construction du moteur — et décodés d'avance précisément
+ * parce qu'ils doivent partir **à la frame du geste visuel**. Un `fetch` au
+ * moment du déclenchement arriverait deux cents millisecondes trop tard, et
+ * l'oreille entend parfaitement ce décalage-là.
+ *
+ * Ils passent par le bus `interface`, comme les micro-sons : ce sont des
+ * ponctuations, pas des nappes.
+ */
+export type Effet = "titre" | "lumiere";
+
 type Son = {
-  /** Le son est-il actif — état d'interface, piloté par le bouton de bascule. */
+  /**
+   * Le son **sort-il réellement** ? Pas « l'utilisateur en veut-il » : la
+   * distinction n'est pas cosmétique, voir `sonEnAttente`.
+   */
   sonActif: boolean;
+  /**
+   * Le son est voulu, mais le navigateur n'a pas encore laissé le contexte
+   * démarrer — il faut un geste qui vaille activation. Le bouton le dit au
+   * lieu de prétendre que tout va bien.
+   */
+  sonEnAttente: boolean;
   basculerSon: () => void;
   /** Pose l'état sans le basculer. Utilisé par l'écran d'entrée. */
   activerSon: (actif: boolean) => void;
   /** Joue un micro-son. Sans effet tant que le son est coupé. */
   jouer: (micro: Micro) => void;
+  /**
+   * Joue un des deux effets ponctuels. Sans effet si le son est coupé ou si
+   * le contexte n'a pas encore été autorisé — il n'y a pas de file d'attente :
+   * un son qui devait marquer un geste n'a plus rien à marquer une fois le
+   * geste passé.
+   */
+  jouerEffet: (effet: Effet) => void;
   /** 0 : dans le hero. 1 : entièrement sorti. Poussé par le seuil au scrub. */
   reglerSortieHero: (progression: number) => void;
   /** Entre dans la nappe d'un projet, par son rang (1 à 5). */
@@ -161,6 +189,48 @@ const EAU_VITESSE_PLEINE = 30;
 
 /** La préférence de son, persistée d'une visite à l'autre. */
 const CLE_PREFERENCE = "rouviere:son";
+
+/** Les deux effets ponctuels, et leur niveau sur le bus d'interface. */
+const FICHIERS_EFFETS: Record<Effet, string> = {
+  titre: "/audio/sfx/titre.mp3",
+  lumiere: "/audio/sfx/lumiere.mp3",
+};
+
+/**
+ * Niveau des effets ponctuels. Au-dessus des micro-sons — ce sont des
+ * ponctuations de mise en scène, pas des accusés de réception d'interface —
+ * mais toujours sous le bus, qui est lui-même bas.
+ */
+const NIVEAU_EFFET = 0.85;
+
+/**
+ * **Les gestes qui réarment le contexte audio.**
+ *
+ * Il faut ici distinguer deux choses que le site confondait, et c'est toute
+ * l'histoire du bug de rechargement (voir `useEffetVisuel` du réarmement) :
+ *
+ *   — *un geste*, au sens du site : l'utilisateur a fait quelque chose. La
+ *     molette en est un.
+ *   — *une activation*, au sens du navigateur : le seul état qui autorise
+ *     `AudioContext.resume()` et `HTMLMediaElement.play()`. La molette n'en
+ *     est **pas** une, ni `touchstart`, ni `scroll`. Seuls `pointerdown`,
+ *     `mousedown`, `touchend` et `keydown` en délivrent une.
+ *
+ * On écoute donc les deux familles. Les gestes qui n'activent pas sont dans la
+ * liste parce qu'ils ne coûtent rien et que, le jour où un navigateur les
+ * accepterait, le son partirait plus tôt ; ceux qui activent sont ceux qui
+ * feront réellement le travail. La liste est réécoutée tant que le contexte
+ * n'a pas démarré — c'est cela qui compte, bien plus que son contenu exact.
+ */
+const GESTES_REARMEMENT = [
+  "pointerdown",
+  "mousedown",
+  "touchend",
+  "keydown",
+  "touchstart",
+  "wheel",
+  "scroll",
+] as const;
 
 type AudioContextConstructeur = typeof AudioContext;
 
@@ -266,6 +336,8 @@ type Moteur = {
   sortie: Nappe | null;
   /** Bruit blanc court, source de toutes les impulsions d'interface. */
   bruit: AudioBuffer;
+  /** Les deux effets ponctuels, décodés d'avance. Voir `Effet`. */
+  effets: Map<Effet, AudioBuffer>;
 };
 
 /** Toutes les lectures en cours, celles du moteur. Sert aux bascules globales. */
@@ -316,6 +388,79 @@ function impulsion(moteur: Moteur, micro: Micro) {
   };
 }
 
+/**
+ * Joue un des deux effets ponctuels sur le bus d'interface.
+ *
+ * Aucune file d'attente, et c'est délibéré : ces deux sons **datent** un geste
+ * visuel — l'arrivée du logotype, l'allumage de la pièce. Si le contexte n'est
+ * pas en marche à cet instant précis, il n'y a plus rien à dater ; le jouer
+ * trois secondes plus tard, quand le son se débloque, ne serait pas un rattrapage,
+ * ce serait un bruit sans cause.
+ */
+function jouerEffetSur(moteur: Moteur, effet: Effet): void {
+  const { ctx, interface: bus } = moteur;
+  if (ctx.state !== "running") return;
+
+  const buffer = moteur.effets.get(effet);
+  if (buffer === undefined) return;
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+
+  const gain = ctx.createGain();
+  gain.gain.value = NIVEAU_EFFET;
+
+  source.connect(gain);
+  gain.connect(bus);
+  source.start();
+  source.onended = () => {
+    source.disconnect();
+    gain.disconnect();
+  };
+}
+
+/** L'état de la montée du maître. Voir `monterMaitre`. */
+type EtatMaitre = {
+  /** L'émergence de quatre secondes a-t-elle déjà été jouée ? */
+  emerge: boolean;
+  /** Une montée est-elle déjà programmée et non annulée depuis ? */
+  monte: boolean;
+};
+
+/**
+ * Monte le gain maître — mais **seulement si le contexte tourne pour de bon**,
+ * et **seulement si une montée n'est pas déjà en route**.
+ *
+ * Les deux garde-fous corrigent deux défauts distincts, et les deux se
+ * paieraient à l'oreille :
+ *
+ * `state !== "running"` — écrire une automatisation sur un contexte suspendu
+ * est permis et parfaitement silencieux : l'horloge est arrêtée, la rampe
+ * attend. Le problème n'est pas là, il est dans le compte : si l'on comptait
+ * cette écriture-là comme « la première montée », le vrai démarrage, plus tard,
+ * hériterait du fondu court.
+ *
+ * `monte` — la mise en marche est signalée **deux fois** : par la promesse de
+ * `resume()` et par le `statechange` du contexte, dans un ordre qui ne se
+ * prédit pas. Sans ce drapeau, le second appel voyait `emerge` déjà posé et
+ * lançait la rampe de quatre dixièmes, qui **annule** l'émergence de quatre
+ * secondes en cours. La nappe du hero arrivait d'un coup — exactement le défaut
+ * que `FONDU_ENTREE` existe pour corriger, réintroduit par sa propre garde.
+ */
+function monterMaitre(moteur: Moteur, maitre: { current: EtatMaitre }): void {
+  if (moteur.ctx.state !== "running") return;
+  if (maitre.current.monte) return;
+  maitre.current.monte = true;
+
+  const t = moteur.ctx.currentTime;
+  if (maitre.current.emerge) {
+    rampe(moteur.maitre.gain, 1, FONDU_MAITRE, t);
+    return;
+  }
+  maitre.current.emerge = true;
+  emerger(moteur.maitre.gain, 1, FONDU_ENTREE, t);
+}
+
 function lirePreference(): boolean {
   try {
     return localStorage.getItem(CLE_PREFERENCE) === "1";
@@ -333,8 +478,34 @@ function ecrirePreference(actif: boolean) {
 }
 
 export function SonProvider({ children }: { children: React.ReactNode }) {
+  /**
+   * **Trois états, et non deux.** Le site n'en connaissait que deux — le son
+   * est allumé, le son est coupé — et c'est ce qui a produit le pire des
+   * défauts possibles pour un bouton : il disait « actif » alors que rien ne
+   * sortait.
+   *
+   *   `souhaiteRef`   — ce que l'utilisateur veut. Persisté.
+   *   `sonActif`      — ce qui sort réellement, c'est-à-dire `souhaite` **et**
+   *                     un contexte en marche.
+   *   `sonEnAttente`  — voulu, pas encore autorisé. C'est le seul état neuf, et
+   *                     c'est lui qui arme les écouteurs de réarmement.
+   *
+   * `souhaite` vit dans une ref et non dans un état : il est lu depuis des
+   * écouteurs d'événements natifs, qui capturent la valeur du rendu où ils ont
+   * été posés.
+   */
+  const souhaiteRef = useRef(false);
   const [sonActif, setSonActif] = useState(false);
+  const [sonEnAttente, setSonEnAttente] = useState(false);
   const moteurRef = useRef<Moteur | null>(null);
+  /** L'état de la montée du maître. Voir `monterMaitre`, qui l'explique. */
+  const etatMaitre = useRef<EtatMaitre>({ emerge: false, monte: false });
+  /**
+   * Le son sort-il réellement, lu depuis un écouteur natif ? `sonActif` est un
+   * état de rendu ; la bascule, elle, s'exécute dans le geste et a besoin de la
+   * valeur de l'instant.
+   */
+  const actifRef = useRef(false);
   /** Anti-spam du survol : les entrées interactives se frôlent vite. */
   const dernierSurvol = useRef(0);
   /**
@@ -349,6 +520,25 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
    * ne doit pas couper une nappe qu'on vient de reprendre.
    */
   const sortieDans = useRef(false);
+
+  /**
+   * Recalcule les deux booléens publics depuis la vérité : ce que veut
+   * l'utilisateur, et l'état réel du contexte.
+   *
+   * C'est la seule fonction du fichier qui écrive `sonActif`. Toutes les
+   * autres se contentent de changer le souhait ou de pousser le contexte, puis
+   * l'appellent — et le `statechange` du contexte l'appelle aussi tout seul,
+   * ce qui couvre les transitions qu'on ne provoque pas nous-mêmes (la
+   * politique d'autoplay qui lâche prise, l'onglet qui revient au premier plan).
+   */
+  const synchroniser = useCallback(() => {
+    const moteur = moteurRef.current;
+    const souhaite = souhaiteRef.current;
+    const tourne = souhaite && moteur !== null && moteur.ctx.state === "running";
+    actifRef.current = tourne;
+    setSonActif(tourne);
+    setSonEnAttente(souhaite && !tourne);
+  }, []);
 
   /* --- Construction, une seule fois, dans le geste de l'utilisateur --- */
 
@@ -417,92 +607,152 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       projet: null,
       sortie: null,
       bruit,
+      effets: new Map(),
     };
+
+    /* Le contexte dit lui-même quand il démarre ou s'arrête. C'est plus sûr que
+       d'inférer son état des promesses de `resume()` : sur les navigateurs qui
+       diffèrent l'autorisation, cette promesse se résout sans que le contexte
+       ait bougé, et il se met en marche plus tard, tout seul. */
+    ctx.onstatechange = () => {
+      synchroniser();
+      /* Le contexte s'est mis en marche de lui-même — autorisation accordée
+         après coup, onglet revenu au premier plan : la nappe monte maintenant,
+         et c'est ici seulement qu'on peut le savoir. */
+      if (souhaiteRef.current) monterMaitre(moteur, etatMaitre);
+    };
+
+    /* Les deux effets ponctuels, décodés d'avance. Un échec est silencieux :
+       `jouerEffetSur` ne trouvera pas son tampon et ne jouera rien, ce qui est
+       exactement le bon comportement pour une ponctuation. */
+    for (const nom of Object.keys(FICHIERS_EFFETS) as Effet[]) {
+      void fetch(FICHIERS_EFFETS[nom])
+        .then((reponse) => reponse.arrayBuffer())
+        .then((donnees) => ctx.decodeAudioData(donnees))
+        .then((tampon) => {
+          moteur.effets.set(nom, tampon);
+        })
+        .catch(() => {
+          /* Fichier absent ou format refusé : l'effet ne joue pas. */
+        });
+    }
+
     moteurRef.current = moteur;
     return moteur;
-  }, []);
+  }, [synchroniser]);
 
   /* --- Bascule et préférence --- */
 
-  const appliquer = useCallback(
-    (actif: boolean, avecRetour = false) => {
-      ecrirePreference(actif);
+  /**
+   * **Le réveil du moteur.** Idempotente, et elle doit l'être : elle est
+   * appelée par la bascule, par l'écran d'entrée, et de nouveau à *chaque*
+   * geste tant que le contexte n'a pas démarré. La rappeler quand tout va déjà
+   * bien ne fait rien de plus qu'une reprise sur un contexte en marche, qui est
+   * un non-événement.
+   */
+  const reveiller = useCallback(
+    (avecRetour: boolean) => {
+      const moteur = construire();
+      if (moteur === null) return;
 
-      if (actif) {
-        /* Lu **avant** la construction : c'est ce qui distingue la toute
-           première arrivée du son de toutes les bascules qui suivront. */
-        const premiere = moteurRef.current === null;
-        const moteur = construire();
-        if (moteur === null) return false;
-        /* La confirmation est jouée *après* la reprise : au moment du clic, le
-           contexte vient d'être créé ou est encore suspendu, et l'impulsion
-           serait perdue. */
-        void moteur.ctx.resume().then(() => {
+      /* La confirmation est jouée *après* la reprise : au moment du clic, le
+         contexte vient d'être créé ou est encore suspendu, et l'impulsion
+         serait perdue. */
+      void moteur.ctx
+        .resume()
+        .then(() => {
+          monterMaitre(moteur, etatMaitre);
+          synchroniser();
           if (avecRetour) impulsion(moteur, "bascule");
+        })
+        .catch(() => {
+          /* Reprise refusée : ce n'est pas une erreur, c'est l'état d'attente.
+             Le prochain geste réessaiera. */
+          synchroniser();
         });
-        for (const lecture of lectures(moteur)) {
-          if (lecture === null) continue;
-          /* La nappe de la sortie ne se relance que si l'on y est : sinon elle
-             décoderait en silence tout le reste du parcours. */
-          if (lecture === moteur.sortie && !sortieDans.current) continue;
-          /* La lecture peut être refusée : on ne traite pas le refus comme
-             une erreur, le gain restera simplement muet. */
-          void lecture.element.play().catch(() => {});
-        }
-        /* La première fois, la nappe du hero **émerge** sur quatre secondes ;
-           ensuite, le bouton obéit en quatre dixièmes. */
-        if (premiere) {
-          emerger(moteur.maitre.gain, 1, FONDU_ENTREE, moteur.ctx.currentTime);
-        } else {
-          rampe(moteur.maitre.gain, 1, FONDU_MAITRE, moteur.ctx.currentTime);
-        }
-        return true;
+
+      for (const lecture of lectures(moteur)) {
+        if (lecture === null) continue;
+        /* La nappe de la sortie ne se relance que si l'on y est : sinon elle
+           décoderait en silence tout le reste du parcours. */
+        if (lecture === moteur.sortie && !sortieDans.current) continue;
+        /* La lecture peut être refusée : on ne traite pas le refus comme
+           une erreur, le gain restera simplement muet. */
+        void lecture.element.play().catch(() => {});
       }
+
+      /* Contexte déjà en marche : on monte tout de suite, sans attendre le
+         tour de boucle de la promesse. */
+      monterMaitre(moteur, etatMaitre);
+      synchroniser();
+    },
+    [construire, synchroniser],
+  );
+
+  /** L'arrêt : fondu du maître, puis on arrête vraiment. */
+  const endormir = useCallback(
+    (avecRetour: boolean) => {
+      const moteur = moteurRef.current;
+      if (moteur === null) return;
 
       /* En coupant, la confirmation part avant le fondu : après, elle serait
          inaudible — c'est justement ce qu'on vient de demander. */
-      if (avecRetour && moteurRef.current !== null) {
-        impulsion(moteurRef.current, "bascule");
-      }
+      if (avecRetour) impulsion(moteur, "bascule");
 
-      const moteur = moteurRef.current;
-      if (moteur !== null) {
-        rampe(moteur.maitre.gain, 0, FONDU_MAITRE, moteur.ctx.currentTime);
-        /* Après le fondu, on arrête vraiment : les éléments sont mis en pause
-           *et* le contexte est suspendu. Suspendre seul ne suffit pas — un
-           `<audio>` en lecture continue de télécharger et de décoder même si
-           sa sortie ne rejoint plus la destination. */
-        window.setTimeout(() => {
-          const courant = moteurRef.current;
-          if (courant === null) return;
-          for (const n of lectures(courant)) n?.element.pause();
-          void courant.ctx.suspend();
-        }, FONDU_MAITRE * 1000 + 60);
-      }
-      return false;
+      /* La montée est annulée : le prochain réveil devra en reprogrammer une. */
+      etatMaitre.current.monte = false;
+      rampe(moteur.maitre.gain, 0, FONDU_MAITRE, moteur.ctx.currentTime);
+      /* Après le fondu, on arrête vraiment : les éléments sont mis en pause
+         *et* le contexte est suspendu. Suspendre seul ne suffit pas — un
+         `<audio>` en lecture continue de télécharger et de décoder même si
+         sa sortie ne rejoint plus la destination. */
+      window.setTimeout(() => {
+        const courant = moteurRef.current;
+        if (courant === null || souhaiteRef.current) return;
+        for (const n of lectures(courant)) n?.element.pause();
+        void courant.ctx.suspend();
+      }, FONDU_MAITRE * 1000 + 60);
     },
-    [construire],
+    [],
   );
 
-  /* L'état courant est doublé dans une ref, et la bascule le lit **là**, jamais
-     dans la fonction de mise à jour de `useState`. Un `setSonActif(a => …)` qui
-     ouvrirait le contexte et jouerait une impulsion ferait deux fois les deux
-     en développement — React réexécute les fonctions de mise à jour pour
-     débusquer les effets de bord, et c'en sont. */
-  const actifRef = useRef(false);
-
+  /**
+   * Pose le souhait, le persiste, et pousse le moteur dans le sens demandé.
+   *
+   * C'est ici, et nulle part ailleurs, que `souhaiteRef` change de valeur : le
+   * réarmement, lui, ne fait qu'obéir à un souhait déjà pris.
+   */
   const poser = useCallback(
     (souhaite: boolean, avecRetour: boolean) => {
-      const obtenu = appliquer(souhaite, avecRetour);
-      actifRef.current = obtenu;
-      setSonActif(obtenu);
+      souhaiteRef.current = souhaite;
+      ecrirePreference(souhaite);
+      if (souhaite) reveiller(avecRetour);
+      else endormir(avecRetour);
+      synchroniser();
     },
-    [appliquer],
+    [reveiller, endormir, synchroniser],
   );
 
+  /**
+   * **La bascule a trois cas, pas deux**, et le troisième est celui qui piégeait.
+   *
+   * Le bouton en attente affiche « cliquer pour l'activer ». Si la bascule lisait
+   * le *souhait*, ce clic verrait `souhaite = true` et **couperait** un son que
+   * l'utilisateur n'a jamais entendu — le bouton aurait menti une seconde fois,
+   * en sens inverse.
+   *
+   * En attente, le clic n'est donc pas une bascule : c'est le geste d'activation
+   * qui manquait, et il ne fait qu'une chose, réveiller. C'est d'ailleurs le
+   * meilleur geste possible pour cela — un clic de souris vaut activation là où
+   * le défilement qui l'a précédé n'en accordait aucune.
+   */
   const basculerSon = useCallback(() => {
-    poser(!actifRef.current, true);
-  }, [poser]);
+    if (souhaiteRef.current && !actifRef.current) {
+      reveiller(true);
+      return;
+    }
+    poser(!souhaiteRef.current, true);
+  }, [poser, reveiller]);
 
   const activerSon = useCallback(
     (actif: boolean) => {
@@ -685,6 +935,12 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     impulsion(moteur, micro);
   }, []);
 
+  const jouerEffet = useCallback((effet: Effet) => {
+    const moteur = moteurRef.current;
+    if (moteur === null) return;
+    jouerEffetSur(moteur, effet);
+  }, []);
+
   /* --- Suspension sur onglet caché --- */
 
   useEffetVisuel(() => {
@@ -692,34 +948,51 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       const moteur = moteurRef.current;
       if (moteur === null) return;
       if (document.visibilityState === "hidden") {
-        void moteur.ctx.suspend();
-      } else if (sonActif) {
-        void moteur.ctx.resume();
+        void moteur.ctx.suspend().then(synchroniser);
+      } else if (souhaiteRef.current) {
+        /* L'onglet revient : on redemande la marche. Si l'autorisation manque
+           toujours — l'onglet a pu être rechargé en arrière-plan —, on retombe
+           simplement en attente et le prochain geste s'en chargera. */
+        void moteur.ctx.resume().then(() => {
+          monterMaitre(moteur, etatMaitre);
+          synchroniser();
+        });
       }
     };
     document.addEventListener("visibilitychange", surVisibilite);
     return () => document.removeEventListener("visibilitychange", surVisibilite);
-  }, [sonActif]);
+  }, [synchroniser]);
 
   /**
-   * Restitution de la préférence.
+   * **Restitution de la préférence — et le bug qu'elle a causé.**
    *
    * Elle ne peut pas s'appliquer au montage : aucun navigateur n'ouvre un
-   * contexte audio sans geste. Elle attend donc la première interaction — et
-   * seulement dans le cas où l'écran d'entrée ne va pas la poser lui-même. Sans
-   * cette réserve, un visiteur qui a coupé le son la dernière fois puis clique
-   * « Entrer avec le son » verrait les deux commandes se disputer la bascule
-   * dans le même geste.
+   * contexte audio sans geste. Elle attendait donc la première interaction, et
+   * n'essayait **qu'une fois**. C'est ce qui rendait le site muet après un
+   * rechargement, et le diagnostic tient en une distinction :
+   *
+   * `premiereInteraction` se lève sur `wheel` — or la molette n'accorde
+   * *aucune* activation au sens du navigateur. Le seul essai partait donc dans
+   * le vide : le contexte se construisait bien, restait suspendu, personne ne
+   * réessayait — et l'état d'interface, lui, passait à « actif ». Le bouton
+   * affichait un son qui n'existait pas, et le cliquer le *coupait*.
+   *
+   * Ce que fait le code maintenant : on ne pose ici que le **souhait**. C'est
+   * l'état d'attente qui en découle qui arme les écouteurs ci-dessous, et ils
+   * réessaient à chaque geste jusqu'à ce que le contexte tourne pour de bon.
+   * L'écran d'entrée n'est pas forcé de reparaître, et rien ne démarre sans
+   * geste : les deux contraintes tiennent ensemble.
    */
-  const { premiereInteraction } = useMouvement();
   const preferenceRendue = useRef(false);
 
   useEffetVisuel(() => {
-    if (!premiereInteraction || preferenceRendue.current) return;
+    if (preferenceRendue.current) return;
     preferenceRendue.current = true;
 
     /* L'écran d'entrée ne joue qu'une fois par session ; tant qu'il doit
-       jouer, c'est lui qui décide. */
+       jouer, c'est lui qui décide. Sans cette réserve, un visiteur qui a coupé
+       le son la dernière fois puis clique « Entrer avec le son » verrait les
+       deux commandes se disputer la bascule dans le même geste. */
     let seuilAJouer = true;
     try {
       seuilAJouer = sessionStorage.getItem("rouviere:seuil-vu") !== "1";
@@ -728,8 +1001,42 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     }
     if (seuilAJouer) return;
 
-    if (lirePreference()) activerSon(true);
-  }, [premiereInteraction, activerSon]);
+    if (!lirePreference()) return;
+
+    /* Le souhait, et rien d'autre : pas de contexte ouvert hors d'un geste,
+       pas d'écran d'entrée rappelé. L'attente qui suit fera le travail. */
+    souhaiteRef.current = true;
+    setSonEnAttente(true);
+  }, []);
+
+  /**
+   * **Le réarmement.** Tant que le son est voulu sans être obtenu, tout geste
+   * est une chance de le débloquer, et on la prend — sans `once`, sans compteur,
+   * sans limite : l'écoute ne s'arrête que lorsque le contexte tourne, c'est-à-dire
+   * quand `sonEnAttente` retombe et que cet effet se démonte.
+   *
+   * En capture, parce qu'un composant du parcours peut arrêter la propagation
+   * d'un `pointerdown` avant qu'il n'atteigne la fenêtre ; en passif, parce
+   * qu'aucun de ces écouteurs n'annule quoi que ce soit et qu'on ne veut pas
+   * peser sur le défilement.
+   */
+  useEffetVisuel(() => {
+    if (!sonEnAttente) return;
+
+    const essayer = () => {
+      if (!souhaiteRef.current) return;
+      reveiller(false);
+    };
+
+    for (const geste of GESTES_REARMEMENT) {
+      addEventListener(geste, essayer, { passive: true, capture: true });
+    }
+    return () => {
+      for (const geste of GESTES_REARMEMENT) {
+        removeEventListener(geste, essayer, { capture: true });
+      }
+    };
+  }, [sonEnAttente, reveiller]);
 
   useEffetVisuel(() => {
     return () => {
@@ -744,9 +1051,11 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
   const valeur = useMemo<Son>(
     () => ({
       sonActif,
+      sonEnAttente,
       basculerSon,
       activerSon,
       jouer,
+      jouerEffet,
       reglerSortieHero,
       entrerProjet,
       quitterProjet,
@@ -756,9 +1065,11 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       sonActif,
+      sonEnAttente,
       basculerSon,
       activerSon,
       jouer,
+      jouerEffet,
       reglerSortieHero,
       entrerProjet,
       quitterProjet,

@@ -53,7 +53,7 @@ const HERO_POSTER = "/media/hero/hero-poster.avif";
 
 export function Seuil() {
   const { ref: logoRef } = useLogo();
-  const { activerSon, reglerSortieHero } = useSon();
+  const { activerSon, reglerSortieHero, jouerEffet } = useSon();
   const { arreter, reprendre } = useDefilement();
   const { mouvementReduit } = useMouvement();
   const { t } = useLangue();
@@ -196,6 +196,27 @@ export function Seuil() {
     /* -- L'apparition, lancée par le clic. -- */
     const reduit = mouvementReduitRef.current;
 
+    /**
+     * Le son du titre, sur l'apparition du logotype et à son instant exact.
+     *
+     * Le verrou n'est pas une précaution de style : l'apparition ne joue déjà
+     * qu'une fois par session, mais `onStart` se rejoue si l'on redémarre la
+     * timeline, et un effet qui date un geste ne doit jamais dater deux fois le
+     * même. Une seule apparition, un seul son.
+     *
+     * Il vaut pour les deux régimes : en mouvement réduit le mot ne s'anime pas,
+     * mais il **paraît** — et c'est l'apparition qu'on souligne, pas le
+     * mouvement. La retirer là ferait une version amputée, pas une version
+     * calme. La préférence sonore, elle, est arbitrée en amont : sans contexte
+     * en marche, `jouerEffet` ne joue rien.
+     */
+    let titreJoue = false;
+    const sonnerTitre = () => {
+      if (titreJoue) return;
+      titreJoue = true;
+      jouerEffet("titre");
+    };
+
     const revelerChrome = () => {
       const droite = document.querySelector<HTMLElement>(".barre-nav__droite");
       html.classList.remove("seuil-a-jouer");
@@ -283,6 +304,7 @@ export function Seuil() {
         if (reduit) {
           /* Pas de générique : le mot est simplement là, puis se range. */
           gsap.set(mot, { opacity: 1, scale: 1, filter: "blur(0px)" });
+          sonnerTitre();
           sequence = gsap
             .timeline({ delay: 0.4 })
             .add(() => rangerDansNav(0.3));
@@ -302,6 +324,11 @@ export function Seuil() {
               filter: "blur(0px)",
               duration: 1.8,
               ease: "expo.out",
+              /* `onStart`, et pas un `.call()` posé au même instant : le
+                 rappel part alors dans la frame même où le tween rend sa
+                 première valeur, donc où le mot commence à paraître. Un appel
+                 voisin dans la timeline serait ordonné, pas synchrone. */
+              onStart: sonnerTitre,
             },
           )
           .to({}, { duration: 1.5 })

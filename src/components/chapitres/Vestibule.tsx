@@ -5,7 +5,12 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { bassin } from "@/data/matieres";
-import { MANIFESTE, PART_ALLUMAGE, PLAN_ALLUME } from "@/data/manifeste";
+import {
+  INDEX_ALLUMAGE,
+  MANIFESTE,
+  PART_ALLUMAGE,
+  PLAN_ALLUME,
+} from "@/data/manifeste";
 import { useRig } from "@/components/gl/Rig";
 import type { EtatBassin } from "@/components/gl/materiaux/bassin";
 import { useMouvement } from "@/components/motion/MotionProvider";
@@ -259,7 +264,7 @@ const DERIVE_PX = 8;
 export function Vestibule() {
   const enWebgl = useRig() !== null;
   const { mouvementReduit, degrade } = useMouvement();
-  const { reglerEau, couperNappes } = useSon();
+  const { reglerEau, couperNappes, jouerEffet } = useSon();
   const { t, dire } = useLangue();
 
   const courseRef = useRef<HTMLDivElement>(null);
@@ -398,6 +403,22 @@ export function Vestibule() {
          cadre au noir. Le reste du manifeste se dit là-dedans. */
       const dernierIndex = MANIFESTE.nombre - 1;
       const relais = { p: 0 };
+
+      /**
+       * **Le son de l'allumage.** Il se déclenche sur l'index de frame, et non
+       * sur une position de la timeline — c'est la même exigence que pour le
+       * mot LUMIÈRE, et pour la même raison : l'index est le repère du
+       * chapitre, tout le reste en descend. Accroché ici, le son part dans la
+       * frame où la pièce s'éclaire, quelle que soit la vitesse de la molette.
+       *
+       * **Il ne se rejoue pas.** Le chapitre est en scrub, donc intégralement
+       * réversible : on remonte, on redescend, on repasse l'allumage autant de
+       * fois qu'on veut. Un son qui repartirait à chaque passage ferait de
+       * l'allumage un jouet ; il en marque l'arrivée, une fois. Le verrou ne se
+       * relève qu'au démontage du chapitre.
+       */
+      let lumiereSonnee = false;
+
       tl.to(
         relais,
         {
@@ -409,6 +430,10 @@ export function Vestibule() {
               dernierIndex,
               Math.max(0, Math.round(relais.p * dernierIndex)),
             );
+            if (!lumiereSonnee && index.current >= INDEX_ALLUMAGE) {
+              lumiereSonnee = true;
+              jouerEffet("lumiere");
+            }
           },
         },
         0,
@@ -610,7 +635,7 @@ export function Vestibule() {
       couperNappes(false);
       reglerEau(null);
     };
-  }, [mouvementReduit, couperNappes, reglerEau, film.index]);
+  }, [mouvementReduit, couperNappes, reglerEau, jouerEffet, film.index]);
 
   /* ------------------------------------------------------------------
      Mouvement réduit : le manifeste posé

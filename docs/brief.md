@@ -82,7 +82,9 @@ La nappe d'ambiance du site **se coupe entièrement ici** — fondu de sortie de
 
 **Accessibilité.** La séquence fragmente le manifeste : il est donc donné d'un seul tenant en `sr-only`, dans l'ordre, et les couches visuelles sont `aria-hidden`. C'est la seule façon de rendre un texte découpé en six temps lisible d'un trait. En mouvement réduit, le composant rend un autre sous-arbre — le manifeste posé d'un bloc sur la colonne 2, *lumière* en italique, puis les deux plans du chapitre en plaques : la pièce allumée, et le bassin calculé — et non la séquence à laquelle on aurait retiré le mouvement.
 
-**Effets :** la montée derrière une arête vient de `onscroll-typography-animations` ; `waterwebgl-shader` pour le bassin. La séquence de frames, le minutage et l'apparition du mot sont maison — l'apparition étant, à la valeur près, celle du logotype du seuil.
+**Effets :** la montée derrière une arête vient de `onscroll-typography-animations` ; `water-simulator` pour le bassin. La séquence de frames, le minutage et l'apparition du mot sont maison — l'apparition étant, à la valeur près, celle du logotype du seuil.
+
+*Le bassin a changé de moteur.* `waterwebgl-shader` — une surface d'onde au-dessus d'un sable procédural — a été remplacé intégralement par `water-simulator`, le portage WebGPU de l'eau d'Evan Wallace, traduit de WGSL en GLSL pour le rig. On y gagne une vraie piscine : un fond carrelé, des caustiques calculées par rapport d'aires de la carte des rayons réfractés, et une surface rendue par lancer de rayon. Deux adaptations, et deux seulement : **la caméra est zénithale**, posée à l'aplomb du bassin et pointée vers le bas, à une hauteur calculée pour que le cadre tienne à l'intérieur des murs ; et **la sphère de la démo est supprimée**, avec tout ce qui la servait. Le fond de piscine, lui, est celui de la simulation d'origine, texture comprise.
 
 ## L'Enfilade
 
@@ -209,7 +211,7 @@ Un site qui utilise seize effets n'est pas un site, c'est une démo technique. D
 `shader-on-scroll` → grain argentique sur les images des fiches projet.
 `rotating-onscroll-animations` → l'atelier.
 `shadow` → les échantillons de matière.
-`waterwebgl-shader` → le bassin, une seule fois, au sixième temps du vestibule.
+`water-simulator` → le bassin, une seule fois, au sixième temps du vestibule. (Il remplace `waterwebgl-shader`, qui sort du projet.)
 `beautiful-typography` → le mot `ARCHIVES`, statique.
 
 **Le passage : une seule grammaire de transition.**

@@ -40,6 +40,13 @@ export const INTERFACE = {
   son: { fr: "Son", en: "Sound" },
   sonActiver: { fr: "Activer le son", en: "Turn sound on" },
   sonCouper: { fr: "Couper le son", en: "Turn sound off" },
+  /* Le son est voulu, le navigateur ne l'a pas encore autorisé : il faut un
+     geste qui vaille activation. Le libellé le dit sans jargon — l'utilisateur
+     n'a pas à connaître la politique d'autoplay, il a juste à cliquer. */
+  sonEnAttente: {
+    fr: "Son en attente — cliquer pour l’activer",
+    en: "Sound pending — click to enable",
+  },
   langueBascule: { fr: "Passer en anglais", en: "Switch to French" },
 
   /* ---- Curseur ---- */

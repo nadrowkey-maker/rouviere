@@ -57,6 +57,31 @@
   }
 }
 
+/* En attente : le son est voulu, mais le navigateur n'a pas encore accordé
+   l'activation qu'il exige. Les barres restent couchées — il ne sort rien, et
+   le bouton ne prétend pas le contraire —, et un point vient dire qu'il y a
+   quelque chose en suspens. Il respire lentement : c'est une attente, pas une
+   alerte. */
+.son[data-attente="true"] .son__label::after {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-inline-start: calc(var(--spacing) * 0.75);
+  vertical-align: 0.28em;
+  background-color: currentColor;
+  animation: son-attente 1.8s var(--ease-douce) infinite alternate;
+}
+
+@keyframes son-attente {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Au repos le libellé est en retrait, mais dans la même encre que les barres :
    c'est son opacité qui recule, jamais sa couleur. Une opacité posée ici est
    sans effet sur le blend — il vit deux niveaux plus haut, sur le groupe. */
@@ -74,6 +99,11 @@
 /* Mouvement réduit : la vague ne s'agite pas. L'état actif se lit alors sur la
    hauteur figée des barres, pas sur leur mouvement. */
 @media (prefers-reduced-motion: reduce) {
+  .son[data-attente="true"] .son__label::after {
+    animation: none;
+    opacity: 0.62;
+  }
+
   .son[data-actif="true"] .son__barre {
     animation: none;
     height: 14px;
