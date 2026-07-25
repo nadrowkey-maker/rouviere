@@ -250,6 +250,21 @@ const EFFETS: Record<
 const NIVEAU_EFFETS = 1;
 
 /**
+ * Combien de temps on accepte d'attendre le contexte avant d'abandonner une
+ * ponctuation. Web Audio démarre en quelques dizaines de millisecondes dans un
+ * geste ; au-delà d'une seconde, c'est qu'il ne démarrera pas.
+ */
+const ATTENTE_MARCHE_MS = 1000;
+
+/**
+ * Retard au-delà duquel une ponctuation n'est plus jouée.
+ *
+ * Ces sons datent un geste. Un demi-retard s'entend encore comme un accent ;
+ * au-delà, ce n'est plus une ponctuation, c'est un bruit qui arrive après.
+ */
+const RETARD_TOLERE = 0.5;
+
+/**
  * **Les gestes qui réarment le contexte audio.**
  *
  * Il faut ici distinguer deux choses que le site confondait, et c'est toute
@@ -384,8 +399,14 @@ type Moteur = {
   sortie: Nappe | null;
   /** Bruit blanc court, source de toutes les impulsions d'interface. */
   bruit: AudioBuffer;
-  /** Les deux effets ponctuels, décodés d'avance. Voir `Effet`. */
+  /** Les deux effets ponctuels, une fois décodés. Voir `Effet`. */
   effets: Map<Effet, AudioBuffer>;
+  /**
+   * Le décodage en cours de chacun. C'est par là qu'on attend un tampon qui
+   * n'est pas encore là — le cas du son du titre, dont le déclenchement suit le
+   * clic de quelques microtâches. Voir `jouerEffetSur`.
+   */
+  tampons: Map<Effet, Promise<AudioBuffer | null>>;
 };
 
 /** Toutes les lectures en cours, celles du moteur. Sert aux bascules globales. */
@@ -453,17 +474,48 @@ function impulsion(moteur: Moteur, micro: Micro) {
  * **datent** un geste. Le jouer trois secondes plus tard, quand le contexte se
  * débloque, ne serait pas un rattrapage, ce serait un bruit sans cause.
  */
-function jouerEffetSur(moteur: Moteur, effet: Effet, dansSecondes = 0): void {
+/** Attend que le contexte tourne, ou renonce au bout de `ATTENTE_MARCHE_MS`. */
+function attendreMarche(ctx: AudioContext): Promise<void> {
+  if (ctx.state === "running") return Promise.resolve();
+  return new Promise((resoudre) => {
+    let fini = false;
+    const finir = () => {
+      if (fini) return;
+      fini = true;
+      ctx.removeEventListener("statechange", surEtat);
+      clearTimeout(minuterie);
+      resoudre();
+    };
+    const surEtat = () => {
+      if (ctx.state === "running") finir();
+    };
+    /* `addEventListener` et non `onstatechange` : la propriété est déjà prise
+       par le provider, et l'écraser lui ferait perdre sa synchronisation. */
+    ctx.addEventListener("statechange", surEtat);
+    const minuterie = window.setTimeout(finir, ATTENTE_MARCHE_MS);
+  });
+}
+
+/** Programme la ponctuation pour que son sommet tombe sur `echeanceMs`. */
+function programmerEffet(
+  moteur: Moteur,
+  effet: Effet,
+  tampon: AudioBuffer,
+  echeanceMs: number,
+): void {
   const { ctx, busEffets: bus } = moteur;
   if (ctx.state !== "running") return;
 
-  const buffer = moteur.effets.get(effet);
-  if (buffer === undefined) return;
-
   const reglage = EFFETS[effet];
+  /* Le temps qui reste jusqu'au geste, **repris de l'horloge murale**. Si l'on
+     a attendu un décodage ou une reprise de contexte, c'est ici que le calcul
+     se rattrape tout seul : l'échéance est absolue, pas relative à l'appel. */
+  const restant = (echeanceMs - performance.now()) / 1000;
+  if (restant < -RETARD_TOLERE) return;
+
   const maintenant = ctx.currentTime;
   /* L'instant, dans l'horloge audio, où le geste aura lieu. */
-  const instantGeste = maintenant + Math.max(dansSecondes, 0);
+  const instantGeste = maintenant + Math.max(restant, 0);
   /* L'instant idéal du départ pour que le sommet tombe dessus. */
   const departIdeal = instantGeste - reglage.sommet;
 
@@ -471,11 +523,11 @@ function jouerEffetSur(moteur: Moteur, effet: Effet, dansSecondes = 0): void {
   /* Ce qu'on ne peut pas jouer en avance, on l'ampute par le début. */
   const decalage = Math.min(
     Math.max(maintenant - departIdeal, 0),
-    Math.max(buffer.duration - 0.05, 0),
+    Math.max(tampon.duration - 0.05, 0),
   );
 
   const source = ctx.createBufferSource();
-  source.buffer = buffer;
+  source.buffer = tampon;
 
   const gain = ctx.createGain();
   gain.gain.value = reglage.gain;
@@ -487,6 +539,59 @@ function jouerEffetSur(moteur: Moteur, effet: Effet, dansSecondes = 0): void {
     source.disconnect();
     gain.disconnect();
   };
+}
+
+/**
+ * Joue une ponctuation, **en calant son sommet sur le geste**.
+ *
+ * `dansSecondes` dit dans combien de temps le geste visuel aura lieu. Le sommet
+ * du fichier (voir `EFFETS`) doit tomber là, ce qui donne deux cas :
+ *
+ *   — le sommet est plus loin dans le fichier que le geste ne l'est dans le
+ *     temps : on ne peut pas remonter le temps, alors **on entre dans le
+ *     fichier en cours de route**. Le début, qu'on saute, est de toute façon la
+ *     partie la plus basse d'une montée.
+ *   — sinon : on **programme** le départ, et Web Audio le tient à l'échantillon
+ *     près — bien mieux qu'une minuterie de JavaScript.
+ *
+ * ## Les deux courses qui rendaient le son du titre inaudible
+ *
+ * Il ne se jouait jamais, et les deux raisons étaient des courses, toutes deux
+ * ouvertes par le **même clic** que celui qui déclenche l'apparition :
+ *
+ *   1. **Le tampon n'était pas décodé.** Le moteur se construit dans ce clic ;
+ *      le `fetch` et le `decodeAudioData` du fichier partent à cet instant. Or
+ *      le seuil appelle depuis le `.then` de `document.fonts.ready`, c'est-à-dire
+ *      une ou deux microtâches plus tard — bien avant qu'un fichier de cent
+ *      soixante kilo-octets soit arrivé, encore moins décodé.
+ *   2. **Le contexte n'était pas en marche.** `resume()` rend une promesse ;
+ *      juste après le clic, `ctx.state` vaut encore `suspended`.
+ *
+ * Les deux gardes renvoyaient donc en silence, et le son n'existait pas. On
+ * attend maintenant ce qui manque — mais **l'échéance est prise au moment de
+ * l'appel et ne bouge plus** : ce qu'on a passé à attendre est retranché du
+ * temps qui reste, si bien que le sommet tombe au bon endroit quoi qu'il arrive.
+ * Et si l'attente a duré au point que le geste est passé, on ne joue rien : un
+ * son qui date un geste n'a plus rien à dater après lui.
+ */
+function jouerEffetSur(moteur: Moteur, effet: Effet, dansSecondes = 0): void {
+  /* L'échéance, en horloge murale et en absolu. L'horloge audio ne peut pas
+     servir de repère ici : elle s'arrête quand le contexte est suspendu, ce qui
+     est précisément le cas qu'on est en train de traiter. */
+  const echeanceMs = performance.now() + Math.max(dansSecondes, 0) * 1000;
+
+  const dejaLa = moteur.effets.get(effet);
+  if (dejaLa !== undefined && moteur.ctx.state === "running") {
+    programmerEffet(moteur, effet, dejaLa, echeanceMs);
+    return;
+  }
+
+  void (async () => {
+    const tampon = dejaLa ?? (await moteur.tampons.get(effet));
+    if (tampon === undefined || tampon === null) return;
+    await attendreMarche(moteur.ctx);
+    programmerEffet(moteur, effet, tampon, echeanceMs);
+  })();
 }
 
 /** L'état de la montée du maître. Voir `monterMaitre`. */
@@ -680,6 +785,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       sortie: null,
       bruit,
       effets: new Map(),
+      tampons: new Map(),
     };
 
     /* Le contexte dit lui-même quand il démarre ou s'arrête. C'est plus sûr que
@@ -698,15 +804,20 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
        `jouerEffetSur` ne trouvera pas son tampon et ne jouera rien, ce qui est
        exactement le bon comportement pour une ponctuation. */
     for (const nom of Object.keys(EFFETS) as Effet[]) {
-      void fetch(EFFETS[nom].fichier)
+      const decodage = fetch(EFFETS[nom].fichier)
         .then((reponse) => reponse.arrayBuffer())
         .then((donnees) => ctx.decodeAudioData(donnees))
         .then((tampon) => {
           moteur.effets.set(nom, tampon);
+          return tampon;
         })
         .catch(() => {
           /* Fichier absent ou format refusé : l'effet ne joue pas. */
+          return null;
         });
+      /* La promesse est gardée : un déclenchement qui arrive avant la fin du
+         décodage s'y accroche au lieu de renoncer. */
+      moteur.tampons.set(nom, decodage);
     }
 
     moteurRef.current = moteur;

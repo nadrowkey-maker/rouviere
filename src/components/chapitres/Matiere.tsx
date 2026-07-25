@@ -14,8 +14,8 @@ import "./matiere.css";
  * La Matière. Un chapitre entier sans image de projet. On touche.
  *
  * **Trois matières en plein écran, et rien d'autre.** Le noyer fumé de
- * l'Appartement Laiton, la chaux blanche des Charmilles, le voile de lin de la
- * Villa Calcaire. On passe de l'une à l'autre **par masque** : le plan suivant
+ * l'Appartement Laiton, la trame des Charmilles, le relief de la Villa
+ * Calcaire. On passe de l'une à l'autre **par masque** : le plan suivant
  * s'ouvre par le haut, à bord franc, et recouvre le précédent. À aucun instant un
  * pixel de l'écran ne montre deux matières mêlées — c'est ce qui distingue un
  * masque d'un fondu, et c'est la raison pour laquelle il n'y a pas une seule
@@ -258,7 +258,7 @@ export function Matiere() {
        * La fin de la course **n'est pas** la sortie de l'écran, et c'était le
        * défaut : le déclencheur ci-dessus rend la main quand le bas de la
        * traversée atteint le bas du viewport, c'est-à-dire alors que le cadre
-       * collé occupe encore tout l'écran. Le voile de lin s'arrêtait donc net,
+       * collé occupe encore tout l'écran. Le dernier plan s'arrêtait donc net,
        * en pleine vue, dès qu'on quittait sa plage — un plan macro qui se fige
        * pendant qu'on le regarde se lit comme un chargement raté.
        *

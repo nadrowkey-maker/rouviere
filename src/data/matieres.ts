@@ -73,19 +73,22 @@ export const matieres: Matiere[] = [
     plan: { sorte: "sortie" },
   },
   {
+    /* La clé nomme le fichier, pas la matière : les deux plans ont changé de
+       sujet après coup, et renommer les médias casserait `scripts/matieres.mjs`
+       et sa source. Le nom affiché, lui, est celui de la matière. */
     cle: "chaux-blanche",
-    nom: { fr: "Chaux blanche", en: "White lime" },
+    nom: { fr: "La trame", en: "The weave" },
     plan: media("chaux-blanche", {
-      fr: "Gros plan sur un badigeon de chaux blanche. Les passes de taloche prennent le jour à plat.",
-      en: "Close on a white lime wash. The float marks take the light flat.",
+      fr: "Une façade blanche en plein soleil. Les balcons se répètent en bandes, la main courante file, les baies restent noires.",
+      en: "A white façade in full sun. Balconies repeat in bands, the handrail runs on, the openings stay black.",
     }),
   },
   {
     cle: "voile-de-lin",
-    nom: { fr: "Voile de lin", en: "Linen veil" },
+    nom: { fr: "Le relief", en: "The relief" },
     plan: media("voile-de-lin", {
-      fr: "Gros plan sur un voile de lin à trame ouverte. Le jour passe entre les fils.",
-      en: "Close on an open-weave linen veil. Daylight passes between the threads.",
+      fr: "Gros plan sur une toile de lin écrue. Le jour rasant fait saillir la trame et les irrégularités du fil.",
+      en: "Close on an unbleached linen cloth. Raking light raises the weave and the slubs in the thread.",
     }),
   },
 ];
