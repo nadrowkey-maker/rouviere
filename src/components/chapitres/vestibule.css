@@ -12,6 +12,29 @@
   position: relative;
 }
 
+/* ---- Le recouvrement du hero ----
+
+   Le chapitre remonte d'un écran sur celui qui le précède.
+
+   Le hero est épinglé sur une course de 100 vh : son voile atteint le noir
+   complet au bout de cet écran-là, puis l'épinglage rend la main et son propre
+   écran défile encore avant que la course du vestibule ne commence. On
+   traversait donc un plein noir d'une hauteur de fenêtre entre les deux — on
+   *descendait* vers le plan au lieu de le trouver là.
+
+   En remontant le chapitre d'exactement la hauteur du hero, le cadre se colle en
+   haut du viewport à l'instant précis où le voile est plein. Le plan apparaît
+   comme le hero s'éteint, et il n'y a rien entre les deux. Les deux unités sont
+   la même (100 vh ici, la course du hero là) : elles s'annulent, quel que soit
+   l'écran. C'est la mécanique déjà employée entre l'enfilade et *La Matière*.
+
+   Rien du chapitre ne prend le pointeur, sauf l'eau quand elle est là : sans
+   cette ligne, la course couvrirait le dernier écran du hero. */
+.vestibule[data-reduit="false"] {
+  margin-top: -100vh;
+  pointer-events: none;
+}
+
 /* La course : un écran par temps, plus l'air. `--temps` vient du composant. */
 .vestibule__course {
   position: relative;
@@ -30,6 +53,15 @@
   top: 0;
   height: 100vh;
   overflow: clip;
+}
+
+/* La contrepartie du recouvrement : tant que le chapitre n'a pas commencé, le
+   cadre n'est pas là. Il serait sinon visible pendant toute la course épinglée
+   du hero, où il monterait par le bas et couvrirait la vidéo. Le basculement se
+   fait à l'instant exact où le voile du hero est plein : d'un noir à l'autre, il
+   ne se voit pas. */
+.vestibule__cadre[data-pose="false"] {
+  visibility: hidden;
 }
 
 /* ---- Le décor : la pièce, image par image ----
@@ -63,8 +95,15 @@
 
      L'allumage n'y perd rien. Ce qu'on lit à l'écran est un rapport, pas une
      valeur absolue — la pièce passe de 10 à 61 au lieu de 18 à 111, et le saut
-     est exactement le même. */
-  filter: brightness(0.55);
+     est exactement le même.
+
+     `--expo` est le second scalaire du plan, à côté de `--eau`, et il est piloté
+     par la même timeline : le plan fini, on le ramène à zéro. **C'est cette
+     extinction qui sépare les deux temps du chapitre** — le manifeste ne se dit
+     plus par-dessus le séjour éclairé, il se dit dans le noir qui lui succède.
+     On baisse la lumière d'une pièce, exactement comme à la sortie du hero ; on
+     ne pose pas un voile par-dessus. */
+  filter: brightness(var(--expo, 0.55));
 }
 
 /* ---- Le bassin ----
@@ -178,6 +217,20 @@
    Le bloc porte la grille et les marges ; le cadre, lui, reste nu. Les quatre
    temps occupent la même cellule : chaque phrase remplace la précédente au même
    endroit, elles ne se poussent pas les unes les autres. */
+/* ---- Les deux blocs de texte ----
+
+   Il y en avait un, et c'était l'erreur : le monument du centre passait sur les
+   phrases qui partagaient sa cellule. Il y en a deux, parce que les deux
+   familles de phrases ne vivent pas au même moment du chapitre et n'ont donc
+   aucune raison de vivre au même endroit.
+
+   `--haut`   — l'annonce, pendant que la pièce s'allume. En haut à gauche, en
+                retrait d'échelle : elle laisse la place au mot.
+   `--centre` — la suite, dans le noir d'après le plan. Plus rien ne lui dispute
+                le cadre : elle reprend le centre et la pleine échelle.
+
+   Dans chacun, les temps se relaient dans la même cellule : une phrase remplace
+   la précédente exactement au même endroit, elles ne se poussent pas. */
 .vestibule__bloc {
   position: absolute;
   inset: 0;
@@ -185,13 +238,21 @@
   grid-template-columns: repeat(var(--colonnes), minmax(0, 1fr));
   column-gap: var(--gouttiere);
   padding-inline: var(--marge);
-  align-content: center;
-  /* `start` et non l'étirement par défaut : les quatre temps partent de la même
-     ligne haute, quelle que soit la hauteur de la rangée. Chaque phrase remplace
-     la précédente exactement au même endroit — c'est le seul point du chapitre
-     où quelque chose se répète, et il ne doit pas bouger d'un pixel. */
+  /* `start` et non l'étirement par défaut : les temps partent de la même ligne
+     haute, quelle que soit la hauteur de la rangée. */
   align-items: start;
   pointer-events: none;
+}
+
+/* Aligné sur la couche technique de la marge opposée : les deux se répondent
+   d'un bord à l'autre, à la même hauteur. */
+.vestibule__bloc--haut {
+  align-content: start;
+  padding-top: clamp(6rem, 16vh, 10rem);
+}
+
+.vestibule__bloc--centre {
+  align-content: center;
 }
 
 /* Les phrases restent en craie pleine, et **ne se mélangent pas.**
@@ -209,6 +270,16 @@
   color: var(--color-craie);
   /* Mesure retenue : la phrase se casse là où on veut qu'elle se casse. */
   max-width: 22ch;
+}
+
+/* L'annonce est en retrait d'échelle — un peu moins des deux tiers du titre,
+   plancher de 40 px du Livre I tenu, ce qui la met au niveau d'un chapô plutôt
+   que d'un titre. Elle annonce le mot, elle ne le concurrence pas : c'est une
+   voix qui parle avant que la lumière ne se fasse, pas un titre de chapitre. */
+.vestibule__temps--annonce {
+  font-size: max(2.5rem, calc(var(--text-titre) * 0.62));
+  grid-column: 2 / span 6;
+  max-width: 18ch;
 }
 
 /* Plus d'arête, plus de masque, plus de flou : la phrase paraît et se pose de
@@ -345,9 +416,16 @@
     margin-bottom: calc(var(--spacing) * 6);
   }
 
-  .vestibule__temps {
+  .vestibule__temps,
+  .vestibule__temps--annonce {
     grid-column: 1 / -1;
     max-width: none;
+  }
+
+  /* Sur une colonne unique, la couche technique passe en haut à gauche : le
+     bloc d'annonce lui laisse la place plutôt que de s'écrire dessus. */
+  .vestibule__bloc--haut {
+    padding-top: clamp(9rem, 26vh, 14rem);
   }
 
   /* La couche technique ne tient plus dans une marge qui n'existe plus : elle

@@ -32,15 +32,19 @@ Détails d'implémentation : `autoplay muted playsinline preload="auto"` plus un
 
 ## Le Vestibule
 
-**C'est le cœur du site.** Ce n'est plus un bloc de texte qui monte ligne par ligne : c'est une séquence en **sept temps**, entièrement pilotée au défilement, où le manifeste de Camille Rouvière se dit un morceau à la fois. Chaque temps a sa place, on respire entre chacun, rien n'apparaît d'un bloc. Tout est en scrub — donc tout se rembobine.
+**C'est le cœur du site.** Ce n'est plus un bloc de texte qui monte ligne par ligne : c'est une séquence en **six temps**, entièrement pilotée au défilement, où le manifeste de Camille Rouvière se dit un morceau à la fois. Chaque temps a sa place, on respire entre chacun, rien n'apparaît d'un bloc. Tout est en scrub — donc tout se rembobine.
 
-Un cadre collé en haut du viewport, une course de neuf écrans, et des couches qui se relaient dedans. Le cadre est pleine largeur et sans marge propre ; il n'a **pas de fond à lui**, parce que le fond est un plan filmé.
+Un cadre collé en haut du viewport, une course de quatorze écrans, et des couches qui se relaient dedans. Le cadre est pleine largeur et sans marge propre ; il n'a **pas de fond à lui**, parce que le fond est un plan filmé.
+
+**Deux sections qui se suivent, et ne se mêlent jamais.** C'est la structure du chapitre, et c'est le point sur lequel il a fallu revenir : la suite du manifeste se disait par-dessus le séjour éclairé, les deux se recouvraient. Le plan est désormais **consommé d'un bout à l'autre** — c'est le premier temps du chapitre, et rien d'autre ne s'y dit que l'annonce et le mot. Puis la pièce s'éteint. Puis, dans le noir et seulement là, le reste du manifeste et l'eau. La charnière porte un nom dans le code (`FILM_FIN`) et elle commande aussi l'instant du mot, l'index de l'allumage lui étant proportionnel.
+
+**Le raccord avec le hero : on ne descend pas vers le plan.** Le chapitre remonte d'une hauteur de fenêtre sur le hero. Sans ce recouvrement, le voile du hero atteignait le noir complet, l'épinglage rendait la main, et il fallait encore traverser un plein écran noir avant que le cadre ne se colle en haut. Le plan est maintenant là à l'instant où le hero s'éteint — d'un noir à l'autre, le basculement ne se voit pas. Le cadre n'est posé qu'à partir de ce moment (`data-pose`), sans quoi il couvrirait la vidéo du hero par le bas pendant toute sa course. Même mécanique qu'entre l'enfilade et *La Matière*.
 
 **Le décor : un appartement qui s'allume.** `public/media/manifeste/allumage.mp4` — huit secondes dans une pièce obscure dont les lumières se lèvent à 2,8 s. C'est lui, et rien d'autre, qui porte la lumière du chapitre : il n'y a plus de voile d'encre qu'on éteint, et plus de halo qui suit le curseur.
 
 Le plan n'est **pas** un élément vidéo dont on force le `currentTime` — le seek saccade sur Safari et iOS, où il est asynchrone et coalescé : on demande vingt positions par seconde, on en obtient trois. C'est la mécanique des chambres qui s'applique : `ffmpeg` extrait les cent quatre-vingt-douze images à la cadence de la source, en AVIF de 1280 px passées par l'étalonnage commun, et un canvas 2D les redessine, l'index piloté par le même scrub que le reste du chapitre. La molette donne donc un contrôle continu — on avance, on recule, on accélère, la pièce s'allume et s'éteint sous la main. Le premier tiers est bloquant, le reste se charge dans l'ordre pendant la lecture.
 
-**L'index de l'allumage est calculé, jamais estimé** : `round(2,8 × 24) = 67`. C'est le seul repère de mise en scène du chapitre, et il est exporté au manifeste (`src/data/manifeste.ts`) plutôt qu'écrit dans un composant. L'index étant mappé linéairement sur la course, il vaut aussi une part de progression — et c'est de cette part-là que descend le minutage du mot LUMIÈRE.
+**L'index de l'allumage est calculé, jamais estimé** : `round(2,8 × 24) = 67`. C'est le seul repère de mise en scène du chapitre, et il est exporté au manifeste (`src/data/manifeste.ts`) plutôt qu'écrit dans un composant. L'index étant mappé linéairement sur `[0, FILM_FIN]`, il vaut aussi une part de progression — et c'est de cette part-là, et d'elle seule, que descend le minutage du mot LUMIÈRE. Le mappage reste **linéaire** : une courbe décalerait le repère, et la molette y perdrait son pas constant.
 
 **L'apparition des phrases est délibérément nue.** Pas de ligne masquée qui monte de 110 %, pas de flou qui se résorbe, pas de découpe : la phrase paraît, et se pose de huit pixels. Le reveal masqué avec flou est *le* geste que produit n'importe quel générateur sur n'importe quel manifeste — spectaculaire une fois, reconnaissable toujours. La mise en scène de ce chapitre est ailleurs : dans le minutage, et dans la pièce qui s'allume. Le texte, lui, se contente d'être là.
 
@@ -48,29 +52,35 @@ Le plan n'est **pas** un élément vidéo dont on force le `currentTime` — le 
 
 Un seul mot du chapitre se mélange encore, et c'est le seul qui en ait besoin : *silence*, qui tient sur l'eau, c'est-à-dire sur une surface qu'on ne contrôle pas.
 
+**Les deux premières phrases sont l'annonce, et elles vivent en haut à gauche, en retrait d'échelle** — un peu moins des deux tiers du titre, plancher de 40 px tenu. Ce n'est pas un raffinement : le mot LUMIÈRE est monumental et centré, et une phrase qui partage sa cellule passe dessous. Elles ont donc leur bloc, calé en haut, aligné sur la couche technique de la marge opposée. La suite du manifeste, qui se dit dans le noir où plus rien ne lui dispute le cadre, reprend le centre et la pleine échelle.
+
+Elles ne sortent pas non plus de la pièce obscure, et c'est mesuré : le plafond de l'appartement s'éclaire par une corniche et deux lustres, et la bande haut-gauche passe d'une luminance de 21 à 139 entre les images 75 et 110. Une phrase posée là ne survivrait pas à l'allumage.
+
 **Un.** « Je ne décore pas. » paraît seul, dans le noir de la pièce, tient, puis se retire.
 
-**Deux.** « Je règle la » paraît de la même façon, au même endroit — et **reste** : la phrase attend son mot. La couche technique de la marge droite (`ATELIER FONDÉ 2011 — PARIS VII`, `CINQ CHANTIERS PAR AN`) s'efface avant l'allumage, et ne revient pas.
+**Deux.** « Je règle la » paraît au même endroit, tient, puis **cède au mot pendant que la lumière monte** — la sortie enjambe l'allumage : la phrase annonce, le mot arrive, et elle a disparu à l'image 75, juste avant que le plafond ne prenne. La couche technique de la marge droite (`ATELIER FONDÉ 2011 — PARIS VII`, `CINQ CHANTIERS PAR AN`) s'efface avant elle, et ne revient pas.
 
 **Trois.** À l'index exact de l'allumage, la pièce s'éclaire et le mot **LUMIÈRE** arrive au centre, en très grand, en `mix-blend-mode: difference`. Son apparition est **celle du logotype au seuil** : opacité 0 → 1, échelle 1,06 → 1, flou 10 px → 0, en `--e-sortie`. Il s'allume avec la pièce, pas avant, pas après. Le site n'a qu'un geste d'apparition monumentale ; il s'en sert deux fois, aux deux seuls endroits où un mot seul tient l'écran, et jamais ailleurs.
 
 Le centrage est la seule autre exception à « rien n'est centré » du Livre I, et c'est ce qu'il cite qui la justifie — pas un réflexe de mise en page.
 
-**Quatre.** « Je règle la » se retire, puis la lumière avec elle : la phrase est dite.
+**Il reste ensuite seul à l'écran jusqu'à la dernière image du plan.** Pendant toute la traversée du séjour éclairé, il n'y a que lui — pas de phrase, pas de couche technique, rien. C'est le seul moment du site où un mot tient l'écran plusieurs écrans durant.
 
-**Cinq.** « la matière et le silence. » paraît à la place de la première.
+**L'extinction.** Le plan est fini : on baisse la lumière de la pièce jusqu'au noir complet, exactement comme à la sortie du hero — un multiplicateur qui descend, jamais un voile posé par-dessus. Le mot sort avec elle, un rien plus tard : la lumière est la dernière chose qui s'en va. Il flambe au passage, un négatif se calculant sur un fond qui tombe au noir.
 
-**Six.** Tout disparaît **sauf le mot « silence »**, qui reste seul et à sa place dans la phrase : ce n'est pas lui qui bouge, c'est ce qui l'entoure qui s'en va. Puis, au défilement, le bassin d'eau interactif monte en plein écran derrière lui. Le plan de la pièce — seule surface opaque du cadre — se rétracte par le haut pendant que l'ancre du bassin remonte du bas, sur la même course et la même courbe : la ligne de partage est exacte, et l'eau *monte* au lieu d'être découverte. Le mot silence reste par-dessus, en `mix-blend-mode: difference`.
+**Quatre.** Dans le noir, et seulement là, « la matière et le silence. » paraît — au centre, à pleine échelle.
+
+**Cinq.** Tout disparaît **sauf le mot « silence »**, qui reste seul et à sa place dans la phrase : ce n'est pas lui qui bouge, c'est ce qui l'entoure qui s'en va. Puis, au défilement, le bassin d'eau interactif monte en plein écran derrière lui. Le plan de la pièce — seule surface opaque du cadre — se rétracte par le haut pendant que l'ancre du bassin remonte du bas, sur la même course et la même courbe : la ligne de partage est exacte, et l'eau *monte* au lieu d'être découverte. Le mot silence reste par-dessus, en `mix-blend-mode: difference`.
 
 La nappe d'ambiance du site **se coupe entièrement ici** — fondu de sortie de 1,5 s sur le bus des nappes — pour ne laisser que le son de l'eau, piloté par la vélocité du curseur. Elle revient à la sortie de la section. Aucun texte, aucune interface, rien d'autre que le mot : c'est l'endroit où l'on doit avoir envie de jouer avec l'eau.
 
-**Sept.** L'eau redescend exactement comme elle est montée, la pièce allumée reprend le cadre, et « Le reste appartient aux gens qui vivent là. » paraît. Le site reprend.
+**Six.** L'eau redescend exactement comme elle est montée, le noir reprend le cadre, et « Le reste appartient aux gens qui vivent là. » paraît. Le site reprend.
 
 **Point structurel.** Le bassin a quitté *La Matière* pour venir ici. Il n'existe qu'**une seule scène d'eau dans tout le site**, et c'est désormais la seule scène WebGL lourde du projet — deux seraient une faute de composition et un coût GPU sans contrepartie. *La Matière* garde ses trois matières en plein écran, et rien d'autre.
 
 *Le piège d'ordonnancement, et il a été payé une fois :* l'inscription WebGL du bassin doit être un **frère** de son ancre, jamais son enfant. React attache la ref d'un élément après avoir exécuté les effets de ses descendants ; une scène montée sous son ancre trouve `null` au moment de s'inscrire et ne réessaie jamais. Le défaut ne se voyait qu'au **second** passage : au premier chargement l'import dynamique arrive dans un commit ultérieur et sauve la mise, au retour d'une page projet le module est en cache et l'eau ne se rallume plus. `useGLProxy` porte un filet — une microtâche, après le commit, toutes les refs posées — mais l'ordre correct reste celui de tous les autres chapitres.
 
-**Accessibilité.** La séquence fragmente le manifeste : il est donc donné d'un seul tenant en `sr-only`, dans l'ordre, et les couches visuelles sont `aria-hidden`. C'est la seule façon de rendre un texte découpé en sept temps lisible d'un trait. En mouvement réduit, le composant rend un autre sous-arbre — le manifeste posé d'un bloc sur la colonne 2, *lumière* en italique, puis les deux plans du chapitre en plaques : la pièce allumée, et le bassin calculé — et non la séquence à laquelle on aurait retiré le mouvement.
+**Accessibilité.** La séquence fragmente le manifeste : il est donc donné d'un seul tenant en `sr-only`, dans l'ordre, et les couches visuelles sont `aria-hidden`. C'est la seule façon de rendre un texte découpé en six temps lisible d'un trait. En mouvement réduit, le composant rend un autre sous-arbre — le manifeste posé d'un bloc sur la colonne 2, *lumière* en italique, puis les deux plans du chapitre en plaques : la pièce allumée, et le bassin calculé — et non la séquence à laquelle on aurait retiré le mouvement.
 
 **Effets :** la montée derrière une arête vient de `onscroll-typography-animations` ; `waterwebgl-shader` pour le bassin. La séquence de frames, le minutage et l'apparition du mot sont maison — l'apparition étant, à la valeur près, celle du logotype du seuil.
 
@@ -192,7 +202,7 @@ Un site qui utilise seize effets n'est pas un site, c'est une démo technique. D
 **Retenus, et à quel endroit :**
 
 `fullscreen-clip-effect` → entrée dans un projet depuis l'enfilade.
-`onscroll-typography-animations` → les sept temps du manifeste au vestibule, les entrées du menu, les reveals retenus des fiches projet.
+`onscroll-typography-animations` → les six temps du manifeste au vestibule, les entrées du menu, les reveals retenus des fiches projet.
 `horizontal-parallax-gallery` → l'enfilade (version WebGL, distorsion des bords).
 `webgl-progressive-blur` → **le shader seulement**, transposé dans Three : flou de l'enfilade, mise à distance de la page derrière le menu.
 `depth-gallery` → la profondeur de chaque chambre, et le fond réactif au monde chromatique.
@@ -313,13 +323,13 @@ Règle de conduite : une mission par session, `/clear` entre chaque, un commit g
 
 > [Recoller « Le Vestibule »]
 >
-> Sept temps, un cadre collé, une course de neuf écrans, tout en scrub. Chaque phrase monte de `translateY(110%)` derrière une arête en `overflow: hidden`, flou de 6 px qui se résorbe ; les temps se relaient dans la même cellule de grille, ils ne se poussent pas.
+> Six temps répartis en **deux sections qui se suivent** — le plan filmé consommé d'un bout à l'autre, puis le noir et l'eau —, un cadre collé, une course de quatorze écrans, tout en scrub. Le chapitre remonte d'une hauteur de fenêtre sur le hero pour qu'on ne descende pas vers le plan.
 >
 > Traite explicitement : la séquence de frames du décor, extraite par `scripts/manifeste.mjs` et pilotée par `useSequence` — jamais un `video.currentTime` ; l'index de l'allumage calculé et exporté au manifeste, dont descend le minutage du mot LUMIÈRE ; le plan de la pièce comme seule surface opaque du cadre, rétracté par `--eau` en lock-step avec la remontée de l'ancre du bassin ; le manifeste en `mix-blend-mode: difference`, blend sur le paragraphe et opacités un cran plus bas ; la coupure du bus des nappes en 1,5 s à l'entrée de l'eau et son retour à la sortie ; le manifeste en `sr-only` d'un seul tenant, les couches visuelles en `aria-hidden` ; et un sous-arbre distinct en mouvement réduit, pas la séquence dont on aurait retiré le mouvement.
 >
 > L'inscription WebGL du bassin est un **frère** de son ancre, jamais son enfant : voir le piège d'ordonnancement du Livre II.
 >
-> **Terminé quand** les sept temps s'enchaînent sans qu'aucun n'apparaisse d'un bloc, que la séquence se rembobine à l'identique, que la molette allume et éteint la pièce sans à-coup dans les deux sens, que le mot se lève à l'image exacte de l'allumage, qu'il n'existe qu'une seule scène d'eau dans tout le projet — encore présente après plusieurs allers-retours vers une page projet —, et que le manifeste est intégralement lisible par un lecteur d'écran.
+> **Terminé quand** les six temps s'enchaînent sans qu'aucun n'apparaisse d'un bloc, que la séquence se rembobine à l'identique, que la molette allume et éteint la pièce sans à-coup dans les deux sens, que le mot se lève à l'image exacte de l'allumage, qu'il n'existe qu'une seule scène d'eau dans tout le projet — encore présente après plusieurs allers-retours vers une page projet —, que le plan apparaisse à l'instant même où le hero s'éteint sans qu'on traverse de noir, que rien du manifeste ne se dise par-dessus le séjour éclairé, et que le manifeste soit intégralement lisible par un lecteur d'écran.
 
 ---
 

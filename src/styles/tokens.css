@@ -137,3 +137,9 @@
   inherits: false;
   initial-value: 0;
 }
+
+@property --expo {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0.55;
+}

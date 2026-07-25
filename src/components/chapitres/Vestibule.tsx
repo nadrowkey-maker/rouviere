@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { gsap } from "@/lib/gsap";
+import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { bassin } from "@/data/matieres";
 import { MANIFESTE, PART_ALLUMAGE, PLAN_ALLUME } from "@/data/manifeste";
 import { useRig } from "@/components/gl/Rig";
@@ -69,19 +69,44 @@ import "./vestibule.css";
  * Livre I, et elle est délibérée : c'est la citation du seuil qui la justifie,
  * pas un réflexe de mise en page.
  *
- * ## Les sept temps
+ * ## Deux temps qui ne se mêlent pas, et la charnière entre eux
  *
- *   **Un.**   « Je ne décore pas. » paraît seul, tient, puis se retire.
- *   **Deux.** « Je règle la » paraît, et **reste** : la phrase attend son mot.
- *   **Trois.** La pièce s'allume. Le mot LUMIÈRE se lève au centre.
- *   **Quatre.** Les deux se retirent ensemble — la phrase est dite.
- *   **Cinq.** « la matière et le silence. » paraît à la place de la première.
- *   **Six.**  Tout disparaît sauf le mot « silence », qui reste seul et à sa
- *             place dans la phrase. Puis le bassin monte en plein écran
- *             derrière lui, et la nappe d'ambiance se coupe : il ne reste que
- *             l'eau.
- *   **Sept.** L'eau redescend, « Le reste appartient aux gens qui vivent là. »
+ * C'est la structure du chapitre, et elle a été corrigée : la suite du manifeste
+ * se disait **par-dessus** le séjour éclairé, les deux sections se recouvraient.
+ * Elles se suivent maintenant, et `FILM_FIN` est la charnière.
+ *
+ * **Le plan, d'abord, consommé d'un bout à l'autre.**
+ *
+ *   **Un.**   « Je ne décore pas. » paraît en haut à gauche, dans la pièce
+ *             obscure, tient, puis se retire.
+ *   **Deux.** « Je règle la » paraît au même endroit, tient, et **cède au mot
+ *             pendant que la lumière monte** : la phrase annonce, le mot arrive.
+ *   **Trois.** À l'image exacte de l'allumage, LUMIÈRE se lève au centre — et il
+ *             **reste jusqu'à la dernière image du plan**. Pendant toute la
+ *             traversée du séjour éclairé, il n'y a que lui à l'écran.
+ *
+ * **L'extinction**, ensuite : le plan est fini, on baisse la lumière de la pièce
+ * jusqu'au noir complet, et le mot sort avec elle — en dernier, et au plus clair,
+ * puisqu'un négatif flambe sur un fond qui tombe.
+ *
+ * **Le noir, enfin, et rien d'autre dedans.**
+ *
+ *   **Quatre.** « la matière et le silence. » paraît, au centre cette fois.
+ *   **Cinq.**  Tout disparaît sauf le mot « silence », qui reste seul et à sa
+ *             place dans la phrase. Puis le bassin monte en plein écran derrière
+ *             lui, et la nappe d'ambiance se coupe : il ne reste que l'eau.
+ *   **Six.**   L'eau redescend, « Le reste appartient aux gens qui vivent là. »
  *             paraît, et le site reprend.
+ *
+ * ## Le raccord avec le hero : on ne descend pas vers le plan
+ *
+ * `.vestibule` remonte d'une hauteur de fenêtre sur le hero. Sans ce
+ * recouvrement, le voile du hero atteignait le noir complet, l'épinglage rendait
+ * la main, et il fallait encore traverser un plein écran noir avant que le cadre
+ * ne se colle en haut — on *descendait* vers le plan. Il est désormais là à
+ * l'instant où le hero s'éteint, et il n'y a rien entre les deux. Le cadre n'est
+ * posé qu'à partir de ce moment (`data-pose`), sans quoi il couvrirait la vidéo
+ * du hero par le bas pendant toute sa course.
  *
  * ## Le bassin
  *
@@ -110,43 +135,85 @@ const SceneBassin = dynamic(() => import("@/components/gl/SceneBassin"), {
   ssr: false,
 });
 
-/** Écrans de course de la séquence. La hauteur du chapitre en descend. */
-const TEMPS = 9;
+/**
+ * Écrans de course de la séquence. La hauteur du chapitre en descend.
+ *
+ * Quatorze, et non plus neuf. Le chapitre porte maintenant deux temps entiers
+ * qui ne se recouvrent pas — le plan filmé consommé d'un bout à l'autre, puis
+ * le noir et l'eau — et chacun a besoin de sa course. La densité du plan en
+ * dépend aussi : cent quatre-vingt-douze images sur près de huit écrans font un
+ * pas d'environ trente-sept pixels, ce qui donne à la molette un contrôle
+ * continu au lieu d'un saut d'image tous les crans.
+ */
+const TEMPS = 14;
+
+/**
+ * Où s'arrête le plan filmé. **C'est la charnière du chapitre.**
+ *
+ * Avant : la pièce, du noir à la pleine lumière, et rien d'autre à l'écran que
+ * les deux premières phrases puis le mot LUMIÈRE. Après : le noir, et la suite
+ * du manifeste. Les deux temps ne se mêlent jamais — c'est ce qui n'allait pas,
+ * et c'est réglé ici plutôt que par des minutages qu'on rapièce.
+ *
+ * L'index de l'allumage étant mappé linéairement sur `[0, FILM_FIN]`, cette
+ * valeur commande aussi l'instant où le mot se lève : `PART_ALLUMAGE × FILM_FIN`.
+ */
+const FILM_FIN = 0.56;
+
+/** L'instant, en part de la course, où la pièce s'allume. Calculé, pas choisi. */
+const ALLUMAGE = PART_ALLUMAGE * FILM_FIN;
+
+/** Exposition du plan. Voir `vestibule.css` — elle tient une contrainte mesurée. */
+const EXPOSITION = 0.55;
 
 /**
  * Le minutage, en parts de la course. Il est écrit ici, en toutes lettres, et
  * pas dérivé d'un pas régulier : c'est un montage, et un montage se décide.
  * Chaque paire est un intervalle [début, fin].
  *
- * Une seule valeur n'est pas choisie : celle de l'allumage. Elle vient du
- * fichier, par `PART_ALLUMAGE`.
+ * Une seule valeur n'est pas choisie : celle de l'allumage.
+ *
+ * **Les deux premières phrases vivent dans la pièce obscure, et n'en sortent
+ * pas.** Ce n'est pas une élégance : le plafond de l'appartement s'éclaire par
+ * une corniche et deux lustres, et la bande haut-gauche passe d'une luminance de
+ * 21 à 139 entre les images 75 et 110. Une phrase posée là ne survivrait pas à
+ * l'allumage. « Je règle la » se retire donc **pendant** que la lumière monte —
+ * la phrase cède au mot qu'elle annonce, et elle a disparu à l'image 75, juste
+ * avant que le plafond ne prenne.
  */
 const MINUTAGE = {
-  unEntree: [0.0, 0.06],
-  unSortie: [0.11, 0.15],
-  deuxEntree: [0.17, 0.23],
-  /** La couche technique s'efface avant l'allumage, et ne revient pas. */
-  margeSortie: [0.26, 0.31],
+  unEntree: [0.01, 0.04],
+  unSortie: [0.075, 0.105],
+  deuxEntree: [0.125, 0.155],
+  /** La couche technique s'efface avant la lumière, et ne revient pas. */
+  margeSortie: [0.14, 0.175],
+  /** « Je règle la » cède au mot : la sortie enjambe l'allumage. */
+  deuxSortie: [0.19, 0.22],
   /**
    * Le mot LUMIÈRE. Son début **est** l'index de l'allumage : il se lève avec
    * la pièce. La plage est courte — c'est une apparition de générique, pas une
-   * montée en fondu.
+   * montée en fondu. Et il ne se retire pas : il tient jusqu'au bout du plan.
    */
-  lumiereEntree: [PART_ALLUMAGE, PART_ALLUMAGE + 0.055],
-  /** « Je règle la » se retire, puis la lumière avec elle : la phrase est dite. */
-  deuxSortie: [0.41, 0.46],
-  lumiereSortie: [0.44, 0.5],
-  cinqEntree: [0.47, 0.53],
+  lumiereEntree: [ALLUMAGE, ALLUMAGE + 0.05],
+  /**
+   * L'extinction. Le plan est fini, la pièce s'éteint — et le mot avec elle,
+   * un rien plus tard : la lumière est la dernière chose qui sort. Le négatif
+   * flambe au passage, puisqu'il se calcule sur un fond qui tombe au noir.
+   */
+  extinction: [FILM_FIN, FILM_FIN + 0.055],
+  lumiereSortie: [FILM_FIN + 0.015, FILM_FIN + 0.065],
+  /** Dans le noir, et seulement là. */
+  cinqEntree: [0.665, 0.71],
   /** Tout disparaît sauf « silence ». */
-  reduction: [0.57, 0.62],
-  eauMontee: [0.63, 0.71],
-  eauSortie: [0.86, 0.93],
-  septEntree: [0.91, 0.97],
+  reduction: [0.74, 0.775],
+  eauMontee: [0.785, 0.835],
+  eauSortie: [0.915, 0.955],
+  septEntree: [0.945, 0.985],
 } as const;
 
 /** La séquence est en scrub : ces bornes disent où l'eau prend la main. */
-const EAU_DEBUT = 0.6;
-const EAU_FIN = 0.94;
+const EAU_DEBUT = 0.765;
+const EAU_FIN = 0.96;
 
 /**
  * Course verticale d'une phrase, en pixels. Huit — la ligne de base du site,
@@ -219,8 +286,33 @@ export function Vestibule() {
       if (mot !== null) {
         gsap.set(mot, { opacity: 0, scale: 1.06, filter: "blur(10px)" });
       }
-      if (plan !== null) gsap.set(plan, { "--eau": 0 });
+      if (plan !== null) gsap.set(plan, { "--eau": 0, "--expo": EXPOSITION });
       if (ancre !== null) gsap.set(ancre, { yPercent: 100 });
+
+      /* ---- Le cadre n'est là qu'à partir de son chapitre ----
+       *
+       * `.vestibule` remonte d'un écran sur le hero (voir `vestibule.css`) : le
+       * cadre se colle donc au haut du viewport à l'instant exact où le voile du
+       * hero atteint le plein noir, et non un écran plus bas. C'est ce qui
+       * supprime le rectangle noir qu'on traversait entre les deux — on ne
+       * descend plus vers le plan, il est là quand le hero s'éteint.
+       *
+       * Le revers du recouvrement : pendant toute la course épinglée du hero, le
+       * cadre est déjà dans le viewport et le couvrirait par le bas. Il n'est
+       * donc **posé** qu'à partir du moment où le chapitre commence. Avant, il
+       * n'est pas là. Même mécanique qu'entre l'enfilade et *La Matière*. */
+      const pose = ScrollTrigger.create({
+        trigger: course,
+        start: "top top",
+        /* `max` et non la fin de la course : le cadre se décolle au dernier
+           écran et remonte avec la page. Le cacher à cet instant ferait
+           disparaître la dernière image sous les yeux. */
+        end: "max",
+        onToggle: (self) => {
+          cadre.dataset.pose = self.isActive ? "true" : "false";
+        },
+      });
+      cadre.dataset.pose = pose.isActive ? "true" : "false";
 
       /* Le passage du son et de l'interactivité de l'eau. Ni l'un ni l'autre
          n'est une animation : ce sont deux bascules, franchies une fois dans
@@ -251,17 +343,22 @@ export function Vestibule() {
         },
       });
 
-      /* ---- Le plan de la pièce, d'un bout à l'autre de la course ----
-         Un relais linéaire, et rien d'autre : l'index suit la course au
-         prorata, ce qui met l'allumage à `PART_ALLUMAGE` par construction. Une
-         courbe ici décalerait le repère et il faudrait le recalculer. */
+      /* ---- Le plan de la pièce : consommé d'un bout à l'autre, puis fini ----
+         Un relais linéaire sur `[0, FILM_FIN]`, et rien d'autre : l'index suit
+         la course au prorata, ce qui met l'allumage à `ALLUMAGE` par
+         construction. Une courbe ici décalerait le repère et il faudrait le
+         recalculer — et la molette perdrait son pas constant.
+
+         Passé `FILM_FIN`, l'index reste sur la dernière image : la pièce est
+         pleinement allumée, et c'est son extinction, plus bas, qui rend le
+         cadre au noir. Le reste du manifeste se dit là-dedans. */
       const dernierIndex = MANIFESTE.nombre - 1;
       const relais = { p: 0 };
       tl.to(
         relais,
         {
           p: 1,
-          duration: 1,
+          duration: FILM_FIN,
           ease: "none",
           onUpdate: () => {
             index.current = Math.min(
@@ -359,10 +456,30 @@ export function Vestibule() {
         );
       }
 
-      /* Quatre — « Je règle la » se retire. */
+      /* Quatre — « Je règle la » cède au mot pendant que la lumière monte. */
       sortie(deux, MINUTAGE.deuxSortie);
 
-      /* Cinq. */
+      /* ---- L'extinction : le plan est fini, on éteint la pièce ----
+       *
+       * C'est ce qui sépare franchement les deux temps du chapitre, et c'est ce
+       * qui manquait : la suite du manifeste se disait *par-dessus* le séjour
+       * éclairé au lieu de se dire après lui. On ne pose pas un voile — on baisse
+       * la lumière, exactement comme la sortie du hero, et le cadre tombe au
+       * noir complet. Le reste du chapitre s'y joue.
+       *
+       * Effet de bord heureux : le mot LUMIÈRE se calculant en négatif de ce
+       * qu'il traverse, il flambe à mesure que la pièce s'éteint. Il sort donc
+       * au plus clair, et il sort en dernier. */
+      if (plan !== null) {
+        const [xd, xf] = MINUTAGE.extinction;
+        tl.to(
+          plan,
+          { "--expo": 0, duration: xf - xd, ease: "power2.inOut" },
+          xd,
+        );
+      }
+
+      /* Cinq — dans le noir, et seulement là. */
       entree(cinq, MINUTAGE.cinqEntree);
 
       /* Six — tout disparaît sauf « silence ». Le mot ne bouge pas : c'est ce
@@ -384,8 +501,8 @@ export function Vestibule() {
         tl.to(ancre, { yPercent: 0, duration: ef - ed, ease: "none" }, ed);
       }
 
-      /* Sept — l'eau redescend, exactement comme elle est montée, et la pièce
-         allumée reprend le cadre. */
+      /* Sept — l'eau redescend, exactement comme elle est montée, et le noir
+         reprend le cadre. */
       const [xd, xf] = MINUTAGE.eauSortie;
       if (plan !== null) {
         tl.to(plan, { "--eau": 0, duration: xf - xd, ease: "none" }, xd);
@@ -428,6 +545,7 @@ export function Vestibule() {
     return (
       <section
         className="vestibule vestibule--pose"
+        data-reduit="true"
         data-chapitre="Le Vestibule"
         aria-labelledby="vestibule-titre"
       >
@@ -476,6 +594,9 @@ export function Vestibule() {
   return (
     <section
       className="vestibule"
+      /* Porté par la section : c'est elle qui remonte d'un écran sur le hero,
+         et le recouvrement n'a pas lieu en mouvement réduit. */
+      data-reduit="false"
       data-chapitre="Le Vestibule"
       aria-labelledby="vestibule-titre"
     >
@@ -552,15 +673,33 @@ export function Vestibule() {
             <span className="vestibule__lumiere-mot">lumière</span>
           </p>
 
-          <div className="vestibule__bloc">
-            <p className="vestibule__temps display" data-temps="un">
+          {/* Les deux premières phrases : **en haut à gauche, et en retrait.**
+              Elles annoncent le mot, elles ne le concurrencent pas — et surtout
+              elles ne peuvent pas partager sa cellule, sans quoi le monument du
+              centre leur passe dessus. C'est le défaut qu'on corrige ici : ce
+              n'est pas une question de taille seule, c'est une question de
+              place. Elles ont donc leur bloc, calé en haut, et une échelle
+              retenue. */}
+          <div className="vestibule__bloc vestibule__bloc--haut">
+            <p
+              className="vestibule__temps vestibule__temps--annonce display"
+              data-temps="un"
+            >
               <span className="vestibule__ligne">Je ne décore pas.</span>
             </p>
 
-            <p className="vestibule__temps display" data-temps="deux">
+            <p
+              className="vestibule__temps vestibule__temps--annonce display"
+              data-temps="deux"
+            >
               <span className="vestibule__ligne">Je règle la</span>
             </p>
+          </div>
 
+          {/* La suite du manifeste, elle, se dit dans le noir d'après le plan :
+              plus rien ne lui dispute le cadre, elle reprend donc la cellule
+              centrale et la pleine échelle. */}
+          <div className="vestibule__bloc vestibule__bloc--centre">
             <p className="vestibule__temps display" data-temps="cinq">
               <span className="vestibule__ligne">
                 <span className="vestibule__autour">la matière et le </span>
