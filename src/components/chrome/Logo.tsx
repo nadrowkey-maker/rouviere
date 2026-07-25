@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLogo } from "./LogoProvider";
+import { useChrome } from "./ChromeProvider";
 import { useLangue } from "@/i18n/LangueProvider";
 import { chemin } from "@/i18n/langues";
 import { useDefilement } from "@/components/motion/LenisProvider";
@@ -33,6 +34,7 @@ export function Logo() {
   const { ref } = useLogo();
   const { t, langue } = useLangue();
   const { lenis } = useDefilement();
+  const { menuOuvert, fermerMenu } = useChrome();
   const pathname = usePathname();
 
   return (
@@ -51,9 +53,29 @@ export function Logo() {
            d'apparition du logo, elle, ne rejoue pas. */
         if (pathname === chemin(langue)) {
           evenement.preventDefault();
+
+          /* **Le menu ouvert, et pourquoi le geste ne marchait pas.**
+
+             Le logotype passe au-dessus du menu (couche 50 contre 45), donc le
+             clic arrivait bien. Ce qui n'arrivait pas, c'était le saut : le menu
+             a posé `arreter("menu")` en s'ouvrant, et un Lenis arrêté **ignore
+             purement et simplement** `scrollTo` — c'est le sens de son verrou.
+             On cliquait, l'écran s'éteignait, se rallumait, et on était toujours
+             au même endroit, toujours dans le menu.
+
+             D'où les deux corrections. `force: true` fait passer le saut malgré
+             le verrou : c'est déjà ce que fait `LenisProvider` au changement de
+             route, pour exactement la même raison. Et le menu se ferme, sans
+             animation — sa surface n'a rien à montrer, celle du sas est
+             au-dessus d'elle et tout se joue derrière le noir. */
+          if (menuOuvert) fermerMenu(true, true);
+
           traverserLeSas(() => {
-            if (lenis !== null) lenis.scrollTo(0, { immediate: true });
-            else scrollTo({ top: 0, behavior: "auto" });
+            if (lenis !== null) {
+              lenis.scrollTo(0, { immediate: true, force: true });
+            } else {
+              scrollTo({ top: 0, behavior: "auto" });
+            }
           });
         }
       }}

@@ -16,8 +16,10 @@ import {
   RETIRE,
 } from "@/components/motion/passage";
 import { donneesEconomes } from "@/lib/capacites";
+import { decalageDans } from "@/lib/mesure";
 import { visuels } from "@/data/visuels";
 import { useChrome } from "./ChromeProvider";
+import { traverserLeSas } from "./traversee";
 import { useLangue } from "@/i18n/LangueProvider";
 import { chemin } from "@/i18n/langues";
 import { useSon } from "./SonProvider";
@@ -86,8 +88,14 @@ const FILET_NAVIGATION_MS = 1000;
 const SELECTEUR_FOCUS = 'a[href], button:not([disabled])';
 
 export function Menu() {
-  const { menuOuvert, fermerMenu, burgerRef, focusARestaurer } = useChrome();
-  const { arreter, reprendre } = useDefilement();
+  const {
+    menuOuvert,
+    fermerMenu,
+    burgerRef,
+    focusARestaurer,
+    fermetureImmediate,
+  } = useChrome();
+  const { lenis, arreter, reprendre } = useDefilement();
   const { mouvementReduit } = useMouvement();
   const { jouer } = useSon();
   const { t, langue } = useLangue();
@@ -503,16 +511,27 @@ export function Menu() {
       return () => document.removeEventListener("keydown", surTouche);
     }
 
-    /* Fermeture. Par navigation (clic sur un lien : le focus part avec la page,
-       donc `focusARestaurer` est faux) → la surface reste posée jusqu'à la
-       nouvelle route. Par burger ou Échap (on reste sur la page) → animée. En
-       mouvement réduit, instantanée. */
-    const navigation = !focusARestaurer.current;
-    const mode = navigation
-      ? "navigation"
-      : mouvementReduit
-        ? "instantanee"
-        : "animee";
+    /* Fermeture, quatre entrées et trois modes.
+       Par navigation (clic sur un lien : le focus part avec la page, donc
+       `focusARestaurer` est faux) → la surface reste posée jusqu'à la nouvelle
+       route. Par burger ou Échap (on reste sur la page) → animée. En mouvement
+       réduit, instantanée.
+
+       Et **avant tout le reste**, la fermeture immédiate : le geste qui ferme le
+       menu enchaîne sur le sas, et le sas tient déjà le créneau de
+       l'orchestrateur. Réclamer une fermeture animée ici le tuerait en le
+       finalisant, et le saut qu'il porte dans son noir ne se ferait jamais.
+       Voir `ChromeProvider.fermerMenu`. */
+    const immediate = fermetureImmediate.current;
+    fermetureImmediate.current = false;
+    const navigation = !immediate && !focusARestaurer.current;
+    const mode = immediate
+      ? "instantanee"
+      : navigation
+        ? "navigation"
+        : mouvementReduit
+          ? "instantanee"
+          : "animee";
 
     jouer("fermer");
     html.classList.remove("menu-ouvert");
@@ -524,13 +543,63 @@ export function Menu() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuOuvert, mouvementReduit]);
 
+  /**
+   * Une entrée qui vise une ancre de la page courante.
+   *
+   * **Pourquoi on intercepte.** Laissé à Next, un lien vers `/fr/#atelier`
+   * cliqué depuis `/fr` est une navigation vers la route qu'on occupe déjà : le
+   * routeur remonte en haut, et l'ancre ne sert à rien. C'est ce qui envoyait le
+   * contact sur le hero. Et même s'il y allait, il y descendrait par le
+   * défilement lissé de Lenis — neuf écrans de rembobinage, ce que le sas existe
+   * précisément pour éviter.
+   *
+   * On fait donc ici ce que fait le logotype, et pour les mêmes raisons : le
+   * menu se ferme sans animation, le sas éteint l'écran, le saut a lieu dans le
+   * noir, l'écran se rallume sur le chapitre. La position se lit par la chaîne
+   * des `offsetParent` et jamais par un rect — le parcours porte des
+   * transformations en permanence, et un rect les inclurait (voir `mesure.ts`).
+   */
+  const sauterVersAncre = useCallback(
+    (entree: Entree) => {
+      fermerMenu(true, true);
+      traverserLeSas(() => {
+        const selecteur = entree.cible ?? entree.route.slice(entree.route.indexOf("#"));
+        const cible = document.querySelector<HTMLElement>(selecteur);
+        if (cible === null) return;
+
+        const y =
+          decalageDans(cible, document.body).y +
+          (entree.decalage ?? 0) * window.innerHeight;
+        const arrivee = Math.max(0, y);
+
+        /* `force` : le menu a posé son verrou en s'ouvrant, et un Lenis arrêté
+           ignore `scrollTo`. Le verrou tombera au retour de `reprendre("menu")`,
+           mais nous sommes déjà passés. */
+        if (lenis !== null) lenis.scrollTo(arrivee, { immediate: true, force: true });
+        else scrollTo({ top: arrivee, behavior: "auto" });
+      });
+    },
+    [fermerMenu, lenis],
+  );
+
   const rendreEntree = (entree: Entree, projet: boolean) => (
     <li className="menu__item" key={entree.route}>
       <span className="menu__ligne">
         <Link
           className="menu__lien"
           href={chemin(langue, entree.route)}
-          onClick={() => {
+          onClick={(evenement) => {
+            /* Une ancre de la page qu'on occupe déjà : c'est un déplacement,
+               pas une navigation. Voir `sauterVersAncre`. */
+            if (
+              !projet &&
+              entree.route.includes("#") &&
+              pathname === chemin(langue)
+            ) {
+              evenement.preventDefault();
+              sauterVersAncre(entree);
+              return;
+            }
             if (projet) {
               jouer("projet");
               /* La vidéo qui joue derrière le texte **est** la vidéo

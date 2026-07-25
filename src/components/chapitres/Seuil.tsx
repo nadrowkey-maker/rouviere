@@ -51,6 +51,19 @@ const CLE_CHOIX = "rouviere:entree-son";
 const HERO_VIDEO = "/media/hero/hero.mp4";
 const HERO_POSTER = "/media/hero/hero-poster.avif";
 
+/**
+ * L'instant où le logotype **est là**, compté depuis le lancement de la
+ * séquence. C'est ce que le son du titre doit viser, et ce n'est pas le début
+ * du tween.
+ *
+ * Deux secondes et demie de vidéo seule, puis une apparition de 1,8 s en
+ * `expo.out` — une courbe qui donne l'essentiel de sa course dans son premier
+ * cinquième. Le mot est perceptuellement arrivé bien avant la fin du tween :
+ * un peu plus de trois dixièmes suffisent. D'où 2,85 et non 2,5 (le mot n'est
+ * alors rien) ni 4,3 (il est posé depuis longtemps).
+ */
+const ARRIVEE_LOGO = 2.85;
+
 export function Seuil() {
   const { ref: logoRef } = useLogo();
   const { activerSon, reglerSortieHero, jouerEffet } = useSon();
@@ -197,24 +210,30 @@ export function Seuil() {
     const reduit = mouvementReduitRef.current;
 
     /**
-     * Le son du titre, sur l'apparition du logotype et à son instant exact.
+     * **Le son du titre, et pourquoi il ne part pas sur l'apparition.**
      *
-     * Le verrou n'est pas une précaution de style : l'apparition ne joue déjà
-     * qu'une fois par session, mais `onStart` se rejoue si l'on redémarre la
-     * timeline, et un effet qui date un geste ne doit jamais dater deux fois le
-     * même. Une seule apparition, un seul son.
+     * Il partait sur le `onStart` du tween, c'est-à-dire à l'instant exact où le
+     * mot commence à paraître — et il arrivait « beaucoup trop tard ». Il fallait
+     * regarder le fichier pour comprendre : `titre.mp3` dure 6,8 s et **c'est une
+     * montée**. Elle part à −60 dB et culmine à 3,9 s. Déclenchée sur
+     * l'apparition, elle faisait donc arriver son sommet quatre secondes *après*
+     * le logotype, sur une image déjà rangée dans la barre.
      *
-     * Il vaut pour les deux régimes : en mouvement réduit le mot ne s'anime pas,
-     * mais il **paraît** — et c'est l'apparition qu'on souligne, pas le
-     * mouvement. La retirer là ferait une version amputée, pas une version
-     * calme. La préférence sonore, elle, est arbitrée en amont : sans contexte
-     * en marche, `jouerEffet` ne joue rien.
+     * Une montée n'accompagne pas un geste, elle l'annonce : elle doit partir
+     * avant lui, et c'est son sommet — pas son début — qui doit tomber dessus.
+     * D'où le déclenchement **ici**, au clic, avec le temps qui reste à courir
+     * jusqu'à l'apparition ; le provider fait le reste, en entrant dans le
+     * fichier en cours de route puisque 3,9 s de montée ne tiennent pas dans les
+     * quelques secondes disponibles (voir `jouerEffetSur`).
+     *
+     * Le verrou reste : l'apparition ne joue déjà qu'une fois par session, mais
+     * un son qui date un geste ne doit jamais dater deux fois le même.
      */
     let titreJoue = false;
-    const sonnerTitre = () => {
+    const sonnerTitre = (dansSecondes: number) => {
       if (titreJoue) return;
       titreJoue = true;
-      jouerEffet("titre");
+      jouerEffet("titre", dansSecondes);
     };
 
     const revelerChrome = () => {
@@ -302,14 +321,21 @@ export function Seuil() {
         });
 
         if (reduit) {
-          /* Pas de générique : le mot est simplement là, puis se range. */
+          /* Pas de générique : le mot est simplement là, puis se range. Le son
+             n'a donc rien à annoncer — il tombe sur l'instant même, et le
+             provider n'en gardera que la retombée. */
           gsap.set(mot, { opacity: 1, scale: 1, filter: "blur(0px)" });
-          sonnerTitre();
+          sonnerTitre(0);
           sequence = gsap
             .timeline({ delay: 0.4 })
             .add(() => rangerDansNav(0.3));
           return;
         }
+
+        /* **Le son part maintenant, l'image dans presque trois secondes.** La
+           montée a besoin de tout ce temps-là pour arriver avec le mot et non
+           derrière lui. C'est le seul son du site qui précède ce qu'il marque. */
+        sonnerTitre(ARRIVEE_LOGO);
 
         /* 2,5 s de vidéo seule, puis l'apparition en générique de film, puis
            1,5 s de pose, puis le rangement dans la barre. */
@@ -324,11 +350,6 @@ export function Seuil() {
               filter: "blur(0px)",
               duration: 1.8,
               ease: "expo.out",
-              /* `onStart`, et pas un `.call()` posé au même instant : le
-                 rappel part alors dans la frame même où le tween rend sa
-                 première valeur, donc où le mot commence à paraître. Un appel
-                 voisin dans la timeline serait ordonné, pas synchrone. */
-              onStart: sonnerTitre,
             },
           )
           .to({}, { duration: 1.5 })

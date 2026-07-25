@@ -19,16 +19,20 @@ import { useEffetVisuel } from "@/lib/isomorphe";
  * continu. Il est suspendu dès que l'onglet passe en arrière-plan, et dès qu'on
  * coupe le son.
  *
- * ## Les trois bus
+ * ## Les quatre bus
  *
  * Tout passe par un gain maître, que le bouton du chrome pilote et dont la
- * préférence est persistée. Sous lui, trois bus qui ne se mélangent jamais :
+ * préférence est persistée. Sous lui, quatre bus qui ne se mélangent jamais :
  *
  *   `musique`   — les nappes. Une seule s'entend à la fois : celle du hero,
  *                 celle du site, ou celle du projet qu'on visite.
  *   `ambiance`  — l'eau du bassin, qui tourne en permanence à gain nul et ne
  *                 monte que sous la main.
  *   `interface` — les micro-sons, synthétisés, jamais chargés d'un fichier.
+ *   `effets`    — les deux ponctuations du parcours. Elles ont quitté le bus
+ *                 d'interface, qui est bas par construction et les enterrait
+ *                 sous la musique : ce ne sont pas des accusés de réception,
+ *                 ce sont des moments. Voir `NIVEAU_EFFETS`.
  *
  * ## Les nappes, et pourquoi elles ne sont pas des `AudioBuffer`
  *
@@ -73,8 +77,8 @@ export type Micro =
  * moment du déclenchement arriverait deux cents millisecondes trop tard, et
  * l'oreille entend parfaitement ce décalage-là.
  *
- * Ils passent par le bus `interface`, comme les micro-sons : ce sont des
- * ponctuations, pas des nappes.
+ * Ils ont leur bus à eux — voir `NIVEAU_EFFETS` —, et leur minutage se calcule
+ * sur la crête relevée dans chaque fichier — voir `EFFETS`.
  */
 export type Effet = "titre" | "lumiere";
 
@@ -101,7 +105,7 @@ type Son = {
    * un son qui devait marquer un geste n'a plus rien à marquer une fois le
    * geste passé.
    */
-  jouerEffet: (effet: Effet) => void;
+  jouerEffet: (effet: Effet, dansSecondes?: number) => void;
   /** 0 : dans le hero. 1 : entièrement sorti. Poussé par le seuil au scrub. */
   reglerSortieHero: (progression: number) => void;
   /** Entre dans la nappe d'un projet, par son rang (1 à 5). */
@@ -190,18 +194,60 @@ const EAU_VITESSE_PLEINE = 30;
 /** La préférence de son, persistée d'une visite à l'autre. */
 const CLE_PREFERENCE = "rouviere:son";
 
-/** Les deux effets ponctuels, et leur niveau sur le bus d'interface. */
-const FICHIERS_EFFETS: Record<Effet, string> = {
-  titre: "/audio/sfx/titre.mp3",
-  lumiere: "/audio/sfx/lumiere.mp3",
+/**
+ * **Les deux effets ponctuels, et leurs mesures.**
+ *
+ * `sommet` et `gain` ne sont pas des réglages à l'oreille : ils sont **relevés
+ * dans les fichiers**, par fenêtres d'une demi-seconde
+ * (`ffmpeg -af volumedetect`). Sans cette mesure, les deux défauts qu'on a
+ * eus étaient inévitables.
+ *
+ * `titre.mp3` dure 6,8 s et **c'est une montée** : elle part à −60 dB, culmine
+ * entre 3,5 et 4,0 s (crête à −6 dB), puis retombe au silence à 5,5 s. La jouer
+ * à l'instant où le logotype paraît, c'est faire arriver son sommet quatre
+ * secondes après lui — ce qui s'entend exactement comme « beaucoup trop tard ».
+ * Une montée ne marque pas un geste : elle l'annonce, et elle doit donc partir
+ * **avant** lui.
+ *
+ * `lumiere.mp3` dure 4,3 s et fait l'inverse : son énergie est en tête (−19 dB
+ * sur la première seconde) puis décroît. Son sommet est son début.
+ *
+ * `gain` égalise les deux crêtes — celle du titre est à −6 dB (0,50 en linéaire),
+ * celle de la lumière à −11,6 dB (0,26) : à gain égal, la seconde s'entend
+ * moitié moins. C'est de là que venait « on l'entend à peine ».
+ */
+const EFFETS: Record<
+  Effet,
+  {
+    fichier: string;
+    /** Seconde du fichier où se trouve sa crête. C'est *elle* qui doit tomber sur le geste. */
+    sommet: number;
+    /** Facteur d'égalisation des crêtes. Peut passer 1 : voir `NIVEAU_EFFETS`. */
+    gain: number;
+  }
+> = {
+  titre: { fichier: "/audio/sfx/titre.mp3", sommet: 3.9, gain: 0.85 },
+  lumiere: { fichier: "/audio/sfx/lumiere.mp3", sommet: 0, gain: 1.6 },
 };
 
 /**
- * Niveau des effets ponctuels. Au-dessus des micro-sons — ce sont des
- * ponctuations de mise en scène, pas des accusés de réception d'interface —
- * mais toujours sous le bus, qui est lui-même bas.
+ * **Le bus des ponctuations, et pourquoi il n'est plus celui de l'interface.**
+ *
+ * Ces deux sons y vivaient, et ils y étaient inaudibles. Le compte est simple :
+ * le bus d'interface est à 0,32 parce qu'il porte des impulsions de quelques
+ * centièmes de seconde qui ne doivent surtout pas se faire remarquer ; le bus
+ * des nappes est à 0,5. Une ponctuation passée par le premier sortait donc
+ * structurellement **sous** la musique, quelle que soit sa propre valeur.
+ *
+ * Or ce ne sont pas des accusés de réception : ce sont deux moments de mise en
+ * scène, aux deux seuls endroits du site où un mot tient l'écran seul. Ils ont
+ * leur bus, au-dessus des nappes.
+ *
+ * Il reste en dessous de 1 pour garder de la marge : une crête de ponctuation
+ * (≈ 0,42 après égalisation) qui tomberait sur une nappe à son plein (0,5) fait
+ * 0,92, et la destination écrête au-delà de 1.
  */
-const NIVEAU_EFFET = 0.85;
+const NIVEAU_EFFETS = 1;
 
 /**
  * **Les gestes qui réarment le contexte audio.**
@@ -321,6 +367,8 @@ type Moteur = {
   musique: GainNode;
   ambiance: GainNode;
   interface: GainNode;
+  /** Le bus des deux ponctuations. Voir `NIVEAU_EFFETS`. */
+  busEffets: GainNode;
   hero: Nappe;
   site: Nappe;
   eau: Nappe;
@@ -389,30 +437,52 @@ function impulsion(moteur: Moteur, micro: Micro) {
 }
 
 /**
- * Joue un des deux effets ponctuels sur le bus d'interface.
+ * Joue un des deux effets ponctuels, **en calant son sommet sur le geste**.
  *
- * Aucune file d'attente, et c'est délibéré : ces deux sons **datent** un geste
- * visuel — l'arrivée du logotype, l'allumage de la pièce. Si le contexte n'est
- * pas en marche à cet instant précis, il n'y a plus rien à dater ; le jouer
- * trois secondes plus tard, quand le son se débloque, ne serait pas un rattrapage,
- * ce serait un bruit sans cause.
+ * `dansSecondes` dit dans combien de temps le geste visuel aura lieu. Le sommet
+ * du fichier (voir `EFFETS`) doit tomber là, ce qui donne deux cas :
+ *
+ *   — le sommet est plus loin dans le fichier que le geste ne l'est dans le
+ *     temps : on ne peut pas remonter le temps, alors **on entre dans le
+ *     fichier en cours de route**. Le début, qu'on saute, est de toute façon la
+ *     partie la plus basse d'une montée.
+ *   — sinon : on **programme** le départ, et Web Audio le tient à l'échantillon
+ *     près — bien mieux qu'une minuterie de JavaScript.
+ *
+ * Aucune file d'attente si le son est coupé, et c'est délibéré : ces deux sons
+ * **datent** un geste. Le jouer trois secondes plus tard, quand le contexte se
+ * débloque, ne serait pas un rattrapage, ce serait un bruit sans cause.
  */
-function jouerEffetSur(moteur: Moteur, effet: Effet): void {
-  const { ctx, interface: bus } = moteur;
+function jouerEffetSur(moteur: Moteur, effet: Effet, dansSecondes = 0): void {
+  const { ctx, busEffets: bus } = moteur;
   if (ctx.state !== "running") return;
 
   const buffer = moteur.effets.get(effet);
   if (buffer === undefined) return;
 
+  const reglage = EFFETS[effet];
+  const maintenant = ctx.currentTime;
+  /* L'instant, dans l'horloge audio, où le geste aura lieu. */
+  const instantGeste = maintenant + Math.max(dansSecondes, 0);
+  /* L'instant idéal du départ pour que le sommet tombe dessus. */
+  const departIdeal = instantGeste - reglage.sommet;
+
+  const quand = Math.max(departIdeal, maintenant);
+  /* Ce qu'on ne peut pas jouer en avance, on l'ampute par le début. */
+  const decalage = Math.min(
+    Math.max(maintenant - departIdeal, 0),
+    Math.max(buffer.duration - 0.05, 0),
+  );
+
   const source = ctx.createBufferSource();
   source.buffer = buffer;
 
   const gain = ctx.createGain();
-  gain.gain.value = NIVEAU_EFFET;
+  gain.gain.value = reglage.gain;
 
   source.connect(gain);
   gain.connect(bus);
-  source.start();
+  source.start(quand, decalage);
   source.onended = () => {
     source.disconnect();
     gain.disconnect();
@@ -563,6 +633,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     const musique = bus(NIVEAU_MUSIQUE);
     const ambiance = bus(NIVEAU_AMBIANCE);
     const interfaceBus = bus(NIVEAU_INTERFACE);
+    const effetsBus = bus(NIVEAU_EFFETS);
 
     /**
      * Une nappe diffusée. `loop` est natif : rien à reprogrammer, aucune
@@ -601,6 +672,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       musique,
       ambiance,
       interface: interfaceBus,
+      busEffets: effetsBus,
       hero,
       site,
       eau,
@@ -625,8 +697,8 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     /* Les deux effets ponctuels, décodés d'avance. Un échec est silencieux :
        `jouerEffetSur` ne trouvera pas son tampon et ne jouera rien, ce qui est
        exactement le bon comportement pour une ponctuation. */
-    for (const nom of Object.keys(FICHIERS_EFFETS) as Effet[]) {
-      void fetch(FICHIERS_EFFETS[nom])
+    for (const nom of Object.keys(EFFETS) as Effet[]) {
+      void fetch(EFFETS[nom].fichier)
         .then((reponse) => reponse.arrayBuffer())
         .then((donnees) => ctx.decodeAudioData(donnees))
         .then((tampon) => {
@@ -935,10 +1007,10 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     impulsion(moteur, micro);
   }, []);
 
-  const jouerEffet = useCallback((effet: Effet) => {
+  const jouerEffet = useCallback((effet: Effet, dansSecondes = 0) => {
     const moteur = moteurRef.current;
     if (moteur === null) return;
-    jouerEffetSur(moteur, effet);
+    jouerEffetSur(moteur, effet, dansSecondes);
   }, []);
 
   /* --- Suspension sur onglet caché --- */

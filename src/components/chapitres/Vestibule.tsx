@@ -411,13 +411,20 @@ export function Vestibule() {
        * chapitre, tout le reste en descend. Accroché ici, le son part dans la
        * frame où la pièce s'éclaire, quelle que soit la vitesse de la molette.
        *
-       * **Il ne se rejoue pas.** Le chapitre est en scrub, donc intégralement
-       * réversible : on remonte, on redescend, on repasse l'allumage autant de
-       * fois qu'on veut. Un son qui repartirait à chaque passage ferait de
-       * l'allumage un jouet ; il en marque l'arrivée, une fois. Le verrou ne se
-       * relève qu'au démontage du chapitre.
+       * **Et il se rejoue à chaque passage.** Il ne le faisait pas : un verrou
+       * posé une fois pour toutes le rendait muet dès la deuxième descente, ce
+       * qui vidait le chapitre de son seul repère sonore pour quiconque
+       * remonte — c'est-à-dire pour quiconque joue avec la molette, ce que ce
+       * chapitre invite précisément à faire.
+       *
+       * Ce n'est donc pas un verrou mais **un armement**, et il se réarme dès
+       * qu'on repasse sous le seuil. La marge de trois images n'est pas
+       * décorative : sans elle, une main qui s'arrête pile sur l'allumage
+       * ferait osciller l'index d'une image d'un côté à l'autre et le son
+       * partirait en rafale.
        */
-      let lumiereSonnee = false;
+      const MARGE_REARMEMENT = 3;
+      let lumiereArmee = true;
 
       tl.to(
         relais,
@@ -430,9 +437,14 @@ export function Vestibule() {
               dernierIndex,
               Math.max(0, Math.round(relais.p * dernierIndex)),
             );
-            if (!lumiereSonnee && index.current >= INDEX_ALLUMAGE) {
-              lumiereSonnee = true;
+            if (lumiereArmee && index.current >= INDEX_ALLUMAGE) {
+              lumiereArmee = false;
               jouerEffet("lumiere");
+            } else if (
+              !lumiereArmee &&
+              index.current < INDEX_ALLUMAGE - MARGE_REARMEMENT
+            ) {
+              lumiereArmee = true;
             }
           },
         },
