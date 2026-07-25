@@ -1,55 +1,23 @@
-import { Seuil } from "@/components/chapitres/Seuil";
-import { Vestibule } from "@/components/chapitres/Vestibule";
-import { Enfilade } from "@/components/chapitres/Enfilade";
-import { Matiere } from "@/components/chapitres/Matiere";
-import { Atelier } from "@/components/chapitres/Atelier";
-import { Sortie } from "@/components/chapitres/Sortie";
-
-/* JSON-LD de l'atelier. `CreativeWork` vit sur chaque chambre ; `Organization`,
-   lui, est sitewide et se pose ici, à la racine du parcours. Toute donnée est
-   celle du Livre I — rien d'inventé pour le moteur. */
-const ORGANISATION = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "Rouvière",
-  description:
-    "Atelier d'architecture d'intérieur fondé en 2011 par Camille Rouvière. Cinq à sept chantiers par an.",
-  url: "https://rouviere.fr",
-  foundingDate: "2011",
-  founder: { "@type": "Person", name: "Camille Rouvière" },
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: "14 rue de Beaune",
-    addressLocality: "Paris",
-    postalCode: "75007",
-    addressCountry: "FR",
-  },
-  telephone: "+33142610811",
-  email: "atelier@rouviere.fr",
-};
+import { redirect } from "next/navigation";
+import { LANGUE_PAR_DEFAUT } from "@/i18n/langues";
 
 /**
- * Le parcours. Une promenade, pas un empilement de sections : chaque chapitre
- * a une direction de mouvement différente du précédent.
+ * La racine ne rend rien : elle oriente.
  *
- * Seuil (extinction sur place) → Vestibule (dévoilement sur place, en sept
- * temps) → Enfilade (traversée latérale) → Matière (ouverture par masque) →
- * Atelier (traversée en échelle, et une plongée) → Sortie (réfraction). Les
- * Archives vivent sur leur propre route, atteinte par le menu.
+ * Chaque page du site vit sous un segment de langue (`/fr`, `/en`) ; `/` n'est
+ * qu'une porte. On y arrive par un lien nu, par un signet, par la barre
+ * d'adresse — et l'on en repart aussitôt.
+ *
+ * **La redirection est faite ici et non par un `middleware`**, et c'est un
+ * choix de coût : un middleware s'exécute sur chaque requête, y compris pour
+ * les quatre mégaoctets de frames du vestibule. Une redirection de page est
+ * statique, gratuite, et suffit — le site n'a qu'une seule adresse à orienter.
+ *
+ * Elle vise le français, langue de l'atelier. La préférence de la visite
+ * précédente ne peut pas être lue ici (le serveur ne voit pas `localStorage`) :
+ * c'est le chrome qui la relit une fois la page ouverte, et qui propose l'autre
+ * langue là où on l'attend.
  */
-export default function Parcours() {
-  return (
-    <main id="contenu">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANISATION) }}
-      />
-      <Seuil />
-      <Vestibule />
-      <Enfilade />
-      <Matiere />
-      <Atelier />
-      <Sortie />
-    </main>
-  );
+export default function Racine() {
+  redirect(`/${LANGUE_PAR_DEFAUT}`);
 }

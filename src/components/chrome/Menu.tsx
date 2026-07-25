@@ -19,6 +19,7 @@ import { donneesEconomes } from "@/lib/capacites";
 import { visuels } from "@/data/visuels";
 import { useChrome } from "./ChromeProvider";
 import { useLangue } from "@/i18n/LangueProvider";
+import { chemin } from "@/i18n/langues";
 import { useSon } from "./SonProvider";
 import { useVideoProjet, armerReleve } from "./VideoProjet";
 import { entreesParcours, entreesProjets, type Entree } from "./entrees";
@@ -89,7 +90,7 @@ export function Menu() {
   const { arreter, reprendre } = useDefilement();
   const { mouvementReduit } = useMouvement();
   const { jouer } = useSon();
-  const { t } = useLangue();
+  const { t, langue } = useLangue();
   const flux = useVideoProjet();
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -524,11 +525,11 @@ export function Menu() {
   }, [menuOuvert, mouvementReduit]);
 
   const rendreEntree = (entree: Entree, projet: boolean) => (
-    <li className="menu__item" key={entree.href}>
+    <li className="menu__item" key={entree.route}>
       <span className="menu__ligne">
         <Link
           className="menu__lien"
-          href={entree.href}
+          href={chemin(langue, entree.route)}
           onClick={() => {
             if (projet) {
               jouer("projet");

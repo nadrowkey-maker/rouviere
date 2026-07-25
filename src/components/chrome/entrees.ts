@@ -23,7 +23,8 @@ export type Entree = {
    * l'affichage. Absente pour les projets.
    */
   cle?: Cle;
-  href: string;
+  /** La route **sans** segment de langue : le menu la préfixe à l affichage. */
+  route: string;
   /** Le slug du projet, pour retrouver sa vidéo d'aperçu au survol. */
   slug?: string;
   /** Ligne de couche technique décrochée dans la marge. */
@@ -37,13 +38,13 @@ export type Entree = {
  */
 export const entreesProjets: Entree[] = projets.map((projet) => ({
   label: projet.nom,
-  href: `/projets/${projet.slug}`,
+  route: `/projets/${projet.slug}`,
   slug: projet.slug,
   detail: `${projet.lieu} · ${projet.coordonnees} · ${projet.annee}`,
 }));
 
 export const entreesParcours: Entree[] = [
-  { cle: "entreeAtelier", href: "/#atelier" },
-  { cle: "entreeArchives", href: "/archives" },
-  { cle: "entreeContact", href: "/#contact" },
+  { cle: "entreeAtelier", route: "/#atelier" },
+  { cle: "entreeArchives", route: "/archives" },
+  { cle: "entreeContact", route: "/#contact" },
 ];

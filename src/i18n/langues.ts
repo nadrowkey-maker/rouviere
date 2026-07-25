@@ -1,28 +1,25 @@
 /**
  * Les deux langues du site, et le type qui les porte.
  *
- * ## Le parti pris, et ce qu'il coûte
+ * ## La langue est dans l'URL
  *
- * La langue est un **état de client**, pas un segment d'URL. Le site n'a donc
- * ni `/fr` ni `/en` : on bascule sans navigation, et le parcours ne se remonte
- * pas. C'est un choix, et il a un prix qu'il faut dire — un moteur de recherche
- * ne verra jamais que la version française, et l'on ne peut pas envoyer à
- * quelqu'un un lien déjà en anglais.
+ * Chaque page existe deux fois — `/fr/archives` et `/en/archives` — et le
+ * segment de tête **est** la source de vérité. On peut donc envoyer un lien
+ * déjà en anglais, et un moteur de recherche indexe les deux versions.
  *
- * Trois raisons de l'assumer ici :
+ * Le segment est `app/[langue]/`, c'est-à-dire **sous** le layout racine : le
+ * canvas du rig, le logotype et le contexte audio ne se démontent pas en
+ * changeant de langue. C'était la condition pour que ce soit tenable ici — un
+ * site dont l'architecture repose sur des nœuds persistants ne peut pas se
+ * permettre un layout par langue.
  *
- * — **L'atelier ne vit pas du référencement.** « Sur recommandation » est écrit
- *   dans le pied du site ; on ne cherche pas Rouvière, on vous en parle.
- * — **Le site est un parcours continu**, et son architecture repose sur des
- *   nœuds qui ne se démontent jamais : le canvas du rig, le logotype, le
- *   contexte audio. Changer de langue par changement de route ferait passer
- *   tout cela par une couture, au milieu d'un chapitre, sans raison.
- * — **La bascule est instantanée**, ce qu'aucune navigation ne peut être.
+ * `/` ne sert rien : il redirige vers la langue retenue de la dernière visite,
+ * ou à défaut vers celle de l'atelier.
  *
- * Le jour où il faut des URL par langue — un vrai client, un vrai référencement
- * —, c'est un segment `app/[langue]/` et les dictionnaires ci-contre ne bougent
- * pas d'une ligne. C'est pour cela qu'ils sont séparés du reste : le travail de
- * traduction est fait, le routage est une autre affaire.
+ * La contrepartie, et elle est réelle : changer de langue est une navigation.
+ * Le parcours se remonte et le défilement repart du haut. C'est le
+ * comportement de tous les sites qui ont des URL par langue, et c'est le prix
+ * d'un lien qu'on peut envoyer.
  */
 
 export const LANGUES = ["fr", "en"] as const;
@@ -78,3 +75,38 @@ export const CODE_LANGUE: Record<Langue, string> = {
   fr: "FR",
   en: "EN",
 };
+
+/**
+ * Un chemin interne, préfixé de la langue.
+ *
+ * **Aucun lien du site ne s'écrit en dur.** Tous passent par ici, sinon un
+ * anglophone qui clique une entrée du menu retomberait en français sans que
+ * rien ne le lui dise. `chemin("en", "/archives")` donne `/en/archives`, et
+ * `chemin("fr", "/")` donne `/fr`.
+ */
+export function chemin(langue: Langue, route = "/"): string {
+  if (route === "/") return `/${langue}`;
+  /* Les ancres du parcours (`/#atelier`) gardent leur fragment : c'est la même
+     page, on ne fait que préfixer ce qui précède le dièse. */
+  if (route.startsWith("/#")) return `/${langue}${route.slice(1)}`;
+  return `/${langue}${route}`;
+}
+
+/**
+ * Le même chemin dans l'autre langue, à partir du chemin courant.
+ *
+ * C'est ce qui permet à la bascule d'être un vrai lien : on ne renvoie pas à
+ * l'accueil en changeant de langue, on reste sur la page qu'on lisait. Un
+ * chemin qui ne commence pas par une langue connue est rendu tel quel, préfixé.
+ */
+export function memeCheminAutreLangue(
+  cheminCourant: string,
+  cible: Langue,
+): string {
+  const segments = cheminCourant.split("/").filter((s) => s !== "");
+  if (segments.length > 0 && LANGUES.includes(segments[0] as Langue)) {
+    segments[0] = cible;
+    return `/${segments.join("/")}`;
+  }
+  return chemin(cible, cheminCourant === "" ? "/" : cheminCourant);
+}

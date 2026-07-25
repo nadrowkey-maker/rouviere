@@ -13,6 +13,7 @@ import { fenetre, PLEIN, type Boite } from "@/components/motion/plongee";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon } from "@/components/chrome/SonProvider";
 import { useLangue } from "@/i18n/LangueProvider";
+import { chemin } from "@/i18n/langues";
 import { useOuverture } from "@/components/chrome/Ouverture";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
@@ -155,7 +156,7 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
   const enWebgl = useRig() !== null;
   const { jouer } = useSon();
   const { ouvrir } = useOuverture();
-  const { direTous } = useLangue();
+  const { direTous, langue } = useLangue();
 
   return (
     <article className="enfilade__piece" onFocusCapture={onFocusPiece}>
@@ -172,7 +173,7 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
           C'est le même lien que celui des entrées du menu. */}
       <Link
         className="enfilade__lien"
-        href={`/projets/${projet.slug}`}
+        href={chemin(langue, `/projets/${projet.slug}`)}
         data-curseur="ENTRER"
         /* Le seul son du couloir : celui du passage de seuil. On entre dans une
            pièce, la nappe va changer — l'impulsion le dit avant elle. */

@@ -29,9 +29,7 @@
 }
 
 .langue__code {
-  background: none;
-  border: 0;
-  padding: 0;
+  text-decoration: none;
   color: currentColor;
   cursor: pointer;
   /* La langue au repos est en retrait ; l'active est pleine. Une seule
@@ -48,6 +46,7 @@
 .langue__code[data-actif="true"] {
   opacity: 1;
   cursor: default;
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------------

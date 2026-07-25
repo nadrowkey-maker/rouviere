@@ -22,6 +22,22 @@ import "@/styles/base.css";
  */
 const SCRIPT_SEUIL = `try{if(sessionStorage.getItem('rouviere:seuil-vu')!=='1')document.documentElement.classList.add('seuil-a-jouer')}catch(e){}`;
 
+/**
+ * Pose `lang` sur le document avant la première peinture, d'après le segment
+ * d'URL.
+ *
+ * Le layout racine vit **au-dessus** du segment de langue — c'est ce qui permet
+ * au canvas, au logotype et au contexte audio de survivre à un changement de
+ * langue — et il ne peut donc pas connaître ce segment au rendu. Le contenu,
+ * lui, est bien servi dans la bonne langue : les composants clients lisent le
+ * paramètre de route, y compris au rendu serveur.
+ *
+ * Il ne reste que cet attribut-là à rattraper, et il compte : c'est lui qui fait
+ * changer de voix un lecteur d'écran et qui cale la césure typographique. Une
+ * ligne lue dans l'adresse suffit, et elle court avant tout affichage.
+ */
+const SCRIPT_LANGUE = `try{var l=location.pathname.split('/')[1];if(l==='fr'||l==='en')document.documentElement.lang=l}catch(e){}`;
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://rouviere.fr"),
   title: {
@@ -65,6 +81,7 @@ export default function RootLayout({
     <html lang="fr" className={variablesPolices} suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_SEUIL }} />
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_LANGUE }} />
         <a className="evitement" href="#contenu">
           Aller au contenu
         </a>

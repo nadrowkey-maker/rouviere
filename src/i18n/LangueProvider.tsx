@@ -1,17 +1,10 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useContext, useMemo } from "react";
+import { useParams } from "next/navigation";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import {
   CLE_LANGUE,
-  LANGUE_PAR_DEFAUT,
   langueValide,
   type Langue,
   type Texte,
@@ -22,33 +15,33 @@ import { INTERFACE, type Cle } from "./dictionnaire";
 /**
  * La langue courante, et de quoi la dire.
  *
- * Le contexte expose trois choses et rien d'autre : la langue, de quoi en
- * changer, et un traducteur. Les composants ne lisent jamais un dictionnaire
- * directement — ils appellent `t("cle")` pour l'interface, ou `dire(texte)`
- * pour un texte de données. Un seul point de lecture, donc une seule chose à
- * changer le jour où le routage par langue arrive.
+ * ## D'où vient la langue
  *
- * ## L'hydratation, et pourquoi le premier rendu est toujours en français
+ * **Du segment d'URL, et de nulle part ailleurs.** `useParams()` fonctionne
+ * aussi bien au rendu serveur qu'au client, si bien que le HTML servi pour
+ * `/en` est déjà en anglais — ce n'est pas une correction après coup.
  *
- * La préférence vit dans `localStorage`, que le serveur ne peut pas lire. Le
- * HTML rendu est donc toujours l'original ; l'effet de disposition corrige
- * avant la première peinture, si bien qu'un visiteur anglophone ne voit pas
- * clignoter le français. C'est le même parti que la classe `seuil-a-jouer`, à
- * ceci près qu'on ne peut pas le faire en script inline : le texte est dans
- * l'arbre React, pas dans une classe.
+ * Le provider vit dans le layout **racine**, au-dessus du segment de langue :
+ * il traverse donc les navigations sans se remonter, comme le canvas et le
+ * logotype. Il lit un paramètre qui, lui, change.
  *
- * ## `lang` sur le document
+ * `localStorage` ne décide plus de rien — il ne fait que **retenir** la
+ * dernière langue choisie, pour que le chrome puisse la proposer. La source de
+ * vérité est l'adresse.
  *
- * Ce n'est pas une formalité. C'est ce qui fait qu'un lecteur d'écran change de
- * voix, que la césure typographique suit la bonne langue et qu'un traducteur
- * automatique ne se déclenche pas sur du texte déjà traduit. L'attribut est
- * donc écrit à chaque bascule.
+ * ## Ce que le contexte expose
+ *
+ * Trois choses, et rien d'autre : la langue, un traducteur d'interface (`t`) et
+ * deux lecteurs de données bilingues (`dire`, `direTous`). Aucun composant ne
+ * lit un dictionnaire directement — un seul point de lecture, donc une seule
+ * chose à changer le jour où une troisième langue arrive.
+ *
+ * Il n'y a **pas** de fonction de bascule : changer de langue est une
+ * navigation, donc un lien. Voir `chrome/Langue.tsx`.
  */
 
 type Contexte = {
   langue: Langue;
-  changerLangue: (langue: Langue) => void;
-  basculerLangue: () => void;
   /** Un libellé d'interface. */
   t: (cle: Cle) => string;
   /** Un texte de données, déjà bilingue. */
@@ -60,51 +53,34 @@ type Contexte = {
 const ContexteLangue = createContext<Contexte | null>(null);
 
 export function LangueProvider({ children }: { children: React.ReactNode }) {
-  const [langue, setLangue] = useState<Langue>(LANGUE_PAR_DEFAUT);
-  /* Vrai une fois la préférence relue : elle ne doit être écrite qu'ensuite,
-     sinon le premier rendu écraserait le choix de la visite précédente. */
-  const relue = useRef(false);
+  const params = useParams();
+  const langue = langueValide(
+    typeof params?.langue === "string" ? params.langue : null,
+  );
 
-  useEffetVisuel(() => {
-    let stockee: string | null = null;
-    try {
-      stockee = localStorage.getItem(CLE_LANGUE);
-    } catch {
-      /* Stockage refusé (navigation privée) : on reste sur l'original. */
-    }
-    relue.current = true;
-    const choisie = langueValide(stockee);
-    if (choisie !== LANGUE_PAR_DEFAUT) setLangue(choisie);
-  }, []);
-
+  /* L'attribut `lang` du document et la préférence retenue. Le premier fait
+     changer de voix un lecteur d'écran et cale la césure typographique ; la
+     seconde ne sert qu'à ce que le site sache, la prochaine fois, quelle langue
+     proposer. Un script en tête de `<body>` pose déjà `lang` avant la première
+     peinture — ceci le tient à jour au fil des navigations. */
   useEffetVisuel(() => {
     document.documentElement.lang = langue;
-    if (!relue.current) return;
     try {
       localStorage.setItem(CLE_LANGUE, langue);
     } catch {
-      /* La préférence ne survivra pas à la visite. Le site, lui, fonctionne. */
+      /* Stockage refusé (navigation privée) : la préférence ne survit pas à la
+         visite. Le site, lui, fonctionne — l'URL suffit. */
     }
   }, [langue]);
-
-  const changerLangue = useCallback((suivante: Langue) => {
-    setLangue(suivante);
-  }, []);
-
-  const basculerLangue = useCallback(() => {
-    setLangue((courante) => (courante === "fr" ? "en" : "fr"));
-  }, []);
 
   const valeur = useMemo<Contexte>(
     () => ({
       langue,
-      changerLangue,
-      basculerLangue,
       t: (cle) => INTERFACE[cle][langue],
       dire: (texte) => texte[langue],
       direTous: (textes) => textes[langue],
     }),
-    [langue, changerLangue, basculerLangue],
+    [langue],
   );
 
   return (

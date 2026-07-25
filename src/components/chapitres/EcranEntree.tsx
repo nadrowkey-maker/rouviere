@@ -78,32 +78,38 @@ export function EcranEntree({ pret, onEntrer, conteneurRef }: Props) {
         <p className="ecran-entree__qualite technique">
           {t("entreeTitre")} — {t("entreeLieu")}
         </p>
-      </div>
 
-      <div
-        className="ecran-entree__choix"
-        role="group"
-        aria-label={t("entreeGroupe")}
-      >
-        <button
-          type="button"
-          className="ecran-entree__bouton technique"
-          disabled={!pret}
-          onClick={() => onEntrer(true)}
+        {/* Les deux portes, **dans le même bloc que le nom et juste sous lui**.
+            Elles étaient renvoyées en bas de l'écran, en capitales de onze
+            pixels et sans contour : le regard tombait sur le nom, n'y trouvait
+            rien à faire, et devait chercher. Un sas qu'il faut déchiffrer a raté
+            son seul travail.
+
+            Le contour d'un pixel fait le reste : ce qui est encadré se clique,
+            et l'on n'a rien à expliquer. */}
+        <div
+          className="ecran-entree__choix"
+          role="group"
+          aria-label={t("entreeGroupe")}
         >
-          {t("entreeAvecSon")}
-        </button>
+          <button
+            type="button"
+            className="ecran-entree__bouton"
+            disabled={!pret}
+            onClick={() => onEntrer(true)}
+          >
+            {t("entreeAvecSon")}
+          </button>
 
-        <span className="ecran-entree__separateur" aria-hidden="true" />
-
-        <button
-          type="button"
-          className="ecran-entree__bouton technique"
-          disabled={!pret}
-          onClick={() => onEntrer(false)}
-        >
-          {t("entreeSilence")}
-        </button>
+          <button
+            type="button"
+            className="ecran-entree__bouton"
+            disabled={!pret}
+            onClick={() => onEntrer(false)}
+          >
+            {t("entreeSilence")}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLogo } from "./LogoProvider";
 import { useLangue } from "@/i18n/LangueProvider";
+import { chemin } from "@/i18n/langues";
 import { useDefilement } from "@/components/motion/LenisProvider";
 import { traverserLeSas } from "./traversee";
 import "./logo.css";
@@ -30,7 +31,7 @@ import "./logo.css";
 
 export function Logo() {
   const { ref } = useLogo();
-  const { t } = useLangue();
+  const { t, langue } = useLangue();
   const { lenis } = useDefilement();
   const pathname = usePathname();
 
@@ -38,7 +39,7 @@ export function Logo() {
     <Link
       ref={ref}
       className="logo"
-      href="/"
+      href={chemin(langue)}
       aria-label={t("logoAccueil")}
       onClick={(evenement) => {
         /* Déjà sur l'accueil : pas de navigation, mais pas non plus de
@@ -48,7 +49,7 @@ export function Logo() {
            secondes. On passe donc par le sas : l'écran s'éteint, le saut se
            fait dans le noir, l'écran se rallume sur le hero. La séquence
            d'apparition du logo, elle, ne rejoue pas. */
-        if (pathname === "/") {
+        if (pathname === chemin(langue)) {
           evenement.preventDefault();
           traverserLeSas(() => {
             if (lenis !== null) lenis.scrollTo(0, { immediate: true });

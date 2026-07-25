@@ -5,6 +5,7 @@ import Link from "next/link";
 import { projets } from "@/data/projets";
 import { archives } from "@/data/archives";
 import { useLangue } from "@/i18n/LangueProvider";
+import { chemin } from "@/i18n/langues";
 import "./archives.css";
 
 /**
@@ -49,7 +50,7 @@ type Ligne = {
    traduit : au niveau du module, elle serait figée dans la langue du premier
    rendu. Elle ne se recalcule qu'au changement de langue. */
 export function Archives() {
-  const { t, dire, direTous } = useLangue();
+  const { t, dire, direTous, langue } = useLangue();
 
   const lignes = useMemo<Ligne[]>(
     () =>
@@ -59,7 +60,7 @@ export function Archives() {
           lieu: projet.lieu,
           annee: projet.annee,
           mention: `${projet.surface} m² — ${direTous(projet.matieres).join(", ")}`,
-          href: `/projets/${projet.slug}`,
+          href: chemin(langue, `/projets/${projet.slug}`),
         })),
         ...archives.map((archive) => ({
           nom: archive.nom,
@@ -68,7 +69,7 @@ export function Archives() {
           mention: dire(archive.mention),
         })),
       ].sort((a, b) => b.annee - a.annee),
-    [dire, direTous],
+    [dire, direTous, langue],
   );
 
   return (
