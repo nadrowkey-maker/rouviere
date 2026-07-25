@@ -47,6 +47,25 @@ import "./sortie.css";
 const ADRESSE = "atelier@rouviere.fr";
 const TELEPHONE = "+33 1 42 61 08 11";
 
+/**
+ * La taille du mot, reprise **telle quelle** du générique du seuil.
+ *
+ * Ce ne sont pas des valeurs choisies pour ce chapitre : ce sont celles que le
+ * seuil applique au logotype quand il le fait paraître au centre
+ * (`Seuil.tsx`, `largeurCible`). Le dernier mot du site et le premier sont le
+ * même mot, à la même échelle — c'est ce qui referme le fil.
+ */
+const LARGEUR_LOGO = 0.82;
+const LARGEUR_LOGO_MAX = 1200;
+
+/**
+ * Base de mesure, en pixels. Sa valeur n'a aucune importance : on pose le mot
+ * à cette taille, on lit sa largeur, on en déduit le corps qui donne la largeur
+ * voulue. Les deux écritures ont lieu dans la même tâche, donc rien n'est peint
+ * entre elles.
+ */
+const BASE_MESURE = 100;
+
 const PLAN = {
   mp4: "/media/sortie/plan.mp4",
   poster: "/media/sortie/plan-poster.avif",
@@ -61,8 +80,53 @@ export function Sortie() {
 
   const sectionRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const titreRef = useRef<HTMLHeadingElement>(null);
 
   const [copie, setCopie] = useState(false);
+
+  /* ---- Le mot, à l'échelle exacte du logotype du seuil ----
+   *
+   * On ne devine pas un corps en `vw` : on mesure. Une estimation dépendrait des
+   * métriques de Gambetta et serait fausse d'un pourcent ou deux — or ce qu'on
+   * veut est une identité, pas une ressemblance.
+   *
+   * C'est la seule lecture de mise en page de ce chapitre, elle a lieu **une
+   * fois** au montage et à chaque redimensionnement, jamais par frame. Le rig
+   * garde son interdit : ce qu'il proscrit, c'est un rect lu dans une boucle,
+   * pas une mesure de texte faite une bonne fois. Le seuil en fait une du même
+   * ordre pour son vol, et l'enfilade une au clic.
+   *
+   * `document.fonts.ready` n'est pas une précaution : mesurer avant que Gambetta
+   * ne soit là, c'est mesurer la police de repli, donc caler le mot sur une
+   * largeur qui n'est pas la sienne. */
+  useEffetVisuel(() => {
+    const titre = titreRef.current;
+    if (titre === null) return;
+
+    let annule = false;
+
+    const caler = () => {
+      if (annule) return;
+      titre.style.fontSize = `${BASE_MESURE}px`;
+      const largeur = titre.getBoundingClientRect().width;
+      /* Élément non peint (onglet en cours d'ouverture) : on laisse le corps de
+         repli de la feuille de style plutôt que de figer une division par zéro. */
+      if (largeur === 0) {
+        titre.style.removeProperty("font-size");
+        return;
+      }
+      const cible = Math.min(innerWidth * LARGEUR_LOGO, LARGEUR_LOGO_MAX);
+      titre.style.fontSize = `${(BASE_MESURE * cible) / largeur}px`;
+    };
+
+    void document.fonts.ready.then(caler);
+    addEventListener("resize", caler, { passive: true });
+
+    return () => {
+      annule = true;
+      removeEventListener("resize", caler);
+    };
+  }, []);
 
   /* ---- Le plan, et la nappe qui va avec ----
 
@@ -178,10 +242,21 @@ export function Sortie() {
         )}
       </div>
 
-      {/* Le mot, par-dessus, en négatif. Aucune couleur propre : c'est le même
-          régime que le logotype, et c'est ici qu'il se referme. */}
-      <h2 className="sortie__titre display-monument" id="sortie-titre">
-        Rouvière
+      {/* Le mot, par-dessus, en négatif.
+
+          Ce n'est pas un titre de chapitre qui ressemblerait au logotype :
+          **c'est le logotype**, dans la même famille, la même graisse, le même
+          interlettrage de 0,18 em, les mêmes capitales et la même largeur qu'au
+          générique du seuil. La structure est copiée à l'identique — un nœud qui
+          porte la typographie, un mot qui porte l'interlettrage et son retrait
+          de compensation — pour que rien ne puisse diverger.
+
+          Les capitales viennent de `text-transform` et non du texte : le seuil
+          peut écrire ROUVIÈRE en dur, son mot étant `aria-hidden` derrière un
+          `aria-label` ; ici le mot **est** le titre du chapitre, et un lecteur
+          d'écran doit lire un nom, pas huit lettres. */}
+      <h2 className="sortie__titre" id="sortie-titre" ref={titreRef}>
+        <span className="sortie__mot">Rouvière</span>
       </h2>
 
       {/* Les coordonnées ne sont pas un pied de page : elles sont posées dans

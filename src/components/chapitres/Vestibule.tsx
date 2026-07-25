@@ -182,6 +182,21 @@ const EXPOSITION = 0.55;
  * avant que le plafond ne prenne.
  */
 const MINUTAGE = {
+  /**
+   * **L'allumage du plan lui-même**, à ne pas confondre avec celui de la pièce.
+   *
+   * Le cadre se pose à l'instant exact où le voile du hero atteint le noir, mais
+   * il se posait *à pleine exposition* : la première image, une pièce obscure où
+   * l'on distingue tout de même une baie et des lumières de ville, arrivait d'un
+   * coup sur du noir plein. Le raccord était juste, l'apparition ne l'était pas.
+   *
+   * Le plan monte donc du noir sur les premiers centièmes de la course. Deux
+   * conséquences, et les deux sont bonnes : le basculement de `data-pose` se
+   * fait de noir à noir, donc il est strictement invisible ; et le chapitre
+   * s'ouvre par une pièce qui émerge au lieu d'une image qu'on allume. C'est le
+   * pendant exact de l'extinction qui le referme.
+   */
+  ignition: [0.0, 0.045],
   unEntree: [0.01, 0.04],
   unSortie: [0.075, 0.105],
   deuxEntree: [0.125, 0.155],
@@ -286,7 +301,10 @@ export function Vestibule() {
       if (mot !== null) {
         gsap.set(mot, { opacity: 0, scale: 1.06, filter: "blur(10px)" });
       }
-      if (plan !== null) gsap.set(plan, { "--eau": 0, "--expo": EXPOSITION });
+      /* Le plan part **éteint** : c'est ce qui rend le basculement de `data-pose`
+         invisible, et ce qui donne au chapitre une pièce qui émerge plutôt
+         qu'une image qui surgit. */
+      if (plan !== null) gsap.set(plan, { "--eau": 0, "--expo": 0 });
       if (ancre !== null) gsap.set(ancre, { yPercent: 100 });
 
       /* ---- Le cadre n'est là qu'à partir de son chapitre ----
@@ -369,6 +387,17 @@ export function Vestibule() {
         },
         0,
       );
+
+      /* La pièce monte du noir. `power2.out` : elle sort vite de rien, puis se
+         pose — une émergence, pas une montée linéaire qu'on verrait progresser. */
+      if (plan !== null) {
+        const [id, if_] = MINUTAGE.ignition;
+        tl.to(
+          plan,
+          { "--expo": EXPOSITION, duration: if_ - id, ease: "power2.out" },
+          id,
+        );
+      }
 
       /**
        * Une entrée. **Rien ne se découpe, rien ne monte derrière une arête,

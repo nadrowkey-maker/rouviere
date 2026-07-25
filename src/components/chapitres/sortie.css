@@ -56,16 +56,40 @@
    Calé à gauche, jamais centré : le centre est réservé au seuil et au mot
    LUMIÈRE, et il n'a rien à faire ici. */
 
+/* Les valeurs typographiques sont celles de `.logo` / `.logo__mot`, à la ligne
+   près : famille, graisse, interligne, interlettrage, retrait de compensation.
+   Ce n'est pas une ressemblance, c'est le même objet — si le logotype change,
+   les deux blocs doivent changer ensemble.
+
+   Le corps, lui, n'est pas écrit ici : il est **mesuré** par le composant, qui
+   applique la loi du générique du seuil (82 % de la fenêtre, plafond 1200 px).
+   La valeur ci-dessous n'est qu'un repli, pour la frame qui précède le
+   chargement de Gambetta et pour le cas sans JavaScript. */
 .sortie__titre {
   grid-row: 1;
   justify-self: start;
   margin: 0;
-  max-width: 100%;
-  font-size: var(--text-monument);
-  line-height: 0.84;
+  /* Le mot ne se casse jamais : c'est un logotype, pas une phrase. C'est aussi
+     ce qui rend sa mesure fiable — une largeur de contenu, pas de conteneur. */
+  white-space: nowrap;
+
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 12vw;
+  line-height: 1;
+  text-transform: uppercase;
   color: var(--color-craie);
   mix-blend-mode: difference;
   pointer-events: none;
+}
+
+.sortie__mot {
+  display: inline-block;
+  letter-spacing: 0.18em;
+  /* Le dernier interlettrage déborde à droite ; on le rend au mot. Même
+     compensation que sur `.logo__mot`, sans quoi les deux largeurs
+     divergeraient de 0,18 em. */
+  padding-left: 0.18em;
 }
 
 @supports not (mix-blend-mode: difference) {
