@@ -13,6 +13,7 @@ import Lenis from "lenis";
 import "lenis/dist/lenis.css";
 import { ScrollTrigger } from "@/lib/gsap";
 import { inscrire } from "@/lib/boucle";
+import { positionAncre } from "@/lib/ancres";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { useMouvement } from "./MotionProvider";
 
@@ -55,6 +56,19 @@ export function LenisProvider({ children }: { children: React.ReactNode }) {
    * posé au moment du changement de route), et on rafraîchit ScrollTrigger : les
    * épinglages de la nouvelle route se mesurent depuis le haut, pas depuis une
    * position qui n'existe plus.
+   *
+   * ## Sauf si la route porte une ancre
+   *
+   * Et c'est le correctif : « chaque route commence en haut » est juste pour
+   * une navigation ordinaire, et **faux** quand l'adresse dit où aller. Le menu
+   * ouvert depuis une page projet renvoyait vers `/fr#contact` ; Next montait le
+   * parcours, cette remise à zéro passait derrière lui, et l'on arrivait sur le
+   * hero. L'ancre était perdue par le remède d'un autre bug.
+   *
+   * Elle est donc honorée **après** le rafraîchissement, jamais avant : la
+   * position d'une section du bas dépend de tout ce qui la précède, épinglages
+   * compris, et la mesurer sur une page dont les déclencheurs ne sont pas
+   * encore calés donnerait un chiffre qui ne veut rien dire.
    */
   useEffetVisuel(() => {
     /* `scrollRestoration` manuel : sans lui, un rechargement rendrait la page à
@@ -73,6 +87,15 @@ export function LenisProvider({ children }: { children: React.ReactNode }) {
       instance.resize();
     }
     ScrollTrigger.refresh();
+
+    /* L'ancre, s'il y en a une. `force` parce qu'un verrou peut être posé —
+       la couture de route, le menu qui n'a pas fini de se retirer. */
+    const ancre = positionAncre(location.hash);
+    if (ancre !== null) {
+      scrollTo(0, ancre);
+      instance?.scrollTo(ancre, { immediate: true, force: true });
+      ScrollTrigger.update();
+    }
     /* `pathname` n'est pas lu dans le corps : il sert de déclencheur. C'est son
        changement, et lui seul, qui dit qu'on vient d'arriver sur une route. */
     // eslint-disable-next-line react-hooks/exhaustive-deps

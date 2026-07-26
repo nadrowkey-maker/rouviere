@@ -29,16 +29,6 @@ export type Entree = {
   slug?: string;
   /** Ligne de couche technique décrochée dans la marge. */
   detail?: string;
-  /**
-   * L'élément à viser, quand le haut de la section ancrée n'est pas le bon
-   * repère. Le sélecteur est résolu au moment du clic, dans le document réel.
-   */
-  cible?: string;
-  /**
-   * Décalage appliqué à l'arrivée, en fraction de hauteur de fenêtre. Négatif
-   * pour laisser de l'air au-dessus de la cible ; positif pour descendre.
-   */
-  decalage?: number;
 };
 
 /**
@@ -56,29 +46,15 @@ export const entreesProjets: Entree[] = projets.map((projet) => ({
 /**
  * Les trois passages du parcours.
  *
- * Deux d'entre eux visent une ancre de la page d'accueil, et **ce n'est pas le
- * navigateur qui les emmène** : le menu intercepte le clic et passe par le sas
- * (voir `Menu.rendreEntree`). Laissé à Next, un lien vers `/fr/#atelier` depuis
- * `/fr` est une navigation vers la même route — et une navigation remonte en
- * haut. C'est ce qui envoyait le contact sur le hero.
+ * Deux d'entre eux visent une ancre de la page d'accueil, et l'on y arrive par
+ * **deux chemins qu'il a fallu traiter séparément** : depuis le parcours, le
+ * menu intercepte le clic et saute par le sas ; depuis une autre route, c'est
+ * une vraie navigation, et c'est `LenisProvider` qui honore l'ancre une fois la
+ * page montée. Où l'on atterrit exactement — l'élément visé, l'air au-dessus —
+ * est décidé au même endroit pour les deux : voir `lib/ancres.ts`.
  */
 export const entreesParcours: Entree[] = [
-  {
-    cle: "entreeAtelier",
-    route: "/#atelier",
-    /**
-     * **On vise l'en-tête, pas la section.** La section ouvre sur une réserve
-     * haute qui peut atteindre douze rem : arriver sur son bord posait le
-     * chapitre bien au-dessous de la ligne de flottaison, et ce qu'on voyait en
-     * haut de l'écran était la fin du chapitre précédent. On vise donc le
-     * premier élément qui porte quelque chose.
-     */
-    cible: "#atelier .atelier__entete",
-    /** Un dixième d'écran d'air au-dessus du titre : il se pose, il ne se colle pas. */
-    decalage: -0.1,
-  },
+  { cle: "entreeAtelier", route: "/#atelier" },
   { cle: "entreeArchives", route: "/archives" },
-  /* La sortie tient un plein cadre : son bord haut est le bon repère, et c'est
-     le chapitre entier qu'on veut, pas le pied de page — il n'y en a pas. */
   { cle: "entreeContact", route: "/#contact" },
 ];

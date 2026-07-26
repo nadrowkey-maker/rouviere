@@ -16,7 +16,7 @@ import {
   RETIRE,
 } from "@/components/motion/passage";
 import { donneesEconomes } from "@/lib/capacites";
-import { decalageDans } from "@/lib/mesure";
+import { positionAncre } from "@/lib/ancres";
 import { visuels } from "@/data/visuels";
 import { useChrome } from "./ChromeProvider";
 import { traverserLeSas } from "./traversee";
@@ -563,14 +563,10 @@ export function Menu() {
     (entree: Entree) => {
       fermerMenu(true, true);
       traverserLeSas(() => {
-        const selecteur = entree.cible ?? entree.route.slice(entree.route.indexOf("#"));
-        const cible = document.querySelector<HTMLElement>(selecteur);
-        if (cible === null) return;
-
-        const y =
-          decalageDans(cible, document.body).y +
-          (entree.decalage ?? 0) * window.innerHeight;
-        const arrivee = Math.max(0, y);
+        const arrivee = positionAncre(
+          entree.route.slice(entree.route.indexOf("#")),
+        );
+        if (arrivee === null) return;
 
         /* `force` : le menu a posé son verrou en s'ouvrant, et un Lenis arrêté
            ignore `scrollTo`. Le verrou tombera au retour de `reprendre("menu")`,
