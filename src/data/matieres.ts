@@ -77,7 +77,10 @@ export const matieres: Matiere[] = [
        sujet après coup, et renommer les médias casserait `scripts/matieres.mjs`
        et sa source. Le nom affiché, lui, est celui de la matière. */
     cle: "chaux-blanche",
-    nom: { fr: "La trame", en: "The weave" },
+    /* **Le relief**, et c'est le capitonnage qui le porte : le cuir piqué est
+       une surface qui creuse et qui saille, et la caméra la traverse en lumière
+       rasante. Le nom va au plan, pas à l'ordre d'apparition. */
+    nom: { fr: "Le relief", en: "The relief" },
     plan: media("chaux-blanche", {
       fr: "Un salon sombre. Des banquettes de cuir capitonné se suivent le long de la pièce, des palmiers en bac derrière elles, une guirlande d'ampoules au plafond. La caméra glisse lentement.",
       en: "A dark lounge. Buttoned leather benches follow one another down the room, potted palms behind them, a string of bulbs overhead. The camera drifts slowly.",
@@ -85,7 +88,10 @@ export const matieres: Matiere[] = [
   },
   {
     cle: "voile-de-lin",
-    nom: { fr: "Le relief", en: "The relief" },
+    /* **La trame** : la grille des menuisiers d'un mur à l'autre, doublée par
+       les rayures du tapis. C'est une trame au sens propre — un réseau régulier
+       qu'on lit en entier d'un coup d'œil. */
+    nom: { fr: "La trame", en: "The weave" },
     plan: media("voile-de-lin", {
       fr: "Un séjour vitré ouvert sur un jardin. Canapé bas, table basse, tapis rayé, baies toute hauteur d'un mur à l'autre. La caméra glisse lentement.",
       en: "A glazed living room open onto a garden. Low sofa, low table, striped rug, full-height glazing from wall to wall. The camera drifts slowly.",

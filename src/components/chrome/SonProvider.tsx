@@ -179,11 +179,27 @@ const FONDU_NAPPES = 1.5;
 /** Gain de l'eau à pleine vitesse. */
 const EAU_MAX = 0.6;
 /**
- * Niveau de la nappe de la sortie. Elle vit sur le bus d'ambiance, qui est à
- * gain plein : cette valeur la met à peu près au niveau qu'avaient les nappes
- * du parcours (0,5), pour que l'échange ne s'entende pas comme une montée.
+ * **Niveau de la nappe de la sortie**, et pourquoi il passe 1.
+ *
+ * Il valait 0,55, choisi pour égaler le bus des nappes — un raisonnement juste
+ * sur les gains et faux sur le résultat, parce qu'il supposait deux fichiers de
+ * même niveau. Ils ne le sont pas du tout, et la mesure le dit :
+ *
+ *   `site.mp3`    moyenne −16,8 dB, crête −2,7 dB
+ *   `sortie.mp3`  moyenne −31,7 dB, crête −12,8 dB
+ *
+ * Quinze décibels d'écart, soit un rapport d'amplitude de près de six. À gains
+ * égaux, la sortie sortait donc quatorze décibels sous la nappe du parcours :
+ * on n'entendait « pas grand-chose », et c'était exact.
+ *
+ * 2,6 rend ces quinze décibels et met les deux nappes au même niveau perçu.
+ * Un gain au-dessus de 1 n'a rien d'anormal ici — c'est un fichier bas qu'on
+ * remonte, pas un fichier normal qu'on pousse —, et la marge est vérifiée : la
+ * crête du fichier est à −12,8 dB, soit 0,23 en linéaire, ce qui donne 0,60
+ * après gain. La destination écrête à 1, et la nappe est **seule** dans ce
+ * chapitre — le bus des nappes y est coupé, c'est tout l'objet de la scène.
  */
-const SORTIE_MAX = 0.55;
+const SORTIE_MAX = 2.6;
 /**
  * Vitesse du pointeur, en pixels par frame, au-delà de laquelle l'eau est à
  * son plein. Trente pixels par frame à soixante hertz, c'est un balayage franc

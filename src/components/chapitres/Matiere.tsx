@@ -14,7 +14,7 @@ import "./matiere.css";
  * La Matière. Un chapitre entier sans image de projet. On touche.
  *
  * **Trois matières en plein écran, et rien d'autre.** Le noyer fumé de
- * l'Appartement Laiton, la trame des Charmilles, le relief de la Villa
+ * l'Appartement Laiton, le relief des Charmilles, la trame de la Villa
  * Calcaire. On passe de l'une à l'autre **par masque** : le plan suivant
  * s'ouvre par le haut, à bord franc, et recouvre le précédent. À aucun instant un
  * pixel de l'écran ne montre deux matières mêlées — c'est ce qui distingue un
