@@ -52,3 +52,6 @@ yarn-error.log*
 # et une fois dans l'historique, ils n'en sortent plus.
 public/media/manifeste/allumage.mp4
 public/media/sortie/sortie.mp4
+
+# Masters video (rushes) — hors depot et hors build
+/medias-source/

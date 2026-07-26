@@ -10,6 +10,7 @@ import {
   MANIFESTE,
   PART_ALLUMAGE,
   PLAN_ALLUME,
+  PLAN_LIEU,
 } from "@/data/manifeste";
 import { useRig } from "@/components/gl/Rig";
 import type { EtatBassin } from "@/components/gl/materiaux/bassin";
@@ -101,8 +102,39 @@ import "./vestibule.css";
  *   **Cinq.**  Tout disparaît sauf le mot « silence », qui reste seul et à sa
  *             place dans la phrase. Puis le bassin monte en plein écran derrière
  *             lui, et la nappe d'ambiance se coupe : il ne reste que l'eau.
- *   **Six.**   L'eau redescend, « Le reste appartient aux gens qui vivent là. »
- *             paraît, et le site reprend.
+ *   **Six.**   **La caméra se redresse.** Elle quitte l'aplomb du bassin et
+ *             monte vers l'horizon — et ce qu'elle découvre au-dessus de l'eau
+ *             est le lieu : un plan filmé de la villa autour de sa piscine,
+ *             dans lequel l'eau calculée occupe exactement la place de l'eau
+ *             réelle. « silence » s'en va juste avant la fin du mouvement.
+ *   **Sept.** « Le reste appartient aux gens qui vivent là. » paraît en haut à
+ *             gauche, par-dessus le lieu, pendant que sa lumière baisse.
+ *
+ * ## Le redressement, et pourquoi un plan fixe peut servir de décor
+ *
+ * La caméra du plan filmé ne bouge pas. Cela ferait un décor faux si la nôtre se
+ * déplaçait — mais **une rotation pure autour du point nodal ne produit aucune
+ * parallaxe, à aucune profondeur**, c'est le principe du panorama assemblé.
+ * Reprojeté sur la sphère des directions, un plan verrouillé est donc un
+ * échantillon de champ lumineux exact tant que la caméra ne fait que pivoter.
+ *
+ * D'où le découpage du mouvement, qui n'est pas cosmétique : la translation est
+ * jouée en tête de course, pendant que le cadre n'est encore que de l'eau ; la
+ * rotation déborde longuement après elle ; et le plan n'entre qu'une fois la
+ * translation éteinte. Tout est dans `bassin.ts`, qui porte les chiffres.
+ *
+ * La pose finale n'est pas choisie à l'œil : elle est **résolue** par calage sur
+ * quatre points relevés dans l'image. Le contrôle est double — le tangage
+ * résolu place l'horizon à `y = 371` sur une image de 1080, et le trait de mer
+ * visible entre les battants du portail est mesuré à `y ≈ 377`. Conséquence :
+ * la frontière entre l'eau calculée et la vidéo n'est pas un masque tracé à la
+ * main, c'est la géométrie elle-même.
+ *
+ * **L'eau ne redescend plus.** Elle le faisait, et c'était juste tant qu'elle
+ * n'était qu'une surface ; après un redressement, la faire replonger pour la
+ * faire glisser vers le bas se lirait comme un rembobinage. Le chapitre se
+ * termine maintenant en baissant la lumière du lieu pendant que se dit la
+ * dernière phrase, puis le cadre se décolle et la page reprend sa descente.
  *
  * ## Le raccord avec le hero : on ne descend pas vers le plan
  *
@@ -132,9 +164,11 @@ import "./vestibule.css";
  * retard et sauvait la mise. `useGLProxy` a désormais son filet, mais l'ordre
  * correct est celui-ci, et c'est celui de tous les autres chapitres.
  *
- * Grammaire de mouvement : **le temps qu'on remonte**. Le hero qui précède
- * s'éteint sans bouger, l'enfilade qui suit traverse latéralement ; ici rien ne
- * se déplace à l'écran, c'est un plan filmé qu'on parcourt dans les deux sens.
+ * Grammaire de mouvement : **le temps qu'on remonte**, puis **le regard qui se
+ * lève**. Le hero qui précède s'éteint sans bouger, l'enfilade qui suit traverse
+ * latéralement ; ici on parcourt un plan filmé dans les deux sens, et le
+ * chapitre se referme sur le seul mouvement de caméra du site — une rotation,
+ * ce qu'aucun autre chapitre ne fait.
  */
 
 const SceneBassin = dynamic(() => import("@/components/gl/SceneBassin"), {
@@ -151,7 +185,7 @@ const SceneBassin = dynamic(() => import("@/components/gl/SceneBassin"), {
  * pas d'environ trente-sept pixels, ce qui donne à la molette un contrôle
  * continu au lieu d'un saut d'image tous les crans.
  */
-const TEMPS = 15;
+const TEMPS = 19;
 
 /**
  * Où s'arrête le plan filmé. **C'est la charnière du chapitre.**
@@ -164,7 +198,7 @@ const TEMPS = 15;
  * L'index de l'allumage étant mappé linéairement sur `[0, FILM_FIN]`, cette
  * valeur commande aussi l'instant où le mot se lève : `PART_ALLUMAGE × FILM_FIN`.
  */
-const FILM_FIN = 0.62;
+const FILM_FIN = 0.437;
 
 /** L'instant, en part de la course, où la pièce s'allume. Calculé, pas choisi. */
 const ALLUMAGE = PART_ALLUMAGE * FILM_FIN;
@@ -184,6 +218,21 @@ const ALLUMAGE = PART_ALLUMAGE * FILM_FIN;
  * la phrase cède au mot qu'elle annonce, et elle a disparu à l'image 75, juste
  * avant que le plafond ne prenne.
  */
+/**
+ * Un intervalle de la **phase filmée**, exprimé en fractions du plan et non de
+ * la course entière.
+ *
+ * C'est ce qui rend le montage du film insensible à la longueur du chapitre. Le
+ * redressement de la caméra a rallongé la course de cinq écrans ; écrites en
+ * parts absolues, les six premières entrées auraient toutes glissé dans le plan
+ * et il aurait fallu les recalculer une à une — c'est-à-dire les casser. Écrites
+ * ainsi, elles ne bougent pas d'une image.
+ */
+const film = (debut: number, fin: number): readonly [number, number] => [
+  debut * FILM_FIN,
+  fin * FILM_FIN,
+];
+
 const MINUTAGE = {
   /**
    * **L'allumage du plan lui-même**, à ne pas confondre avec celui de la pièce.
@@ -210,7 +259,7 @@ const MINUTAGE = {
    * noir doit partir lentement, sans quoi elle ne sort pas du noir, elle y
    * apparaît. D'où `power2.in`, et une plage franchement longue.
    */
-  ignition: [0.0, 0.045],
+  ignition: film(0.0, 0.0726),
   /**
    * **La première phrase attend que la pièce soit là.**
    *
@@ -221,38 +270,84 @@ const MINUTAGE = {
    *
    * Son entrée commence donc après la fin de l'ignition, et non avant.
    */
-  unEntree: [0.055, 0.082],
-  unSortie: [0.112, 0.138],
-  deuxEntree: [0.152, 0.178],
+  unEntree: film(0.0887, 0.1323),
+  unSortie: film(0.1806, 0.2226),
+  deuxEntree: film(0.2452, 0.2871),
   /** La couche technique s'efface avant la lumière, et ne revient pas. */
-  margeSortie: [0.145, 0.178],
+  margeSortie: film(0.2339, 0.2871),
   /** « Je règle la » cède au mot : la sortie enjambe l'allumage. */
-  deuxSortie: [0.2125, 0.24],
+  deuxSortie: film(0.3427, 0.3871),
   /**
    * Le mot LUMIÈRE. Son début **est** l'index de l'allumage : il se lève avec
    * la pièce. La plage est courte — c'est une apparition de générique, pas une
    * montée en fondu. Et il ne se retire pas : il tient jusqu'au bout du plan.
    */
-  lumiereEntree: [ALLUMAGE, ALLUMAGE + 0.05],
+  lumiereEntree: [ALLUMAGE, ALLUMAGE + 0.0806 * FILM_FIN],
   /**
    * L'extinction. Le plan est fini, la pièce s'éteint — et le mot avec elle,
    * un rien plus tard : la lumière est la dernière chose qui sort. Le négatif
    * flambe au passage, puisqu'il se calcule sur un fond qui tombe au noir.
    */
-  extinction: [FILM_FIN, FILM_FIN + 0.055],
-  lumiereSortie: [FILM_FIN + 0.015, FILM_FIN + 0.065],
+  extinction: [FILM_FIN, FILM_FIN + 0.041],
+  lumiereSortie: [FILM_FIN + 0.011, FILM_FIN + 0.049],
   /** Dans le noir, et seulement là. */
-  cinqEntree: [0.725, 0.768],
+  cinqEntree: [0.521, 0.563],
   /** Tout disparaît sauf « silence ». */
-  reduction: [0.795, 0.828],
-  eauMontee: [0.838, 0.878],
-  eauSortie: [0.925, 0.958],
-  septEntree: [0.948, 0.988],
+  reduction: [0.584, 0.616],
+  eauMontee: [0.626, 0.672],
+  /**
+   * **Le redressement.** La caméra quitte l'aplomb, et ce qu'on découvre
+   * au-dessus de l'eau est le lieu — la villa autour de sa piscine, en plan
+   * filmé, dans lequel le bassin calculé vient prendre la place de l'eau réelle.
+   *
+   * C'est le plus long mouvement du chapitre, et il doit l'être : trois écrans
+   * et demi. Un redressement expédié se lit comme une coupe.
+   *
+   * On lui laisse aussi un temps mort avant lui — entre la fin de la montée de
+   * l'eau et son début, l'écran ne fait rien d'autre que de l'eau. C'est là
+   * qu'on joue avec, et c'est la raison d'être de la section.
+   */
+  redressement: [0.705, 0.895],
+  /** « silence » s'en va juste avant que la dernière phrase ne paraisse. */
+  silenceSortie: [0.855, 0.886],
+  septEntree: [0.895, 0.942],
+  /**
+   * **La sortie du chapitre s'éteint, elle ne se coupe pas.**
+   *
+   * Le cadre se décollait et la page reprenait sa descente : une image de villa
+   * en plein écran, puis l'encre à l'image suivante. Un raccord franc là où tout
+   * le reste du chapitre est en fondu — et le seul endroit du site où l'on
+   * passait d'une lumière à un noir sans transition.
+   *
+   * On éteint donc le lieu sur la dernière portion de la course, exactement
+   * comme on éteint la pièce du quatrième temps : un multiplicateur qui descend,
+   * jamais un voile posé par-dessus. La dernière phrase s'en va avec lui.
+   */
+  extinctionFinale: [0.958, 1.0],
 } as const;
 
-/** La séquence est en scrub : ces bornes disent où l'eau prend la main. */
-const EAU_DEBUT = 0.818;
-const EAU_FIN = 0.965;
+/**
+ * La séquence est en scrub : ces bornes disent où l'eau prend la main.
+ *
+ * `EAU_FIN` a disparu, et ce n'est pas un oubli. L'eau ne redescend plus — la
+ * caméra s'est redressée, et la faire replonger pour la faire glisser vers le
+ * bas serait un rembobinage, c'est-à-dire le seul geste qui montre la ficelle.
+ * Le chapitre se termine désormais comme il se doit : le cadre se décolle, la
+ * page reprend sa descente, et le lieu s'en va avec elle. L'observateur
+ * d'intersection suspend la simulation dès que l'ancre quitte l'écran, et
+ * `onLeave` rend les nappes au site.
+ */
+const EAU_DEBUT = 0.605;
+
+/**
+ * Où la nature s'allume.
+ *
+ * Pas avec l'eau : **avec le lieu**. La valeur est celle où le plan filmé
+ * commence à paraître dans le redressement — tant qu'on est à l'aplomb, il n'y a
+ * pas d'habitat à illustrer, seulement une surface. Les oiseaux arrivent donc au
+ * moment où l'on cesse de ne voir que de l'eau, et repartent avec le chapitre.
+ */
+const NATURE_DEBUT = 0.815;
 
 /**
  * Course verticale d'une phrase, en pixels. Huit — la ligne de base du site,
@@ -264,7 +359,7 @@ const DERIVE_PX = 8;
 export function Vestibule() {
   const enWebgl = useRig() !== null;
   const { mouvementReduit, degrade } = useMouvement();
-  const { reglerEau, couperNappes, jouerEffet } = useSon();
+  const { reglerEau, couperNappes, jouerEffet, reglerNature } = useSon();
   const { t, dire } = useLangue();
 
   const courseRef = useRef<HTMLDivElement>(null);
@@ -279,7 +374,13 @@ export function Vestibule() {
   /* L'état du bassin vit dans une ref : le pointeur bouge soixante fois par
      seconde, le passer par `useState` reconstruirait l'arbre à chaque geste.
      Le shader le lit au cadre. */
-  const etatBassin = useRef<EtatBassin>({ pointeur: null, clics: 0 });
+  const etatBassin = useRef<EtatBassin>({
+    pointeur: null,
+    clics: 0,
+    redressement: 0,
+    exposition: 1,
+    extinction: 0,
+  });
 
   /* Le plan de la pièce. Le hook charge et peint ; c'est la timeline ci-dessous
      qui écrit l'index, comme elle écrit tout le reste du chapitre. */
@@ -337,6 +438,13 @@ export function Vestibule() {
       if (decor !== null) gsap.set(decor, { "--eau": 0 });
       if (plan !== null) gsap.set(plan, { opacity: 0 });
       if (ancre !== null) gsap.set(ancre, { yPercent: 100 });
+      /* La caméra du bassin repart à l'aplomb. L'état vit dans une ref, donc il
+         survit à la reconstruction de la timeline — il faut le remettre à la
+         main, sans quoi un rechargement à chaud rouvrirait le chapitre sur une
+         caméra déjà redressée. */
+      etatBassin.current.redressement = 0;
+      etatBassin.current.exposition = 1;
+      etatBassin.current.extinction = 0;
 
       /* ---- Le cadre n'est là qu'à partir de son chapitre ----
        *
@@ -366,9 +474,18 @@ export function Vestibule() {
       /* Le passage du son et de l'interactivité de l'eau. Ni l'un ni l'autre
          n'est une animation : ce sont deux bascules, franchies une fois dans
          chaque sens, sur des seuils qui encadrent la montée et la descente. */
+      /* La nature s'allume avec le lieu et s'éteint avec le chapitre. C'est une
+         bascule, pas une rampe : les fondus sont dans le moteur audio, où ils
+         durent trois secondes — voir `FONDU_NATURE`. */
+      let natureTenue = false;
+      const basculerNature = (dans: boolean) => {
+        if (dans === natureTenue) return;
+        natureTenue = dans;
+        reglerNature(dans);
+      };
+
       let eauTenue = false;
-      const basculerEau = (avancee: number) => {
-        const dans = avancee > EAU_DEBUT && avancee < EAU_FIN;
+      const basculerEau = (dans: boolean) => {
         if (dans === eauTenue) return;
         eauTenue = dans;
         couperNappes(dans);
@@ -386,9 +503,21 @@ export function Vestibule() {
           end: "bottom bottom",
           scrub: true,
           invalidateOnRefresh: true,
-          onUpdate: (self) => basculerEau(self.progress),
-          onLeaveBack: () => basculerEau(0),
-          onLeave: () => basculerEau(1),
+          /* L'eau prend la main à `EAU_DEBUT` et ne la rend plus : elle tient
+             jusqu'au bout de la course, puisque c'est elle qui porte la fin du
+             chapitre. Ce sont les deux sorties qui la referment. */
+          onUpdate: (self) => {
+            basculerEau(self.progress > EAU_DEBUT);
+            basculerNature(self.progress > NATURE_DEBUT);
+          },
+          onLeaveBack: () => {
+            basculerEau(false);
+            basculerNature(false);
+          },
+          onLeave: () => {
+            basculerEau(false);
+            basculerNature(false);
+          },
         },
       });
 
@@ -617,24 +746,88 @@ export function Vestibule() {
         tl.to(ancre, { yPercent: 0, duration: ef - ed, ease: "none" }, ed);
       }
 
-      /* Sept — l'eau redescend, exactement comme elle est montée, et le noir
-         reprend le cadre. */
-      const [xd, xf] = MINUTAGE.eauSortie;
-      if (decor !== null) {
-        tl.to(decor, { "--eau": 0, duration: xf - xd, ease: "none" }, xd);
-      }
-      if (ancre !== null) {
-        tl.to(ancre, { yPercent: 100, duration: xf - xd, ease: "none" }, xd);
-      }
+      /* ---- Sept — la caméra se redresse, et le lieu paraît ----
+       *
+       * **C'est le sommet du chapitre, et c'est un seul scalaire.** La caméra du
+       * bassin quitte l'aplomb pour l'horizon, et ce qu'elle découvre au-dessus
+       * de l'eau est un plan filmé de la villa — dans lequel le bassin calculé
+       * occupe très exactement la place de la piscine réelle, la pose ayant été
+       * résolue par calage sur l'image (voir `bassin.ts`).
+       *
+       * Le scalaire passe par la ref d'état plutôt que par une prop : il change
+       * à chaque cran de molette, et le faire traverser React reconstruirait
+       * l'arbre soixante fois par seconde. La courbe est `none` — c'est le
+       * mouvement de caméra lui-même qui porte ses lissages, en interne, sur
+       * deux intervalles décalés (voir `COURSE_POSITION` et `COURSE_TANGAGE`) ;
+       * en poser une seconde par-dessus reviendrait à composer deux
+       * accélérations et à perdre le pas constant de la molette.
+       */
+      const [rdd, rdf] = MINUTAGE.redressement;
+      tl.to(
+        etatBassin.current,
+        { redressement: 1, duration: rdf - rdd, ease: "none" },
+        rdd,
+      );
+
+      /* Le mot « silence » s'en va juste avant la dernière phrase : il a tenu
+         sur l'eau tout le temps qu'elle n'était que de l'eau, et il cède au
+         moment où elle devient un lieu. */
       if (silence !== null) {
+        const [sd, sf] = MINUTAGE.silenceSortie;
         tl.to(
           silence,
-          { opacity: 0, duration: (xf - xd) * 0.5, ease: "power2.in" },
-          xd,
+          { opacity: 0, duration: sf - sd, ease: "power2.in" },
+          sd,
         );
       }
 
+      /* Et la dernière phrase paraît **par-dessus le plan**, en haut à gauche.
+         Elle ne reprend pas le centre : le cadre n'est plus vide, il est occupé
+         par un lieu, et une phrase centrée dessus le prendrait en otage. En haut
+         à gauche elle se pose dans la composition au lieu de s'y imposer — et
+         c'est aussi, enfin, la règle du Livre I rendue à elle-même. */
+      /* Et la lumière du lieu baisse avec elle.
+       *
+       * La valeur est **mesurée sur le rendu**, et il a fallu trois passes pour
+       * l'avoir : le mur nu derrière la phrase donne 1,36:1 à pleine exposition,
+       * là où un grand texte en réclame 3. À 0,38 il monte à 3,4:1. Les deux
+       * estimations précédentes — 0,70 puis 0,48 — étaient fausses pour deux
+       * raisons différentes : la première appliquait le facteur à une image qui
+       * le portait déjà, la seconde mesurait un fond qui contenait les pixels du
+       * texte lui-même. On ne règle un contraste que sur la surface qui est
+       * derrière les lettres, et sur le rendu final.
+       *
+       * Le geste est celui de l'extinction de la pièce, plus haut dans le même
+       * chapitre : la lumière baisse pendant qu'on dit la dernière phrase. Comme
+       * le cadre se décolle juste après, cette baisse est aussi la sortie du
+       * chapitre — on éteint le lieu au lieu de le faire glisser.
+       */
+      const [se, sf] = MINUTAGE.septEntree;
+      tl.to(
+        etatBassin.current,
+        { exposition: 0.38, duration: sf - se, ease: "power2.inOut" },
+        se,
+      );
+
       entree(sept, MINUTAGE.septEntree);
+
+      /* Et le chapitre s'éteint. Le lieu descend au noir sur la dernière portion
+         de la course, la dernière phrase s'en va avec lui, et le cadre se
+         décolle sur une image déjà éteinte — plus de raccord franc entre la
+         villa et l'encre. */
+      const [xfd, xff] = MINUTAGE.extinctionFinale;
+      tl.to(
+        etatBassin.current,
+        { extinction: 1, duration: xff - xfd, ease: "power2.inOut" },
+        xfd,
+      );
+      if (sept !== null) {
+        tl.to(
+          sept,
+          { opacity: 0, duration: (xff - xfd) * 0.8, ease: "power2.in" },
+          xfd,
+        );
+      }
 
       /* La ligne dure exactement 1 : sans cette borne, GSAP la clôturerait sur
          le dernier tween et le septième temps n'aurait pas son air. */
@@ -646,8 +839,9 @@ export function Vestibule() {
       /* On ne laisse jamais le site muet derrière soi. */
       couperNappes(false);
       reglerEau(null);
+      reglerNature(false);
     };
-  }, [mouvementReduit, couperNappes, reglerEau, jouerEffet, film.index]);
+  }, [mouvementReduit, couperNappes, reglerEau, jouerEffet, reglerNature, film.index]);
 
   /* ------------------------------------------------------------------
      Mouvement réduit : le manifeste posé
@@ -705,6 +899,21 @@ export function Vestibule() {
           <p className="vestibule__technique technique">
             {dire(bassin.technique)}
           </p>
+        </div>
+
+        {/* Le lieu. En mouvement réduit, le redressement de la caméra n'existe
+            pas — mais ce qu'il découvre, si, et il n'y a aucune raison de le
+            priver de la fin du chapitre. La poste du plan tient le cadre : une
+            image fixe de villa est une image, pas une punition. */}
+        <div className="vestibule__plaque">
+          <Image
+            className="vestibule__repli"
+            src={PLAN_LIEU.src}
+            width={PLAN_LIEU.largeur}
+            height={PLAN_LIEU.hauteur}
+            alt={t("lieuAlt")}
+            sizes="100vw"
+          />
         </div>
       </section>
     );
@@ -843,11 +1052,26 @@ export function Vestibule() {
                 <span className="vestibule__autour">.</span>
               </span>
             </p>
+          </div>
 
-            <p className="vestibule__temps display" data-temps="sept">
-              <span className="vestibule__ligne">
-                {t("manifesteSept")}
-              </span>
+          {/* La dernière phrase a quitté le centre.
+
+              Elle s'y disait quand le cadre était noir et que rien ne le lui
+              disputait. Le cadre est désormais un lieu — la villa, son mur, son
+              horizon — et une phrase posée au milieu le prendrait en otage. Elle
+              se range donc en haut à gauche, où elle se pose dans la composition
+              au lieu de s'y imposer, et où la règle du Livre I retrouve son dû.
+
+              Elle a son bloc à elle plutôt que de partager celui de l'annonce :
+              les deux ne vivent pas au même moment du chapitre, et surtout
+              celle-ci s'écrit sur une image claire, ce qui lui demande un voile
+              que l'autre n'a jamais eu à porter (voir `vestibule.css`). */}
+          <div className="vestibule__bloc vestibule__bloc--lieu">
+            <p
+              className="vestibule__temps vestibule__temps--lieu display"
+              data-temps="sept"
+            >
+              <span className="vestibule__ligne">{t("manifesteSept")}</span>
             </p>
           </div>
 

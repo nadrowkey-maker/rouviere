@@ -288,6 +288,26 @@
   align-content: center;
 }
 
+/* `--lieu` — la dernière phrase, celle qui se dit sur la villa.
+
+   Elle vivait au centre, et elle y avait sa raison : le cadre était noir, rien
+   ne le lui disputait. Le cadre est maintenant un lieu — un mur, une piscine,
+   un horizon — et une phrase posée au milieu le prendrait en otage. Elle se
+   range donc en haut à gauche, à la même hauteur que l'annonce du début : les
+   deux extrémités du chapitre se répondent, et « rien n'est centré » retrouve
+   son dû après l'unique exception qu'était le mot LUMIÈRE.
+
+   Elle a son bloc plutôt que de partager celui de l'annonce, parce qu'elle est
+   la seule phrase du site à s'écrire sur une image claire. Ce qui la rend
+   lisible n'est ni un mode de fusion — le négatif est aveugle sur la luminance
+   moyenne d'un mur de chaux — ni un voile en dégradé, que le Livre I interdit :
+   c'est l'exposition du plan, qui descend à 0,70 pendant qu'elle paraît. Le
+   rapport de contraste passe de 1,85:1 à 3,57:1. Voir `EtatBassin.exposition`. */
+.vestibule__bloc--lieu {
+  align-content: start;
+  padding-top: clamp(6rem, 16vh, 10rem);
+}
+
 /* Les phrases restent en craie pleine, et **ne se mélangent pas.**
 
    Le régime du logotype a été essayé ici, et il est faux : `difference` est
@@ -313,6 +333,17 @@
   font-size: max(2.5rem, calc(var(--text-titre) * 0.62));
   grid-column: 2 / span 6;
   max-width: 18ch;
+}
+
+/* La dernière phrase prend la même échelle que l'annonce du début — un peu
+   moins des deux tiers du titre, plancher de 40 px tenu. Ce n'est pas une
+   économie : c'est la rime. Le chapitre s'ouvre sur une voix en retrait dans le
+   noir et se ferme sur une voix en retrait dans la lumière, à la même place et
+   à la même taille. Entre les deux, un seul mot aura tenu le centre. */
+.vestibule__temps--lieu {
+  font-size: max(2.5rem, calc(var(--text-titre) * 0.62));
+  grid-column: 2 / span 6;
+  max-width: 20ch;
 }
 
 /* Plus d'arête, plus de masque, plus de flou : la phrase paraît et se pose de
@@ -450,14 +481,18 @@
   }
 
   .vestibule__temps,
-  .vestibule__temps--annonce {
+  .vestibule__temps--annonce,
+  .vestibule__temps--lieu {
     grid-column: 1 / -1;
     max-width: none;
   }
 
   /* Sur une colonne unique, la couche technique passe en haut à gauche : le
-     bloc d'annonce lui laisse la place plutôt que de s'écrire dessus. */
-  .vestibule__bloc--haut {
+     bloc d'annonce lui laisse la place plutôt que de s'écrire dessus. La
+     dernière phrase se cale à la même hauteur — elle occupe la même place à
+     l'autre bout du chapitre, et elle doit la retrouver ici aussi. */
+  .vestibule__bloc--haut,
+  .vestibule__bloc--lieu {
     padding-top: clamp(9rem, 26vh, 14rem);
   }
 

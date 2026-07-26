@@ -186,6 +186,63 @@
 /* Au survol, le cartouche s'inverse : la craie prend le fond, l'encre prend le
    mot. C'est franc, c'est instantané, et c'est le seul aplat clair de l'écran —
    on ne peut pas se tromper sur ce qui est en train d'être désigné. */
+/* ---- Les deux portes ne se valent pas ----
+
+   Elles étaient identiques : même cadre, même corps, même densité. Un écran qui
+   pose deux choix strictement équivalents ne propose rien, il fait trancher — et
+   ici il y a une bonne réponse, puisque la bande sonore fait partie de ce qu'on
+   a construit.
+
+   La hiérarchie ne passe donc pas par une couleur d'accent, que le Livre I
+   interdit, mais par **l'inversion** : la porte principale est un aplat de
+   craie sur lequel le texte se creuse en encre, la seconde n'est plus qu'un
+   libellé posé. C'est le contraste de surface qui hiérarchise, pas la teinte —
+   et il reste dans les neutres. */
+.ecran-entree__bouton--principal {
+  background-color: var(--color-craie);
+  border-color: var(--color-craie);
+  color: var(--color-encre);
+}
+
+.ecran-entree__bouton--principal:hover,
+.ecran-entree__bouton--principal:focus-visible {
+  background-color: var(--color-pierre);
+  border-color: var(--color-pierre);
+  color: var(--color-encre);
+}
+
+/* La seconde porte se retire : plus de cadre, une densité en dessous. Elle
+   reste parfaitement cliquable et parfaitement lisible — elle ne se cache pas,
+   elle ne se propose simplement pas la première. */
+.ecran-entree__bouton--discret {
+  border-color: transparent;
+  color: var(--color-pierre);
+}
+
+.ecran-entree__bouton--discret:hover,
+.ecran-entree__bouton--discret:focus-visible {
+  border-color: var(--color-zinc);
+  color: var(--color-craie);
+  background: none;
+}
+
+/* La phrase qui dit pourquoi. Elle n'est pas de la couche technique — ce n'est
+   pas une donnée de chantier mais une indication d'usage —, donc pas de
+   capitales : une phrase, en Switzer, sous les portes, à la densité la plus
+   basse de l'écran. */
+.ecran-entree__bande {
+  margin: clamp(1.5rem, 4vh, 2.5rem) 0 0;
+  max-width: 34ch;
+  justify-self: center;
+  font-family: var(--font-sans);
+  font-size: var(--text-corps);
+  line-height: 1.5;
+  color: var(--color-zinc);
+  text-align: center;
+  text-wrap: balance;
+  animation: entree-poser var(--duree-objet) var(--ease-sortie) 1.55s backwards;
+}
+
 .ecran-entree__bouton:hover,
 .ecran-entree__bouton:focus-visible {
   border-color: var(--color-craie);
@@ -231,7 +288,8 @@
   .ecran-entree__logo,
   .ecran-entree__filet,
   .ecran-entree__qualite,
-  .ecran-entree__choix {
+  .ecran-entree__choix,
+  .ecran-entree__bande {
     animation: none;
   }
 

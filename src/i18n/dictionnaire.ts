@@ -24,6 +24,10 @@ export const INTERFACE = {
   entreeAvecSon: { fr: "Entrer avec le son", en: "Enter with sound" },
   entreeSilence: { fr: "Entrer en silence", en: "Enter in silence" },
   entreeGroupe: { fr: "Entrer sur le site", en: "Enter the site" },
+  entreeBandeSon: {
+    fr: "Ce site a une bande sonore. Elle en fait partie.",
+    en: "This site has a soundtrack. It is part of it.",
+  },
   entreeAttente: { fr: "Chargement", en: "Loading" },
   entreeLangue: { fr: "Choisir la langue", en: "Choose language" },
 
@@ -107,6 +111,10 @@ export const INTERFACE = {
   planAllumeAlt: {
     fr: "Le séjour d'un appartement, lumières allumées, la ville derrière les baies.",
     en: "The living room of an apartment, lights on, the city behind the windows.",
+  },
+  lieuAlt: {
+    fr: "Le bord d'un bassin, à ras de l'eau. Derrière, une véranda ouverte sous une charpente d'acier, un fauteuil suspendu en rotin, des palmiers et des bambous.",
+    en: "The edge of a pool, at water level. Behind it, a veranda open under a steel frame, a hanging rattan chair, palms and bamboo.",
   },
 
   /* ---- L'Enfilade ---- */

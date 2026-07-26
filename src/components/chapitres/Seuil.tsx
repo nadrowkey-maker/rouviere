@@ -373,10 +373,15 @@ export function Seuil() {
       if (!fini) {
         /* Démontage en pleine intro : le logo est un nœud persistant, on ne le
            laisse ni géant ni figé à la page suivante. Retour au repos, verrou
-           levé, classe ôtée. */
+           levé.
+           **La classe de session, elle, reste.** Elle partait ici, et c'était le
+           bug : le seul geste qui démonte le seuil sans qu'on soit entré est le
+           changement de langue, qui change de route. La classe ôtée, le seuil
+           remontait en croyant l'intro déjà vue — l'écran d'entrée ne jouait
+           plus et l'on tombait sur le hero, sans avoir rien choisi. Cliquer EN
+           doit changer la langue de l'écran d'entrée, et rien d'autre. */
         gsap.set(logo, { clearProps: "transform,transformOrigin" });
         gsap.set(mot, { clearProps: "opacity,transform,filter" });
-        html.classList.remove("seuil-a-jouer");
         reprendre("seuil");
       }
     };

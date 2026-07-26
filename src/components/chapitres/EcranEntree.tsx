@@ -92,7 +92,7 @@ export function EcranEntree({ pret, onEntrer, conteneurRef }: Props) {
         >
           <button
             type="button"
-            className="ecran-entree__bouton"
+            className="ecran-entree__bouton ecran-entree__bouton--principal"
             disabled={!pret}
             onClick={() => onEntrer(true)}
           >
@@ -101,13 +101,25 @@ export function EcranEntree({ pret, onEntrer, conteneurRef }: Props) {
 
           <button
             type="button"
-            className="ecran-entree__bouton"
+            className="ecran-entree__bouton ecran-entree__bouton--discret"
             disabled={!pret}
             onClick={() => onEntrer(false)}
           >
             {t("entreeSilence")}
           </button>
         </div>
+
+        {/* **La seule phrase de l'écran, et elle a un travail.**
+
+            Les deux portes étaient identiques — même cadre, même corps, même
+            densité — donc l'écran ne proposait rien, il faisait choisir. Or il y
+            a une bonne réponse : le son fait partie de ce qu'on a construit, et
+            un visiteur qui entre en silence ne voit que la moitié du site.
+
+            Le dire est plus honnête que de le suggérer par la mise en page
+            seule. La phrase est au présent, sans deuxième personne, sans
+            promesse — c'est une indication d'usage, pas une incitation. */}
+        <p className="ecran-entree__bande">{t("entreeBandeSon")}</p>
       </div>
     </div>
   );

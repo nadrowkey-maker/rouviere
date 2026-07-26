@@ -127,6 +127,14 @@ type Son = {
    * de la sortie prend le cadre ; on remonte, elle s'arrête et le site revient.
    */
   reglerSortie: (dans: boolean) => void;
+  /**
+   * La nature du vestibule : les oiseaux de l'habitat, autour du bassin.
+   *
+   * Elle n'entre pas avec l'eau mais **avec le lieu** — au moment où la caméra
+   * se redresse et où l'on cesse de ne voir que de l'eau. Tant qu'on est à
+   * l'aplomb, il n'y a pas d'habitat à illustrer, seulement une surface.
+   */
+  reglerNature: (dans: boolean) => void;
 };
 
 const ContexteSon = createContext<Son | null>(null);
@@ -200,6 +208,29 @@ const EAU_MAX = 0.6;
  * chapitre — le bus des nappes y est coupé, c'est tout l'objet de la scène.
  */
 const SORTIE_MAX = 2.6;
+
+/**
+ * Niveau de la nature du vestibule.
+ *
+ * Même méthode que ci-dessus, et la mesure d'abord : `nature1.mp3` sort à
+ * −36,4 dB de moyenne et −14,2 dB de crête, soit près de cinq décibels sous
+ * `sortie.mp3`. À gain égal on ne l'entendrait pas.
+ *
+ * Mais elle ne doit pas non plus arriver au niveau d'une nappe de chapitre :
+ * elle se pose **sous l'eau**, qui est le sujet de la scène et la seule chose
+ * qu'on y commande à la main. À 2,0, sa moyenne tombe à −30,4 dB contre −23,4
+ * pour la sortie : sept décibels dessous, c'est-à-dire une couche qu'on entend
+ * sans qu'elle prenne la place. La marge tient — crête à 0,195 en linéaire,
+ * soit 0,39 après gain, sur un bus qui porte déjà l'eau.
+ */
+const NATURE_MAX = 2.0;
+
+/**
+ * Fondu de la nature. Plus long que celui des nappes : des oiseaux qui
+ * s'allument en une seconde et demie s'entendent s'allumer. Trois secondes, et
+ * ils étaient déjà là.
+ */
+const FONDU_NATURE = 3;
 /**
  * Vitesse du pointeur, en pixels par frame, au-delà de laquelle l'eau est à
  * son plein. Trente pixels par frame à soixante hertz, c'est un balayage franc
@@ -413,6 +444,8 @@ type Moteur = {
    * pièces dans lesquelles on entre.
    */
   sortie: Nappe | null;
+  /** La nature du vestibule, montée au premier passage puis gardée. */
+  nature: Nappe | null;
   /** Bruit blanc court, source de toutes les impulsions d'interface. */
   bruit: AudioBuffer;
   /** Les deux effets ponctuels, une fois décodés. Voir `Effet`. */
@@ -427,7 +460,14 @@ type Moteur = {
 
 /** Toutes les lectures en cours, celles du moteur. Sert aux bascules globales. */
 function lectures(moteur: Moteur): Array<Nappe | null> {
-  return [moteur.hero, moteur.site, moteur.eau, moteur.projet, moteur.sortie];
+  return [
+    moteur.hero,
+    moteur.site,
+    moteur.eau,
+    moteur.projet,
+    moteur.sortie,
+    moteur.nature,
+  ];
 }
 
 /**
@@ -711,6 +751,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
    * ne doit pas couper une nappe qu'on vient de reprendre.
    */
   const sortieDans = useRef(false);
+  const natureDans = useRef(false);
 
   /**
    * Recalcule les deux booléens publics depuis la vérité : ce que veut
@@ -799,6 +840,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       eau,
       projet: null,
       sortie: null,
+      nature: null,
       bruit,
       effets: new Map(),
       tampons: new Map(),
@@ -875,6 +917,9 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
         /* La nappe de la sortie ne se relance que si l'on y est : sinon elle
            décoderait en silence tout le reste du parcours. */
         if (lecture === moteur.sortie && !sortieDans.current) continue;
+        /* Même règle pour la nature du vestibule : hors de sa scène, elle ne se
+           relance pas. */
+        if (lecture === moteur.nature && !natureDans.current) continue;
         /* La lecture peut être refusée : on ne traite pas le refus comme
            une erreur, le gain restera simplement muet. */
         void lecture.element.play().catch(() => {});
@@ -1117,6 +1162,47 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /* --- La nature du vestibule ---
+     Les oiseaux de l'habitat, autour du bassin. Ils vivent sur le bus
+     d'ambiance, avec l'eau et pour la même raison : ce ne sont pas des
+     bandes-son, ce sont les lieux dans lesquels on entre. Le bus des nappes est
+     déjà coupé par le bassin quand ils arrivent — on ne le touche donc pas
+     ici. */
+  const reglerNature = useCallback((dans: boolean) => {
+    natureDans.current = dans;
+    const moteur = moteurRef.current;
+    if (moteur === null) return;
+
+    const { ctx, ambiance } = moteur;
+    const t = ctx.currentTime;
+
+    if (dans && moteur.nature === null) {
+      const element = new Audio("/audio/sfx/nature1.mp3");
+      element.loop = true;
+      element.preload = "auto";
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      ctx.createMediaElementSource(element).connect(gain);
+      gain.connect(ambiance);
+      moteur.nature = { element, sortie: gain };
+    }
+
+    const nappe = moteur.nature;
+    if (nappe === null) return;
+
+    if (dans) void nappe.element.play().catch(() => {});
+    rampe(nappe.sortie.gain, dans ? NATURE_MAX : 0, FONDU_NATURE, t);
+
+    if (!dans) {
+      /* On arrête pour de bon après le fondu : un `<audio>` à gain nul continue
+         de décoder. La garde couvre le cas où l'on serait revenu entre-temps. */
+      window.setTimeout(() => {
+        if (natureDans.current) return;
+        moteurRef.current?.nature?.element.pause();
+      }, FONDU_NATURE * 1000 + 80);
+    }
+  }, []);
+
   /* --- Les micro-sons --- */
 
   const jouer = useCallback((micro: Micro) => {
@@ -1261,6 +1347,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       reglerEau,
       couperNappes,
       reglerSortie,
+      reglerNature,
     }),
     [
       sonActif,
@@ -1275,6 +1362,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       reglerEau,
       couperNappes,
       reglerSortie,
+      reglerNature,
     ],
   );
 
