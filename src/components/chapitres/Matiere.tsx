@@ -6,6 +6,7 @@ import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { matieres, LARGEUR_MATIERE, HAUTEUR_MATIERE } from "@/data/matieres";
 import { PLANCHE_SORTIE } from "@/data/visuels";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useSon, type Lieu } from "@/components/chrome/SonProvider";
 import { useLangue } from "@/i18n/LangueProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import "./matiere.css";
@@ -142,9 +143,25 @@ function minutage(nombre: number): number[] {
   );
 }
 
+/**
+ * **Le son de chaque plan**, dans l'ordre du manifeste.
+ *
+ * Le premier plan — celui que l'enfilade vient d'ouvrir en plein cadre — n'a pas
+ * de son propre : la nappe du site y joue, comme partout. Les deux suivants en
+ * ont un, et tous deux **coupent la nappe** (voir `LIEUX` dans `SonProvider`) :
+ * sur ces plans-là il ne doit rester qu'eux.
+ *
+ * C'est donc dans ce chapitre que la nappe s'éteint, tient sur deux plans, puis
+ * revient — un troisième endroit du site où le son dit qu'on a changé de pièce,
+ * après le bassin et la sortie. Le chapitre s'y prête : c'est celui où l'on
+ * touche, et où il n'y a rien d'autre à l'écran que la matière.
+ */
+const SONS_MATIERES: Array<Lieu | null> = [null, "relief", "trame"];
+
 export function Matiere() {
   const { mouvementReduit } = useMouvement();
   const { t, dire } = useLangue();
+  const { reglerLieu, quitterLieu } = useSon();
 
   const traverseeRef = useRef<HTMLDivElement>(null);
   const cadreRef = useRef<HTMLDivElement>(null);
@@ -193,6 +210,35 @@ export function Matiere() {
         });
       }
 
+      /**
+       * **La pose du cadre et l'arrivée du nom, en un seul geste idempotent.**
+       *
+       * Les deux étaient écrits dans le `onToggle` du déclencheur, et c'est
+       * fragile pour une raison qui n'a rien de théorique : une bascule ne
+       * signale qu'une **transition**. Si elle n'est pas franchie — parce que le
+       * déclencheur naît déjà actif, parce qu'un `refresh()` recalcule ses
+       * bornes pendant que l'enfilade mesure son épinglage, parce qu'on arrive
+       * dans le chapitre par un saut plutôt que par le défilement —, l'arrivée
+       * du nom n'est jamais jouée. Et comme les lignes partent posées à 110 %
+       * derrière leur arête, ne pas jouer l'arrivée ne veut pas dire « le nom
+       * est là sans animation » : cela veut dire **le nom n'est pas là du tout**.
+       *
+       * On passe donc d'un événement à un état. `poser` peut être appelé autant
+       * de fois qu'on veut, depuis autant d'endroits qu'on veut, et il ne fait
+       * quelque chose que si l'état change réellement. Deux appelants s'en
+       * servent — la bascule du déclencheur, et l'observateur d'intersection du
+       * chapitre —, ce qui suffit à garantir que le nom paraît dès que le
+       * chapitre est là, sans dépendre d'une seule transition.
+       */
+      let nomPose = false;
+      const poser = (dans: boolean) => {
+        cadre.dataset.pose = dans ? "true" : "false";
+        if (dans === nomPose) return;
+        nomPose = dans;
+        if (dans) apparition.play();
+        else apparition.reverse();
+      };
+
       /* ---- Le recouvrement de l'enfilade ----
        *
        * `.matiere` remonte d'un écran sur le chapitre précédent (voir
@@ -211,16 +257,17 @@ export function Matiere() {
         trigger: traversee,
         start: "top top",
         end: "max",
-        onToggle: (self) => {
-          cadre.dataset.pose = self.isActive ? "true" : "false";
-          if (self.isActive) apparition.play();
-          else apparition.reverse();
-        },
+        onToggle: (self) => poser(self.isActive),
       });
-      cadre.dataset.pose = pose.isActive ? "true" : "false";
       /* Rechargement en plein chapitre : le nom est déjà dit, il n'a pas à
          rejouer son arrivée sous les yeux de quelqu'un qui est déjà là. */
-      if (pose.isActive) apparition.progress(1);
+      if (pose.isActive) {
+        cadre.dataset.pose = "true";
+        nomPose = true;
+        apparition.progress(1);
+      } else {
+        poser(false);
+      }
 
       /**
        * Quelle matière occupe l'écran. Le passage de relais est pris à
@@ -286,6 +333,31 @@ export function Matiere() {
       let voulu = new Set<number>();
       let aLEcran = false;
 
+      /* Le son suit le plan dominant, et rien d'autre : c'est `indexActif` qui
+         le désigne, si bien que le son ne peut pas être celui d'un autre plan
+         que celui qu'on regarde.
+
+         Le passage par une variable locale n'est pas une optimisation de
+         confort : ce déclencheur est en `scrub` et tire à chaque frame. Le
+         moteur ignore déjà les demandes qui ne changent rien, autant ne pas
+         l'appeler soixante fois par seconde pour rien. */
+      let lieuPose: Lieu | null = null;
+      const poserLieu = (lieu: Lieu | null) => {
+        if (lieu === lieuPose) return;
+        const precedent = lieuPose;
+        lieuPose = lieu;
+        if (lieu !== null) {
+          reglerLieu(lieu);
+        } else if (precedent !== null) {
+          /* On ne libère que **le sien**. Ce chapitre sort de l'écran après que
+             l'atelier a pris la main — son observateur d'intersection attend le
+             dernier pixel, le seuil du voisin est à 55 % du cadre. Un
+             `reglerLieu(null)` éteindrait donc l'atelier qui vient de
+             s'allumer, et c'est exactement ce qui arrivait. */
+          quitterLieu(precedent);
+        }
+      };
+
       const appliquer = () => {
         videosRef.current.forEach((video, i) => {
           if (video === null) return;
@@ -335,7 +407,16 @@ export function Matiere() {
           end: "bottom bottom",
           scrub: true,
           invalidateOnRefresh: true,
-          onUpdate: (self) => nAJouer(aJouer(self.progress)),
+          onUpdate: (self) => {
+            nAJouer(aJouer(self.progress));
+            /* Le son ne se pose que si le chapitre est à l'écran : la course
+               commence avant qu'on n'en voie quoi que ce soit, et couper la
+               nappe du site pour un plan qu'on ne regarde pas encore
+               s'entendrait comme un trou. */
+            if (aLEcran) {
+              poserLieu(SONS_MATIERES[indexActif(self.progress)] ?? null);
+            }
+          },
         },
       });
 
@@ -374,6 +455,17 @@ export function Matiere() {
           if (visible === aLEcran) return;
           aLEcran = visible;
           appliquer();
+          /* Le second appelant de `poser`. L'observateur dit une chose que le
+             déclencheur ne dit pas : que le chapitre est **réellement** devant
+             les yeux. S'il l'est et que le nom n'est toujours pas venu, c'est
+             qu'une transition a été manquée — on la rattrape ici. C'est
+             idempotent : quand la bascule a fait son travail, cet appel ne fait
+             rien. */
+          if (visible && pose.isActive) poser(true);
+          /* On quitte le chapitre : on rend la nappe. Sans cela elle resterait
+             coupée sous le chapitre suivant si l'on sort par un plan qui la
+             coupait — c'est-à-dire dans les deux cas sur trois. */
+          if (!visible) poserLieu(null);
         },
         { threshold: 0 },
       );
@@ -405,6 +497,8 @@ export function Matiere() {
         vue.disconnect();
         document.removeEventListener("visibilitychange", surVisibilite);
         suspendre();
+        /* On ne quitte jamais le chapitre en laissant la nappe coupée. */
+        poserLieu(null);
       };
     }, cadre);
 
@@ -412,7 +506,7 @@ export function Matiere() {
       contexte.revert();
       delete cadre.dataset.pose;
     };
-  }, [mouvementReduit]);
+  }, [mouvementReduit, reglerLieu, quitterLieu]);
 
   return (
     <section

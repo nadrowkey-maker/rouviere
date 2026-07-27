@@ -73,27 +73,67 @@
    Aucune couleur propre, comme le mot qu'il remplace : le `difference` en fait
    le négatif de ce qu'il traverse, clair sur un plan sombre et sombre sur un
    plan clair, sans qu'on ait à connaître la vidéo. */
+/* **Il a été agrandi et il a gagné un sol**, parce qu'il ne se voyait pas.
+
+   Le défaut n'était pas son vocabulaire, il était sa taille : un filet d'un
+   pixel sur trois centimètres et demi, à trente pour cent de densité, posé au
+   bord bas d'une vidéo plein cadre, ne se distingue pas d'un artefact de
+   compression. On regardait le plan, et rien ne disait qu'il y avait une suite.
+
+   Trois choses le corrigent, et aucune ne sort du Livre I — toujours des filets
+   d'un pixel, angles vifs, aucune couleur propre, pas de flèche, pas de rebond,
+   pas de souris arrondie :
+
+     — **l'échelle** : la piste passe de 3,5 à 5 rem, le segment de 1 à 1,5 ;
+     — **la densité** de la piste, de 0,30 à 0,45 ;
+     — **le socle**, un filet horizontal sous la piste. C'est lui qui fait le
+       plus de travail, et pas pour une raison de contraste : une hairline
+       verticale seule n'a pas de forme, alors qu'un trait qui descend **vers**
+       quelque chose en a une, et se lit en vision périphérique. Le segment ne
+       tombe plus dans le vide, il tombe sur un sol. »Il y a en dessous« se
+       comprend alors sans qu'on ait à écrire le mot — ce que ce repère refuse
+       de faire depuis qu'il a cessé d'être un mot.
+
+   Les deux longueurs sont des propriétés personnalisées parce que l'animation
+   les reprend : la course du segment se déduisait d'un `3.5rem` recopié dans
+   les keyframes, et toute retouche de la hauteur la désaccordait en silence. */
 .chambre__defiler {
+  --defiler-course: 5rem;
+  --defiler-segment: 1.5rem;
   position: absolute;
   left: 50%;
   bottom: clamp(1.5rem, 5vh, 3rem);
   z-index: 20;
-  width: 1px;
-  height: 3.5rem;
-  transform: translateX(-50%);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: calc(var(--spacing) * 1.5);
+  translate: -50% 0;
   color: var(--color-craie);
   mix-blend-mode: difference;
   opacity: 0;
   transition: opacity var(--duree-objet) var(--ease-sortie) 0.5s;
 }
 
-/* La piste : le trajet entier, en retrait. Elle dit où ça va. */
+/* La piste : le trajet entier. Elle borne le segment, d'où le `overflow`.
+
+   Sa densité est portée par un pseudo-élément et non par elle-même : une
+   opacité posée sur la piste s'appliquerait au groupe entier, segment compris,
+   et le segment perdrait exactement le contraste qu'on est en train de lui
+   donner. */
 .chambre__defiler-piste {
+  position: relative;
+  width: 1px;
+  height: var(--defiler-course);
+  overflow: hidden;
+}
+
+.chambre__defiler-piste::before {
+  content: "";
   position: absolute;
   inset: 0;
   background-color: currentColor;
-  opacity: 0.3;
+  opacity: 0.45;
 }
 
 /* Le segment qui descend. Il entre par le haut, sort par le bas, et
@@ -106,17 +146,25 @@
   position: absolute;
   inset-inline: 0;
   top: 0;
-  height: 1rem;
+  height: var(--defiler-segment);
   background-color: currentColor;
   animation: chambre-defiler 2.4s var(--ease-douce) infinite;
 }
 
+/* Le sol. Plus dense que la piste : c'est lui qu'on doit voir en premier. */
+.chambre__defiler-socle {
+  width: 1.25rem;
+  height: 1px;
+  background-color: currentColor;
+  opacity: 0.75;
+}
+
 @keyframes chambre-defiler {
   from {
-    transform: translateY(-1rem);
+    transform: translateY(calc(var(--defiler-segment) * -1));
   }
   to {
-    transform: translateY(3.5rem);
+    transform: translateY(var(--defiler-course));
   }
 }
 
@@ -138,6 +186,45 @@
 }
 
 /* Le voile de sortie : noir, monté en scrub à mesure qu'on quitte le hero. */
+/* ---- L'annonce : le nom du projet à l'arrivée ----
+
+   Il paraît seul par-dessus le plan, tient, et s'en va. Le mouvement est écrit
+   en GSAP (voir « L'entrée » dans Chambre.tsx) : le CSS ne fait ici que le
+   poser et le dimensionner. D'où l'opacité nulle au départ — la timeline la
+   prend en charge dès la première frame, et sans elle le mot clignoterait à
+   pleine densité avant que le script ne l'attrape.
+
+   `mix-blend-mode: difference` : c'est le geste signature du site. Le mot n'a
+   aucune couleur propre, il est le négatif exact du plan qu'il traverse — clair
+   sur une pièce sombre, sombre sur un mur de chaux. C'est ce qui le rend
+   lisible sur n'importe quelle vidéo sans qu'on ait à poser un voile dessous,
+   ce que le Livre I interdirait de toute façon. */
+.chambre__annonce {
+  position: absolute;
+  inset-inline: var(--marge);
+  top: 50%;
+  z-index: 25;
+  margin: 0;
+  /* La translation verticale est portée par le CSS et l'échelle par GSAP :
+     `translate` et `scale` sont deux propriétés distinctes, elles ne se
+     marchent donc pas dessus — un `transform` unique aurait été écrasé par la
+     timeline à la première frame. */
+  translate: 0 -50%;
+  transform-origin: 50% 50%;
+  text-align: center;
+  text-wrap: balance;
+  /* Assez grand pour tenir l'écran, assez borné pour que « Grand Hôtel des
+     Bains » ne parte pas en quatre lignes sur un portable. */
+  font-size: clamp(2.5rem, 8.5vw, 9rem);
+  line-height: 0.94;
+  letter-spacing: -0.015em;
+  color: var(--color-craie);
+  mix-blend-mode: difference;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, filter, opacity;
+}
+
 .chambre__voile {
   position: absolute;
   inset: 0;

@@ -80,7 +80,69 @@ export type Micro =
  * Ils ont leur bus à eux — voir `NIVEAU_EFFETS` —, et leur minutage se calcule
  * sur la crête relevée dans chaque fichier — voir `EFFETS`.
  */
-export type Effet = "titre" | "lumiere";
+export type Effet = "titre" | "lumiere" | "woosh";
+
+/**
+ * **Les lieux du parcours** — trois ambiances qui se posent sur le bus
+ * d'ambiance, chacune sur son chapitre.
+ *
+ * Elles ne se comportent pas toutes pareil, et c'est la seule chose que ce
+ * tableau a besoin de dire : `coupeNappes`.
+ *
+ *   `atelier` — se pose **par-dessus** la nappe du site, qui continue de jouer.
+ *               C'est une couche, pas un remplacement.
+ *   `relief`  — **coupe** la nappe. Sur ce plan-là il ne doit rester que lui.
+ *   `trame`   — idem.
+ *
+ * ## Les gains, et pourquoi ils ne se calculent pas de la même façon
+ *
+ * Les trois fichiers ont été mesurés, et deux d'entre eux ont un facteur de
+ * crête énorme — la moyenne n'y dit donc rien du volume qu'on entend :
+ *
+ *   `atelier.mp3`  −31,9 LUFS, crête −3,1 dB   (29 dB de facteur de crête)
+ *   `relief.mp3`   −34,6 LUFS, crête −3,0 dB   (32 dB, et tout est sous 120 Hz)
+ *   `trame.mp3`    −40,1 LUFS, crête −16,3 dB  (24 dB)
+ *
+ * **Le réglage à la crête a été essayé, et il donnait un silence.** `atelier` en
+ * est la démonstration : réglé pour que ses pointes ne saturent pas, il sortait
+ * à 1,25, soit un corps à −32,8 dB — **douze décibels sous la nappe du
+ * parcours**, qui continue de jouer sous lui. On ne l'entendait pas du tout, et
+ * c'était arithmétique, pas subjectif.
+ *
+ * Aucun gain seul ne pouvait résoudre cela, parce que les deux contraintes se
+ * contredisent sur un fichier à vingt-neuf décibels de facteur de crête. C'est
+ * un **limiteur** posé sur la couche qui les sépare (voir `reglerLieu`) : il
+ * tient le plafond, et le gain n'a donc plus à s'en occuper. Il se règle
+ * désormais sur une seule question — à quelle distance de la nappe veut-on
+ * entendre la pièce ?
+ *
+ *   `atelier` — 2,2, soit environ −25 LUFS effectifs, trois décibels sous la
+ *               nappe du parcours. Une couche qu'on entend sans qu'elle prenne
+ *               la place, ce qui est la définition d'une couche.
+ *   `relief`  — 1,3. Il joue **seul**, la nappe étant coupée sous lui, et son
+ *               énergie est intégralement sous 120 Hz : la mesure de sonie le
+ *               sous-estime lourdement (elle pondère les graves à la baisse),
+ *               et sa crête à −3,0 dBFS dit mieux ce qu'on entend.
+ *   `trame`   — 5,5. Seul également, et large de spectre : là, la moyenne dit
+ *               vrai, et c'est elle qui règle.
+ */
+export type Lieu = "atelier" | "relief" | "trame";
+
+const LIEUX: Record<
+  Lieu,
+  { fichier: string; gain: number; coupeNappes: boolean }
+> = {
+  atelier: { fichier: "/audio/atelier.mp3", gain: 2.2, coupeNappes: false },
+  relief: { fichier: "/audio/relief.mp3", gain: 1.3, coupeNappes: true },
+  trame: { fichier: "/audio/trame.mp3", gain: 5.5, coupeNappes: true },
+};
+
+/**
+ * Fondu d'un lieu. Aussi long que celui de la nature, et pour la même raison :
+ * une pièce qui se met en place en moins de deux secondes s'entend se mettre en
+ * place. On ne doit jamais pouvoir dater son arrivée.
+ */
+const FONDU_LIEU = 3;
 
 type Son = {
   /**
@@ -135,6 +197,18 @@ type Son = {
    * l'aplomb, il n'y a pas d'habitat à illustrer, seulement une surface.
    */
   reglerNature: (dans: boolean) => void;
+  /**
+   * Entre dans un lieu, ou n'en habite aucun. Un seul à la fois. Chaque lieu
+   * décide s'il coupe la nappe du site ou s'il se pose dessus — voir `LIEUX`.
+   */
+  reglerLieu: (lieu: Lieu | null) => void;
+  /**
+   * Quitte un lieu **précis**, et seulement si c'est bien celui qui joue.
+   *
+   * C'est la sortie que doivent employer les chapitres, jamais `reglerLieu(null)`
+   * — voir la fonction, qui explique le bug que cette distinction corrige.
+   */
+  quitterLieu: (lieu: Lieu) => void;
 };
 
 const ContexteSon = createContext<Son | null>(null);
@@ -275,7 +349,33 @@ const EFFETS: Record<
 > = {
   titre: { fichier: "/audio/sfx/titre.mp3", sommet: 3.9, gain: 0.85 },
   lumiere: { fichier: "/audio/sfx/lumiere.mp3", sommet: 0, gain: 1.6 },
+  /**
+   * **Le woosh de l'entrée dans un projet.** 1,55 s, et c'est une montée : il
+   * part à −51 dB, culmine à **0,45 s** (relevé par fenêtres de 50 ms), puis
+   * retombe jusqu'au silence.
+   *
+   * Ce sommet-là n'est pas une valeur d'agrément : c'est **le rendez-vous**. Le
+   * titre du projet paraît avec le départ du woosh, et la nappe du projet entre
+   * exactement sur sa crête — voir `WOOSH_CRETE`, qui est le seul chiffre que
+   * la chambre ait besoin de connaître. On n'entend donc pas deux sons se
+   * succéder : on entend une montée qui débouche sur une musique.
+   *
+   * Le gain reste modéré : sa crête mesurée est à −2,4 dB (0,76 en linéaire), et
+   * il joue sur un bus d'effets à 1, au-dessus d'une nappe de projet qui monte
+   * au même instant.
+   */
+  woosh: { fichier: "/audio/woosh.mp3", sommet: 0.45, gain: 0.7 },
 };
+
+/**
+ * **Le rendez-vous du woosh**, en secondes depuis son départ.
+ *
+ * C'est la seconde du fichier où il culmine, et c'est donc à la fois le moment
+ * où la nappe du projet doit entrer et le retard que `jouerEffet` doit tenir
+ * pour que sa crête tombe là. Un seul chiffre pour les deux, exporté : si le
+ * fichier change, il n'y a qu'un endroit à corriger et la synchronisation suit.
+ */
+export const WOOSH_CRETE = 0.45;
 
 /**
  * **Le bus des ponctuations, et pourquoi il n'est plus celui de l'interface.**
@@ -446,6 +546,14 @@ type Moteur = {
   sortie: Nappe | null;
   /** La nature du vestibule, montée au premier passage puis gardée. */
   nature: Nappe | null;
+  /**
+   * Les lieux montés jusqu'ici. Un lieu est monté au premier passage puis
+   * gardé — comme la nature et la sortie, et pour la même raison : on remonte
+   * le parcours, on retraverse les mêmes pièces, et rien ne doit se redécoder.
+   */
+  lieux: Map<Lieu, Nappe>;
+  /** Le lieu où l'on est. `null` : aucun, on est dans le parcours nu. */
+  lieu: Lieu | null;
   /** Bruit blanc court, source de toutes les impulsions d'interface. */
   bruit: AudioBuffer;
   /** Les deux effets ponctuels, une fois décodés. Voir `Effet`. */
@@ -467,6 +575,7 @@ function lectures(moteur: Moteur): Array<Nappe | null> {
     moteur.projet,
     moteur.sortie,
     moteur.nature,
+    ...moteur.lieux.values(),
   ];
 }
 
@@ -752,6 +861,12 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
    */
   const sortieDans = useRef(false);
   const natureDans = useRef(false);
+  /**
+   * Le lieu où l'on est, lu depuis les minuteries de fondu et depuis le réveil
+   * du moteur — deux endroits qui s'exécutent hors du rendu et ont besoin de la
+   * valeur de l'instant, pas de celle de leur fermeture.
+   */
+  const lieuCourant = useRef<Lieu | null>(null);
 
   /**
    * Recalcule les deux booléens publics depuis la vérité : ce que veut
@@ -841,6 +956,8 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       projet: null,
       sortie: null,
       nature: null,
+      lieux: new Map(),
+      lieu: null,
       bruit,
       effets: new Map(),
       tampons: new Map(),
@@ -920,6 +1037,18 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
         /* Même règle pour la nature du vestibule : hors de sa scène, elle ne se
            relance pas. */
         if (lecture === moteur.nature && !natureDans.current) continue;
+        /* Et pour les lieux : seul celui où l'on se trouve se relance. Sans
+           cette réserve, couper puis rendre le son rallumerait toutes les
+           pièces déjà traversées — chacune à gain nul, mais chacune en train
+           de décoder. */
+        if (
+          moteur.lieux.size > 0 &&
+          [...moteur.lieux.values()].includes(lecture) &&
+          (lieuCourant.current === null ||
+            moteur.lieux.get(lieuCourant.current) !== lecture)
+        ) {
+          continue;
+        }
         /* La lecture peut être refusée : on ne traite pas le refus comme
            une erreur, le gain restera simplement muet. */
         void lecture.element.play().catch(() => {});
@@ -1100,22 +1229,63 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
+   * **Qui demande le silence des nappes.**
+   *
+   * Trois endroits du site coupent le bus des nappes, et ils ne se connaissent
+   * pas : le bassin du vestibule, le dernier chapitre, et les deux plans de
+   * *La Matière* qui doivent rester seuls. Chacun écrivait le gain du bus
+   * directement, et c'est une faute que le parcours faisait apparaître :
+   *
+   * **le cas payé.** En descendant de l'atelier vers la sortie, les deux
+   * chapitres se croisent. La sortie prend la main quand son haut atteint 55 %
+   * du cadre ; l'atelier ne rend la sienne que lorsque son bas franchit le haut
+   * de l'écran — donc **après**. La sortie coupait la nappe, puis l'atelier la
+   * remettait, et l'on entendait la nappe du parcours revenir par-dessus le
+   * dernier chapitre. Aucun des deux n'avait tort : ils écrivaient tous les
+   * deux, et le dernier gagnait.
+   *
+   * Le gain n'est donc plus écrit par personne. Chaque demandeur s'inscrit ou se
+   * retire de ce registre, et le bus est coupé **tant qu'il en reste un**. Les
+   * ordres d'arrivée et de départ n'ont plus d'importance, ce qui est la seule
+   * façon correcte de traiter des déclencheurs de défilement qui se chevauchent.
+   */
+  const coupeurs = useRef<Set<string>>(new Set());
+
+  /** Applique l'état du registre au bus. Le seul écrivain du gain des nappes. */
+  const appliquerNappes = useCallback((duree: number) => {
+    const moteur = moteurRef.current;
+    if (moteur === null) return;
+    rampe(
+      moteur.musique.gain,
+      coupeurs.current.size > 0 ? 0 : NIVEAU_MUSIQUE,
+      duree,
+      moteur.ctx.currentTime,
+    );
+  }, []);
+
+  /** Inscrit ou retire un demandeur, puis applique. */
+  const demanderSilence = useCallback(
+    (qui: string, veut: boolean) => {
+      if (veut) coupeurs.current.add(qui);
+      else coupeurs.current.delete(qui);
+      appliquerNappes(FONDU_NAPPES);
+    },
+    [appliquerNappes],
+  );
+
+  /**
    * La coupure des nappes. C'est le bus entier qui descend, pas une nappe en
    * particulier : peu importe laquelle joue — celle du hero, celle du site,
    * celle d'un projet —, il n'en reste aucune. Le fondu croisé du parcours
    * continue de se régler sous la coupure, si bien qu'à la sortie la nappe qui
    * revient est celle que commande la position réelle du défilement.
    */
-  const couperNappes = useCallback((coupees: boolean) => {
-    const moteur = moteurRef.current;
-    if (moteur === null) return;
-    rampe(
-      moteur.musique.gain,
-      coupees ? 0 : NIVEAU_MUSIQUE,
-      FONDU_NAPPES,
-      moteur.ctx.currentTime,
-    );
-  }, []);
+  const couperNappes = useCallback(
+    (coupees: boolean) => {
+      demanderSilence("bassin", coupees);
+    },
+    [demanderSilence],
+  );
 
   /* --- La sortie ---
      Le dernier chapitre est le seul du parcours à avoir sa propre nappe. Elle
@@ -1125,6 +1295,11 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
      parcours reprend là où il en était. */
   const reglerSortie = useCallback((dans: boolean) => {
     sortieDans.current = dans;
+    /* Le registre est tenu **avant** la garde du moteur : il décrit où l'on se
+       trouve dans le parcours, ce qui reste vrai même si le son n'a pas encore
+       été autorisé. `appliquerNappes` a sa propre garde ; c'est lui, et lui
+       seul, qui a besoin d'un moteur. */
+    demanderSilence("sortie", dans);
     const moteur = moteurRef.current;
     if (moteur === null) return;
 
@@ -1142,8 +1317,6 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       moteur.sortie = { element, sortie: gain };
     }
 
-    rampe(moteur.musique.gain, dans ? 0 : NIVEAU_MUSIQUE, FONDU_NAPPES, t);
-
     const nappe = moteur.sortie;
     if (nappe === null) return;
 
@@ -1160,7 +1333,7 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
         moteurRef.current?.sortie?.element.pause();
       }, FONDU_NAPPES * 1000 + 80);
     }
-  }, []);
+  }, [demanderSilence]);
 
   /* --- La nature du vestibule ---
      Les oiseaux de l'habitat, autour du bassin. Ils vivent sur le bus
@@ -1202,6 +1375,136 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       }, FONDU_NATURE * 1000 + 80);
     }
   }, []);
+
+  /* --- Les lieux --- */
+
+  /**
+   * **Entre dans un lieu, ou n'en habite aucun.**
+   *
+   * Un seul à la fois : on n'est pas dans deux pièces. Entrer quelque part fait
+   * donc sortir d'où l'on était, et les deux fondus partent dans la même frame.
+   *
+   * Chaque lieu décide s'il **coupe la nappe** du site ou s'il se pose dessus —
+   * voir `LIEUX`. La coupure emprunte le même chemin qu'au bassin et à la
+   * sortie : c'est le bus des nappes entier qui descend, pas une nappe en
+   * particulier, si bien que peu importe laquelle joue à cet instant.
+   *
+   * Le bus est rendu dès qu'on entre dans un lieu qui ne coupe pas, ou qu'on
+   * n'est plus dans aucun. C'est ce qui rend l'enchaînement `relief` → `trame`
+   * → dehors correct sans que le chapitre ait à s'en occuper : il dit où il est,
+   * le moteur fait le reste.
+   */
+  const reglerLieu = useCallback((lieu: Lieu | null) => {
+    lieuCourant.current = lieu;
+    /* Le registre avant la garde, pour la même raison que dans `reglerSortie` :
+       il dit où l'on est, pas ce que le moteur sait faire. */
+    demanderSilence("lieu", lieu !== null && LIEUX[lieu].coupeNappes);
+
+    const moteur = moteurRef.current;
+    if (moteur === null) return;
+    if (moteur.lieu === lieu) return;
+
+    const { ctx, ambiance } = moteur;
+    const t = ctx.currentTime;
+
+    /* Ce qu'on quitte s'en va, quel que soit ce qui arrive. */
+    const partant = moteur.lieu;
+    if (partant !== null) {
+      const sortante = moteur.lieux.get(partant);
+      if (sortante !== undefined) {
+        rampe(sortante.sortie.gain, 0, FONDU_LIEU, t);
+        /* On arrête pour de bon après le fondu : un `<audio>` à gain nul
+           continue de télécharger et de décoder. La garde couvre le cas où l'on
+           serait revenu dans cette pièce entre-temps. */
+        window.setTimeout(() => {
+          if (lieuCourant.current === partant) return;
+          moteurRef.current?.lieux.get(partant)?.element.pause();
+        }, FONDU_LIEU * 1000 + 80);
+      }
+    }
+
+    moteur.lieu = lieu;
+    if (lieu === null) return;
+
+    let couche = moteur.lieux.get(lieu);
+    if (couche === undefined) {
+      const element = new Audio(LIEUX[lieu].fichier);
+      element.loop = true;
+      element.preload = "auto";
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      /* Le limiteur, et pourquoi il n'est pas un raffinement.
+
+         Ces trois enregistrements sont des ambiances de pièce : un corps très
+         bas, et de rares transitoires très hauts. `atelier.mp3` sort à −34,7 dB
+         de médiane pour une crête à −5,6 dBFS — vingt-neuf décibels d'écart, et
+         seulement trois pour cent du temps au-dessus de −30 dB.
+
+         Cela rendait le réglage impossible : au gain qu'il fallait pour que le
+         corps s'entende sous la nappe du parcours, les transitoires écrêtaient ;
+         au gain qui protégeait les transitoires, le corps passait douze
+         décibels sous la nappe et **on n'entendait rien du tout**. C'était le
+         cas, et aucun réglage de `gain` seul ne pouvait en sortir.
+
+         Le limiteur tranche le nœud : il tient le plafond, ce qui libère le gain
+         de sa contrainte de crête et laisse régler le corps pour l'oreille. Il
+         ne travaille que sur ces trois pour cent ; le reste du temps le signal
+         passe sous le seuil, intact. */
+      const limiteur = ctx.createDynamicsCompressor();
+      limiteur.threshold.value = -10;
+      limiteur.knee.value = 4;
+      /* Un vrai rapport de limitation, pas une compression de couleur : on ne
+         cherche pas à changer le son, seulement à l'empêcher de sortir. */
+      limiteur.ratio.value = 20;
+      /* Trois millisecondes : assez rapide pour attraper un outil qui claque,
+         assez lent pour ne pas moduler le grain de la pièce. */
+      limiteur.attack.value = 0.003;
+      limiteur.release.value = 0.25;
+
+      /* L'ordre compte, et il n'est pas celui qu'on écrit spontanément : le
+         limiteur est **en aval du gain**. Placé avant, il jugerait le signal
+         brut — dont les crêtes sont déjà basses — et le gain remonterait
+         ensuite tout ce qu'il vient de tenir, plafond compris. C'est le gain
+         qui crée le problème ; c'est donc après lui qu'on le règle. */
+      ctx.createMediaElementSource(element).connect(gain);
+      gain.connect(limiteur);
+      limiteur.connect(ambiance);
+      couche = { element, sortie: gain };
+      moteur.lieux.set(lieu, couche);
+    }
+
+    void couche.element.play().catch(() => {});
+    rampe(couche.sortie.gain, LIEUX[lieu].gain, FONDU_LIEU, t);
+  }, [demanderSilence]);
+
+  /**
+   * **Quitte un lieu — et seulement si c'est bien celui qui joue.**
+   *
+   * Un chapitre qui s'en va ne peut pas se contenter de `reglerLieu(null)`, et
+   * c'est le défaut qui rendait l'atelier entièrement muet :
+   *
+   * Les seuils de deux chapitres voisins **se chevauchent**. L'atelier prend la
+   * main quand son haut atteint 55 % du cadre ; *La Matière* ne rend la sienne
+   * que lorsque son dernier pixel a quitté l'écran — donc **après**. La suite
+   * était donc : l'atelier s'allume, puis la matière, en sortant, éteint le lieu
+   * courant, qui n'était déjà plus le sien. On n'entendait rien, et le fondu de
+   * trois secondes faisait que rien ne trahissait la cause.
+   *
+   * Un chapitre déclare donc ce qu'il libère, pas qu'il libère tout. Si le lieu
+   * qui joue n'est pas le sien, c'est que quelqu'un d'autre a déjà pris la
+   * place : il n'y a rien à faire, et surtout rien à éteindre.
+   *
+   * C'est le même remède que le registre des nappes, appliqué au même mal : des
+   * déclencheurs de défilement qui se croisent n'ont pas d'ordre garanti, et
+   * aucun d'eux n'a le droit d'écrire un état global sans regarder à qui il est.
+   */
+  const quitterLieu = useCallback(
+    (lieu: Lieu) => {
+      if (lieuCourant.current !== lieu) return;
+      reglerLieu(null);
+    },
+    [reglerLieu],
+  );
 
   /* --- Les micro-sons --- */
 
@@ -1348,6 +1651,8 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       couperNappes,
       reglerSortie,
       reglerNature,
+      reglerLieu,
+      quitterLieu,
     }),
     [
       sonActif,
@@ -1363,6 +1668,8 @@ export function SonProvider({ children }: { children: React.ReactNode }) {
       couperNappes,
       reglerSortie,
       reglerNature,
+      reglerLieu,
+      quitterLieu,
     ],
   );
 

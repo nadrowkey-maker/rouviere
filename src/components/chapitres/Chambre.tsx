@@ -8,7 +8,7 @@ import { visuelsDe } from "@/data/visuels";
 import { useRevele } from "@/components/motion/useRevele";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useLangue } from "@/i18n/LangueProvider";
-import { useSon } from "@/components/chrome/SonProvider";
+import { useSon, WOOSH_CRETE } from "@/components/chrome/SonProvider";
 import { useChrome } from "@/components/chrome/ChromeProvider";
 import {
   useVideoProjet,
@@ -51,7 +51,7 @@ import "./chambre.css";
 export function Chambre({ projet }: { projet: Projet }) {
   const { mouvementReduit } = useMouvement();
   const { t, dire, direTous } = useLangue();
-  const { entrerProjet, quitterProjet } = useSon();
+  const { entrerProjet, quitterProjet, jouerEffet } = useSon();
   const { menuOuvert } = useChrome();
   const flux = useVideoProjet();
   const { ranger } = useOuverture();
@@ -69,14 +69,37 @@ export function Chambre({ projet }: { projet: Projet }) {
      brusquement la place à celle du suivant. Elle repasse maintenant à la nappe
      du site en même temps que la page recule, et si l'on referme le menu sans
      aller nulle part, elle revient. */
+  /**
+   * **La nappe suit le menu — mais ce n'est pas elle qui la fait entrer.**
+   *
+   * Cet effet ne fait **rien à son premier tour**, et c'est tout le changement :
+   * l'arrivée sur la page est désormais une mise en scène minutée (voir plus
+   * bas, « L'entrée »), et c'est elle qui pose la nappe, sur la crête du woosh.
+   * Si cet effet la posait aussi au montage, la musique partirait un demi-tour
+   * de scène trop tôt et la crête n'aurait plus rien à faire arriver.
+   *
+   * Il ne reprend donc la main qu'aux **bascules suivantes** du menu : on
+   * l'ouvre depuis la page projet, la nappe rend la main ; on le referme sans
+   * être allé nulle part, elle revient — et sans cérémonie cette fois, parce
+   * qu'on n'arrive pas, on revient.
+   */
+  const menuPrecedent = useRef<boolean | null>(null);
   useEffetVisuel(() => {
+    if (menuPrecedent.current === null) {
+      menuPrecedent.current = menuOuvert;
+      return;
+    }
+    if (menuPrecedent.current === menuOuvert) return;
+    menuPrecedent.current = menuOuvert;
+
     if (menuOuvert) quitterProjet();
     else entrerProjet(rangDe(projet.slug));
-    return () => quitterProjet();
   }, [projet.slug, menuOuvert, entrerProjet, quitterProjet]);
 
   const heroRef = useRef<HTMLElement>(null);
   const fluxRef = useRef<HTMLDivElement>(null);
+  /** Le nom du projet qui paraît à l'arrivée, puis s'en va. Voir « L'entrée ». */
+  const annonceRef = useRef<HTMLParagraphElement>(null);
   const vuesRef = useRef<HTMLElement>(null);
   const ficheRef = useRef<HTMLDivElement>(null);
 
@@ -125,6 +148,95 @@ export function Chambre({ projet }: { projet: Projet }) {
       flux.accueillir(projet.slug, null);
     };
   }, [projet.slug, mouvementReduit, flux, ranger]);
+
+  /**
+   * ---- L'entrée dans le projet ----
+   *
+   * Le menu s'est retiré, la vidéo tient le cadre. **Le nom du projet paraît
+   * alors seul, en grand, par-dessus le plan** — puis s'en va. C'est la seconde
+   * fois du site qu'un mot tient l'écran de cette façon, et c'est délibérément
+   * *le même geste* que celui du logotype au seuil : opacité 0 → 1, échelle
+   * 1,06 → 1, flou 10 px → 0, sur 1,8 s en sortie d'exponentielle. Le site n'a
+   * qu'une apparition monumentale ; il s'en sert ici, et il ne l'invente pas.
+   *
+   * ## Le minutage, et pourquoi il n'y a pas deux sons
+   *
+   * Le woosh **est** ce qui fait arriver le mot : il part avec lui. Et la nappe
+   * du projet n'entre pas après lui, elle entre **sur sa crête** — mesurée à
+   * 0,45 s dans le fichier, exportée en `WOOSH_CRETE`. On n'entend donc pas un
+   * effet puis une musique, on entend une montée qui débouche sur une musique.
+   *
+   * La synchronisation ne repose pas sur deux minuteries lancées côte à côte, ce
+   * qui dériverait : `jouerEffet` reçoit le même `WOOSH_CRETE` comme échéance et
+   * **cale la crête du fichier dessus** quoi qu'il arrive — décodage en retard,
+   * contexte audio pas encore autorisé. La nappe, elle, part à cette échéance.
+   * Les deux visent le même instant absolu, pas la même durée.
+   *
+   * ## Pourquoi cela vaut aussi quand on n'arrive pas du menu
+   *
+   * L'entrée est jouée à **toute** arrivée sur une page projet — depuis le menu,
+   * depuis l'enfilade, ou par l'adresse directe. C'est la même page, et deux
+   * façons d'y entrer selon la porte empruntée se remarqueraient bien plus que
+   * l'uniformité. Ce qui la déclenche est l'arrivée, pas le clic.
+   *
+   * En mouvement réduit, il n'y a ni woosh ni mise en scène : le nom est déjà
+   * dans la page, la nappe entre sur-le-champ.
+   */
+  useEffetVisuel(() => {
+    const annonce = annonceRef.current;
+
+    if (mouvementReduit || annonce === null) {
+      entrerProjet(rangDe(projet.slug));
+      return () => quitterProjet();
+    }
+
+    jouerEffet("woosh", WOOSH_CRETE);
+
+    /* La nappe entre sur la crête. `setTimeout` suffit ici et un ticker serait
+       de trop : c'est un rendez-vous unique, pas un suivi par frame. */
+    const nappe = window.setTimeout(
+      () => entrerProjet(rangDe(projet.slug)),
+      WOOSH_CRETE * 1000,
+    );
+
+    const sequence = gsap
+      .timeline()
+      .fromTo(
+        annonce,
+        { opacity: 0, scale: 1.06, filter: "blur(10px)" },
+        {
+          opacity: 1,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: 1.8,
+          ease: "expo.out",
+        },
+      )
+      /* Il tient, le temps qu'on le lise et qu'on entende la nappe s'installer
+         dessous. */
+      .to({}, { duration: 1.2 })
+      /* Et il s'en va par où il est venu — le même flou, en sens inverse. La
+         durée est franchement au-dessus de la zone interdite du Livre I : on
+         est ample, pas médiocre. */
+      .to(annonce, {
+        opacity: 0,
+        filter: "blur(8px)",
+        duration: 0.9,
+        ease: "power2.inOut",
+      });
+
+    return () => {
+      window.clearTimeout(nappe);
+      sequence.kill();
+      quitterProjet();
+    };
+  }, [
+    projet.slug,
+    mouvementReduit,
+    entrerProjet,
+    quitterProjet,
+    jouerEffet,
+  ]);
 
   /* ---- La bascule de monde ---- */
   useEffetVisuel(() => {
@@ -286,6 +398,27 @@ export function Chambre({ projet }: { projet: Projet }) {
         </div>
         <div className="chambre__voile" aria-hidden="true" />
 
+        {/* L'annonce : le nom du projet, seul, par-dessus le plan, le temps
+            d'arriver. Voir « L'entrée » plus haut pour le geste et son minutage.
+
+            **Ce n'est pas un titre, et il ne doit surtout pas en être un.** Le
+            `<h1>` du projet existe déjà, sur la première vue, et le hero porte
+            son nom en `aria-label`. Cette annonce-ci est purement visuelle : un
+            second niveau de titre ferait deux fois le même nom pour un lecteur
+            d'écran, et un `<h1>` en double casserait le plan du document. D'où
+            le paragraphe, et `aria-hidden`.
+
+            Le centrage est demandé, et il cite : c'est la place du logotype au
+            seuil, dont cette apparition reprend le geste à la valeur près. Les
+            deux seules autres exceptions à « rien n'est centré » sont ce
+            logotype et le mot LUMIÈRE, et toutes trois sont le même moment — un
+            mot seul qui tient l'écran. */}
+        {mouvementReduit ? null : (
+          <p className="chambre__annonce display" ref={annonceRef} aria-hidden="true">
+            {projet.nom}
+          </p>
+        )}
+
         {/* Le repère de défilement. Il ne paraît qu'une fois le plan installé,
             et il s'efface au premier tour de molette.
 
@@ -307,8 +440,11 @@ export function Chambre({ projet }: { projet: Projet }) {
             tombe quand il a fini de regarder. */}
         {mouvementReduit ? null : (
           <span className="chambre__defiler" aria-hidden="true">
-            <span className="chambre__defiler-piste" />
-            <span className="chambre__defiler-curseur" />
+            {/* Le segment vit **dans** la piste, qui le borne. */}
+            <span className="chambre__defiler-piste">
+              <span className="chambre__defiler-curseur" />
+            </span>
+            <span className="chambre__defiler-socle" />
           </span>
         )}
       </section>

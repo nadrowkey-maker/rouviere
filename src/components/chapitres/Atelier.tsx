@@ -6,6 +6,7 @@ import { gsap, ScrollTrigger } from "@/lib/gsap";
 import { planchesAtelier, texteAtelier } from "@/data/atelier";
 import { useLangue } from "@/i18n/LangueProvider";
 import { useMouvement } from "@/components/motion/MotionProvider";
+import { useSon } from "@/components/chrome/SonProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { decalageDans } from "@/lib/mesure";
 import {
@@ -128,6 +129,7 @@ const PLONGEE_RELAIS = 0.2;
 export function Atelier() {
   const { mouvementReduit } = useMouvement();
   const { t, dire } = useLangue();
+  const { reglerLieu, quitterLieu } = useSon();
   const sectionRef = useRef<HTMLElement>(null);
   /* Les deux instances du plan filmé : celle du guichet, celle du plein cadre.
      Elles montrent le même fichier, et la seconde se cale sur la première à
@@ -146,6 +148,46 @@ export function Atelier() {
     document.addEventListener("visibilitychange", suspendre);
     return () => document.removeEventListener("visibilitychange", suspendre);
   }, []);
+
+  /**
+   * **Le lieu du chapitre.** L'atelier reçoit une pièce où l'on travaille, et
+   * elle se pose **par-dessus** la nappe du site, qui continue de jouer : c'est
+   * une couche, pas un remplacement. Les deux seuls endroits du site où le son
+   * dit qu'on a changé de pièce en coupant tout sont le bassin et la sortie ;
+   * ici on ne change pas de route, on entre dans un atelier.
+   *
+   * Il vaut aussi en mouvement réduit : le chapitre y devient un montage posé,
+   * mais c'est toujours le même endroit. Le son n'est pas du mouvement, il n'y
+   * a donc rien à en retirer.
+   */
+  useEffetVisuel(() => {
+    const section = sectionRef.current;
+    if (section === null) return;
+
+    const declencheur = ScrollTrigger.create({
+      trigger: section,
+      /* Les mêmes bornes que la sortie, et pour la même raison : une pièce
+         s'installe avant qu'on la regarde et se retire après qu'on l'a
+         quittée. */
+      start: "top 55%",
+      end: "bottom top",
+      /* On sort par `quitterLieu` et non par `reglerLieu(null)` : les seuils de
+         deux chapitres voisins se chevauchent, et éteindre « le lieu courant »
+         revient à éteindre celui du chapitre suivant s'il a déjà pris la main.
+         Voir `quitterLieu`, qui raconte le bug. */
+      onToggle: (self) => {
+        if (self.isActive) reglerLieu("atelier");
+        else quitterLieu("atelier");
+      },
+    });
+
+    return () => {
+      declencheur.kill();
+      /* On ne laisse jamais l'atelier jouer derrière soi — mais on n'éteint que
+         le sien. */
+      quitterLieu("atelier");
+    };
+  }, [reglerLieu, quitterLieu]);
 
   useEffetVisuel(() => {
     const section = sectionRef.current;

@@ -36,10 +36,26 @@
 
 /* ---- La traversée ---- */
 
-/* La course : un écran par matière. `--matieres` vient du manifeste. */
+/* La course. `--matieres` vient du manifeste.
+
+   **Elle ne fait plus un écran plein par matière**, et le calcul de ce qu'on
+   traverse vraiment explique pourquoi. Le cadre est collé : il tient le viewport
+   pendant `course − 100vh`, puisque le dernier écran de la course sert à le
+   décoller. À trois écrans pleins, cela faisait 200 vh de défilement pour trois
+   plans qui, eux, ne bougent pas — on tenait la molette longtemps devant une
+   image fixe, et le chapitre traînait.
+
+   À 70 vh par matière, la course fait 210 vh et le collage en dure 110 : la
+   traversée est presque deux fois plus courte, et chaque plan garde tout de même
+   une bonne demi-hauteur d'écran de palier. Les passages de masque suivent
+   d'eux-mêmes — ils sont une fraction de la course (`PASSAGE`), pas une durée.
+
+   La valeur est ici, seule, et c'est le seul endroit à toucher pour régler le
+   rythme du chapitre. */
 .matiere__traversee {
+  --matiere-ecran: 70vh;
   position: relative;
-  height: calc(var(--matieres) * 100vh);
+  height: calc(var(--matieres) * var(--matiere-ecran));
 }
 
 /* Le cadre tient par `sticky`, pas par un `pin` GSAP : rien n'est sorti du
