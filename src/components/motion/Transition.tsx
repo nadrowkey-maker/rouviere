@@ -8,6 +8,7 @@ import { useMouvement } from "./MotionProvider";
 import { reclamer, liberer, type NatureTransition } from "./orchestrateur";
 import { retirer, figer, RETIRE } from "./passage";
 import { releveArmee, annulerReleve } from "@/components/chrome/VideoProjet";
+import { LANGUES } from "@/i18n/langues";
 import "./transition.css";
 
 /**
@@ -51,10 +52,18 @@ import "./transition.css";
    remonte à chaque navigation. */
 let dejaCharge = false;
 
-/** Où l'on va. Sert au créneau de l'orchestrateur, plus à aucun motif. */
+/** Où l'on va. Sert au créneau de l'orchestrateur, plus à aucun motif.
+ *
+ * Le chemin porte toujours son segment de langue en tête (`/fr/projets/…`) :
+ * on le retire avant de lire la destination, sinon aucune route n'est jamais
+ * reconnue et tout passait pour du « parcours ». */
 function natureVers(pathname: string): NatureTransition {
-  if (pathname.startsWith("/projets/")) return "projet";
-  if (pathname.startsWith("/archives")) return "archives";
+  const tete = pathname.split("/")[1] ?? "";
+  const sansLangue = LANGUES.includes(tete as (typeof LANGUES)[number])
+    ? pathname.slice(tete.length + 1)
+    : pathname;
+  if (sansLangue.startsWith("/projets/")) return "projet";
+  if (sansLangue.startsWith("/archives")) return "archives";
   return "parcours";
 }
 

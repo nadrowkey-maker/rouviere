@@ -14,7 +14,15 @@
   z-index: 50;
 
   font-family: var(--font-display);
-  font-size: clamp(0.95rem, 1.1vw, 1.15rem);
+  /* Un cran au-dessus — huit pour cent, pas davantage. Le mot tient le coin
+     haut-gauche face aux trois commandes de la barre : sous ce corps-là il se
+     lisait comme une légende plutôt que comme la signature de l'atelier. La
+     retenue reste la règle ; ce n'est pas une enseigne.
+
+     Le vol du seuil ne s'en trouve pas décalé : il mesure le mot au repos et en
+     déduit son échelle (voir `Seuil.tsx` et `lib/logotype.ts`), il n'écrit
+     jamais de corps. */
+  font-size: clamp(1.02rem, 1.18vw, 1.24rem);
   font-weight: 400;
   line-height: 1;
   color: var(--color-craie);

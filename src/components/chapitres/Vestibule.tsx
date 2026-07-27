@@ -324,6 +324,29 @@ const MINUTAGE = {
    * jamais un voile posé par-dessus. La dernière phrase s'en va avec lui.
    */
   extinctionFinale: [0.956, 1.0],
+  /**
+   * **Le noir de sortie, et pourquoi il faut bien un voile ici.**
+   *
+   * L'extinction ci-dessus vit *dans* le shader : elle mélange la sortie des
+   * deux matériaux vers l'encre du site. C'est la bonne façon d'éteindre le
+   * lieu, et ce n'est pas suffisante pour éteindre le **chapitre** — le cadre
+   * porte aussi le mot « silence » et la dernière phrase, qui sont du DOM, et
+   * l'eau elle-même est retirée d'un coup dès que la course rend la main
+   * (`data-actif`, qui met l'ancre en `display: none` pour suspendre la
+   * simulation). Il restait donc, entre le dernier pixel de villa et le premier
+   * pixel de couloir, une marche que rien ne couvrait.
+   *
+   * Un aplat d'encre posé au-dessus de tout le cadre la couvre entièrement, et
+   * il est **plein avant la fin de la course** : le cadre se décolle sur du
+   * noir, la page reprend sa descente sur du noir, et l'enfilade arrive sur le
+   * même noir. C'est le seul raccord du site entre deux chapitres qui ne
+   * partagent pas d'image — il se fait donc par la seule couleur qu'ils ont en
+   * commun.
+   *
+   * Ce n'est pas un dégradé et ce n'est pas une ombre : c'est `--encre`, à plat,
+   * dont seule la densité bouge.
+   */
+  voileSortie: [0.952, 0.99],
 } as const;
 
 /**
@@ -370,6 +393,8 @@ export function Vestibule() {
   const filmRef = useRef<HTMLCanvasElement>(null);
   const lumiereRef = useRef<HTMLParagraphElement>(null);
   const ancreBassin = useRef<HTMLDivElement>(null);
+  /* L'aplat d'encre qui ferme le chapitre. Voir `MINUTAGE.voileSortie`. */
+  const voileRef = useRef<HTMLDivElement>(null);
 
   /* L'état du bassin vit dans une ref : le pointeur bouge soixante fois par
      seconde, le passer par `useState` reconstruirait l'arbre à chaque geste.
@@ -395,6 +420,7 @@ export function Vestibule() {
     const ancre = ancreBassin.current;
     const plan = filmRef.current;
     const decor = decorRef.current;
+    const voile = voileRef.current;
     if (course === null || cadre === null) return;
 
     /* En mouvement réduit, la séquence n'existe pas : les sept temps sont
@@ -437,6 +463,7 @@ export function Vestibule() {
          donne au chapitre une pièce qui émerge plutôt qu'une image qui surgit. */
       if (decor !== null) gsap.set(decor, { "--eau": 0 });
       if (plan !== null) gsap.set(plan, { opacity: 0 });
+      if (voile !== null) gsap.set(voile, { opacity: 0 });
       if (ancre !== null) gsap.set(ancre, { yPercent: 100 });
       /* La caméra du bassin repart à l'aplomb. L'état vit dans une ref, donc il
          survit à la reconstruction de la timeline — il faut le remettre à la
@@ -829,6 +856,22 @@ export function Vestibule() {
         );
       }
 
+      /* Et le cadre entier passe à l'encre. L'extinction du shader éteint le
+         lieu ; ce voile-ci éteint le **chapitre** — le lieu, le mot qui tient
+         encore dessus, et le trou que laisse l'eau quand la course rend la main
+         et que son ancre est retirée du flux. Il est plein avant que le cadre ne
+         se décolle : on quitte le silence sur du noir, et l'enfilade arrive sur
+         le même noir. C'est le raccord, et il n'y en a pas d'autre à faire —
+         les deux chapitres ne partagent aucune image. */
+      if (voile !== null) {
+        const [vd, vf] = MINUTAGE.voileSortie;
+        tl.to(
+          voile,
+          { opacity: 1, duration: vf - vd, ease: "power2.inOut" },
+          vd,
+        );
+      }
+
       /* La ligne dure exactement 1 : sans cette borne, GSAP la clôturerait sur
          le dernier tween et le septième temps n'aurait pas son air. */
       tl.set(cadre, {}, 1);
@@ -1081,6 +1124,12 @@ export function Vestibule() {
             <p>{t("margeFondation")}</p>
             <p>{t("margeChantiers")}</p>
           </aside>
+
+          {/* Le noir de sortie. Dernier nœud du cadre, donc au-dessus de tout ce
+              qu'il contient — l'eau, le lieu, le mot, la dernière phrase. Il
+              n'est pas là pour cacher un défaut : c'est la fin du chapitre. Voir
+              `MINUTAGE.voileSortie`. */}
+          <div className="vestibule__voile" ref={voileRef} />
         </div>
       </div>
     </section>

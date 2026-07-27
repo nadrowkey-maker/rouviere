@@ -51,10 +51,13 @@ import "./matiere.css";
  * suit traverse en échelle et en profondeur ; ici rien ne se déplace, une
  * surface s'ouvre sur une autre. Aucun des trois ne partage sa grammaire.
  *
- * Une seule vidéo joue à la fois — celle qu'on regarde. Les autres sont
- * arrêtées, et les trois le sont dès que le chapitre quitte l'écran ou que
- * l'onglet passe en arrière-plan : trois plans macro décodés en parallèle
- * coûtent cher.
+ * **Ce qui joue est ce qui est visible**, et rien de plus. En palier, une seule
+ * vidéo tourne ; le temps d'un passage, les deux plans que le masque met en
+ * présence tournent ensemble — sinon celui qui arrive descendrait arrêté sur sa
+ * première image, et une matière figée pendant qu'on la découvre se lit comme un
+ * chargement raté. Toutes sont arrêtées dès que le chapitre quitte l'écran ou
+ * que l'onglet passe en arrière-plan : trois plans macro décodés en parallèle
+ * coûtent cher, deux le temps d'un masque ne coûtent rien.
  */
 
 /**
@@ -95,10 +98,31 @@ const OUVERT = "inset(0% 0% 0% 0%)";
  * — **La course est réversible.** Elle est jouée et rembobinée par la même
  *   bascule que la pose du cadre : on remonte dans le couloir, le nom se
  *   retire derrière son arête.
+ *
+ * ## Le réglage de la courbe, et pourquoi elle a changé
+ *
+ * L'arrivée était en `expo.out` sur neuf dixièmes de seconde. Sur le papier
+ * c'est une seconde entière ; à l'écran, une exponentielle sortante a rendu les
+ * quatre cinquièmes de sa course dans son premier cinquième de temps — le mot
+ * était en place au bout de deux dixièmes, et les sept dixièmes restants ne
+ * faisaient plus rien. On voyait donc un mot qui claque, pas un mot qui monte.
+ *
+ * C'est la même leçon que l'ignition du vestibule, payée au même prix : **la
+ * plage ne fait pas la douceur, la courbe la fait.** Trois corrections, et
+ * aucune n'est cosmétique.
+ *
+ * — `power2.out` au lieu de `expo.out` : la vitesse initiale est finie, donc le
+ *   mot part au lieu de surgir.
+ * — La durée passe à `--d-chapitre`. C'est un changement de monde qui a lieu ici
+ *   — l'enfilade rend la main —, pas une entrée d'objet.
+ * — **Une avance avant le premier mot.** Il partait à l'instant exact où le
+ *   cadre se pose, c'est-à-dire dans la frame où le couloir rend la main : deux
+ *   événements dans la même image, dont l'un masquait l'autre. Le nom laisse
+ *   maintenant passer la reprise avant de monter.
  */
-const NOM_DUREE = 0.9;
-const NOM_DECALAGES = [0, 0.13, 0.07];
-const NOM_FLOU = 10;
+const NOM_DUREE = 1.15;
+const NOM_DECALAGES = [0.24, 0.41, 0.32];
+const NOM_FLOU = 7;
 
 
 /**
@@ -162,7 +186,7 @@ export function Matiere() {
               yPercent: 0,
               filter: "blur(0px)",
               duration: NOM_DUREE,
-              ease: "expo.out",
+              ease: "power2.out",
             },
             NOM_DECALAGES[i % NOM_DECALAGES.length],
           );
@@ -211,13 +235,61 @@ export function Matiere() {
         return index;
       };
 
-      let joue = -1;
-      const nAJouer = (index: number) => {
-        if (index === joue) return;
-        joue = index;
+      /**
+       * **Qui doit tourner, et non plus qui occupe l'écran.**
+       *
+       * Une seule vidéo jouait — celle que `indexActif` désignait, c'est-à-dire
+       * celle qui avait passé la moitié du masque. Conséquence : le plan qui
+       * arrive était **arrêté sur sa première image pendant toute la première
+       * moitié de son entrée**, et il se mettait en marche une fois découvert
+       * jusqu'à mi-cadre. On voyait donc une plaque descendre, puis s'animer. Un
+       * plan macro qui démarre sous les yeux se lit comme un chargement, pas
+       * comme un mouvement de caméra.
+       *
+       * Le critère juste n'est pas « quelle matière regarde-t-on ? » mais
+       * **« quelle matière est visible, ne fût-ce que d'un pixel ? »** — la même
+       * question, exactement, que celle qui commande déjà l'arrêt du chapitre
+       * entier par intersection.
+       *
+       * Un passage rend donc ses deux plans, celui qui part et celui qui arrive,
+       * et ce dans les deux sens de défilement : on remonte, le plan qu'on
+       * redécouvre est déjà en marche lui aussi.
+       *
+       * `LEVEE` est l'avance prise sur l'ouverture du masque : la vidéo est
+       * lancée un peu avant que le moindre pixel n'en paraisse. Ce n'est pas de
+       * la marge de confort, c'est le temps qu'il faut au décodeur pour rendre
+       * sa première image — une `play()` n'est pas instantanée.
+       */
+      const LEVEE = 0.05;
+
+      const aJouer = (progression: number) => {
+        const jeu = new Set<number>([indexActif(progression)]);
+        departs.forEach((depart, i) => {
+          if (
+            progression >= depart - LEVEE &&
+            progression <= depart + PASSAGE + LEVEE
+          ) {
+            jeu.add(i);
+            jeu.add(i + 1);
+          }
+        });
+        return jeu;
+      };
+
+      /** Deux jeux d'indices sont-ils le même ? */
+      const memeJeu = (a: Set<number>, b: Set<number>) =>
+        a.size === b.size && [...a].every((i) => b.has(i));
+
+      /* Ce que le chapitre veut voir tourner. Distinct de ce qui tourne
+         vraiment : hors de l'écran, plus rien ne décode — voir l'observateur
+         d'intersection plus bas. */
+      let voulu = new Set<number>();
+      let aLEcran = false;
+
+      const appliquer = () => {
         videosRef.current.forEach((video, i) => {
           if (video === null) return;
-          if (i === index) {
+          if (aLEcran && voulu.has(i)) {
             /* La lecture peut être refusée (onglet en fond, économie
                d'énergie) : on ne traite pas le refus comme une erreur. */
             void video.play().catch(() => {});
@@ -225,13 +297,27 @@ export function Matiere() {
             video.pause();
           }
         });
+      };
+
+      const nAJouer = (jeu: Set<number>) => {
+        if (memeJeu(jeu, voulu)) return;
+        voulu = jeu;
+        appliquer();
 
         /* La matière suivante est mise en chauffe pendant qu'on regarde
            celle-ci. Sans cela, elle commencerait son téléchargement au moment
            exact où le masque l'ouvre, et on la verrait arriver arrêtée sur sa
-           poster. On ne chauffe qu'elle : deux d'avance ne servent à rien. */
-        const suivante = videosRef.current[index + 1];
-        if (suivante !== null && suivante !== undefined && suivante.preload === "none") {
+           poster. On ne chauffe qu'elle : deux d'avance ne servent à rien.
+
+           **La condition portait sur `"none"`, et c'était le défaut.** La
+           deuxième matière est servie en `preload="metadata"` — elle ne
+           correspondait donc à aucune chauffe, et restait à ses métadonnées
+           jusqu'à ce qu'un `play()` déclenche le téléchargement du média. C'est
+           exactement ce qu'on voyait : le plan ne partait qu'une fois arrivé
+           dessus. Ce qui compte n'est pas de quoi on part, c'est qu'on soit en
+           `"auto"` avant d'en avoir besoin. */
+        const suivante = videosRef.current[Math.max(...jeu) + 1];
+        if (suivante !== null && suivante !== undefined && suivante.preload !== "auto") {
           suivante.preload = "auto";
           suivante.load();
         }
@@ -249,9 +335,15 @@ export function Matiere() {
           end: "bottom bottom",
           scrub: true,
           invalidateOnRefresh: true,
-          onUpdate: (self) => nAJouer(indexActif(self.progress)),
+          onUpdate: (self) => nAJouer(aJouer(self.progress)),
         },
       });
+
+      /* La chauffe n'est **pas** amorcée ici, et c'est délibéré : le premier
+         `onUpdate` a lieu quand le chapitre entre dans sa course, pas au
+         chargement de la page. Un appel posé à cet endroit téléchargerait les
+         plans macro dès l'accueil, pour un chapitre qui vit six écrans plus bas.
+         `voulu` part vide, donc le premier `onUpdate` fait bien son travail. */
 
       /* ---- Ce qui arrête vraiment les vidéos ----
        *
@@ -268,26 +360,20 @@ export function Matiere() {
        * plan continue donc tant qu'on en voit quelque chose, et ne s'arrête
        * qu'une fois entièrement sorti.
        *
-       * `joue` n'est pas remis à zéro en sortant : on veut retrouver la même
-       * matière en revenant, et non attendre que le défilement veuille bien
-       * redonner un index. C'est la reprise explicite ci-dessous qui s'en
-       * charge. */
-      const reprendre = () => {
-        const video = videosRef.current[joue];
-        if (video != null) void video.play().catch(() => {});
-      };
+       * `voulu` n'est pas vidé en sortant : on veut retrouver les mêmes plans en
+       * revenant, et non attendre que le défilement veuille bien redonner un
+       * index. C'est `appliquer()` qui tranche, et il ne fait que croiser ce que
+       * le chapitre veut avec ce que l'écran montre. */
       const suspendre = () => {
         videosRef.current.forEach((video) => video?.pause());
       };
 
-      let aLEcran = false;
       const vue = new IntersectionObserver(
         (entrees) => {
           const visible = entrees.some((entree) => entree.isIntersecting);
           if (visible === aLEcran) return;
           aLEcran = visible;
-          if (visible) reprendre();
-          else suspendre();
+          appliquer();
         },
         { threshold: 0 },
       );
@@ -298,7 +384,7 @@ export function Matiere() {
          cas où la page n'est plus regardée sans avoir quitté l'écran. */
       const surVisibilite = () => {
         if (document.visibilityState !== "visible") suspendre();
-        else if (aLEcran) reprendre();
+        else appliquer();
       };
       document.addEventListener("visibilitychange", surVisibilite);
 

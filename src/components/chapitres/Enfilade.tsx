@@ -335,21 +335,73 @@ export function Enfilade() {
       );
       if (derniere === null) return;
 
-      /* La boîte de la dernière image, en coordonnées de la scène. On somme la
-         chaîne des `offsetParent` : ces valeurs-là ignorent les transformations,
-         donc ni l'épinglage ni la translation du couloir ne les faussent. */
-      const decalage = decalageDans(derniere, scene);
+      /* ---- La boîte de la dernière image, au sous-pixel ----
+       *
+       * C'est ici que se jouait le petit décalage de la cinquième image, et il
+       * n'avait rien d'aléatoire : **`offsetLeft`, `offsetTop`, `offsetWidth` et
+       * `offsetHeight` rendent des entiers.** Le plan WebGL, lui, est posé sur le
+       * `getBoundingClientRect` que lit la passe de mesure du rig — donc au
+       * sous-pixel. Les deux ne décrivaient pas tout à fait la même boîte.
+       *
+       * L'écart n'est pas partout le même, et c'est ce qui le rendait visible
+       * *sur la dernière pièce seulement* : les retraits du couloir et ses
+       * gouttières sont en `clamp()` de `vw`, donc fractionnaires, et la
+       * sommation des `offsetLeft` arrondit à chaque étage. L'erreur s'accumule
+       * le long du couloir et culmine exactement là où la seule relève du
+       * chapitre a lieu.
+       *
+       * La mesure passe donc par des rects — mais **par une différence de
+       * rects**, qui est ce qui rend la lecture licite ici. Le média et le
+       * couloir portent tous deux la translation du couloir et celle de
+       * l'épinglage ; leur soustraction les élimine l'une comme l'autre, et ce
+       * qui reste est la position de mise en page exacte, insensible à l'état de
+       * l'animation au moment du rafraîchissement. C'est la propriété que
+       * `decalageDans` allait chercher — on la garde, sans l'arrondi.
+       *
+       * Le couloir, lui, est repéré dans la scène par ses offsets : il en est
+       * l'enfant direct, il n'y a donc aucune chaîne où accumuler quoi que ce
+       * soit. */
+      const rMedia = derniere.getBoundingClientRect();
+      const rCouloir = couloir.getBoundingClientRect();
+      const couloirDansScene = decalageDans(couloir, scene);
+
       /* En fin de traversée le couloir est translaté de −distance : c'est là
          que la dernière image se trouve au moment où la plongée prend la main.
          La scène, elle, est épinglée en haut du cadre — son repère est donc
          celui de l'écran. */
       const boite: Boite = {
-        gauche: decalage.x - distance(),
-        haut: decalage.y,
-        largeur: derniere.offsetWidth,
-        hauteur: derniere.offsetHeight,
+        gauche: rMedia.left - rCouloir.left + couloirDansScene.x - distance(),
+        haut: rMedia.top - rCouloir.top + couloirDansScene.y,
+        largeur: rMedia.width,
+        hauteur: rMedia.height,
       };
-      const cadre = { largeur: innerWidth, hauteur: innerHeight };
+
+      /* ---- Le cadre plein est la scène, pas la fenêtre du navigateur ----
+       *
+       * `innerWidth` était employé ici, et c'est **faux d'une largeur de barre de
+       * défilement** — quinze pixels sur une machine à barre classique.
+       *
+       * Le `clip-path` s'applique à `.enfilade__final`, qui est posé sur
+       * `.enfilade__scene` : ses retraits se comptent donc dans la boîte de la
+       * scène, large de `clientWidth`. `innerWidth`, lui, compte la barre. Le
+       * retrait droit sortait donc quinze pixels trop grand, et la fenêtre de
+       * départ du plan de sortie était quinze pixels plus étroite, à droite, que
+       * la pièce qu'elle prétendait doubler.
+       *
+       * Ce qu'on voyait est exactement ce qui a été rapporté : au moment du
+       * relais, juste avant que le cadre ne s'ouvre, le bord droit de l'image
+       * sautait vers l'intérieur ; et comme ce bord-là avait quinze pixels de
+       * moins à parcourir que les trois autres, l'ouverture ne se terminait pas
+       * au même rythme qu'elle — d'où le second décrochage, une fois le plein
+       * cadre atteint. Un seul chiffre faux, aux deux bouts du même geste.
+       *
+       * La règle est donc : **le cadre plein est mesuré sur l'élément qui porte
+       * la découpe**, jamais sur un global. C'est aussi ce qui le met dans le
+       * repère exact du rig, dont le canvas est `position: fixed; inset: 0` et
+       * dont la taille est le `clientWidth` de ce canvas — barre exclue. Le plan
+       * WebGL et son doublon DOM décrivent enfin la même boîte. */
+      const rScene = scene.getBoundingClientRect();
+      const cadre = { largeur: rScene.width, hauteur: rScene.height };
 
       /* La seule mesure du plan de sortie : la fenêtre de départ. Il n'y a pas
          de cadrage à calculer — l'image reste à son cadrage plein écran, et c'est

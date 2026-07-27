@@ -14,6 +14,8 @@ import { fenetre, PLEIN, type Boite } from "@/components/motion/plongee";
 import { visuels } from "@/data/visuels";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useDefilement } from "@/components/motion/LenisProvider";
+import { useLangue } from "@/i18n/LangueProvider";
+import { chemin } from "@/i18n/langues";
 import { armerReleve, useVideoProjet } from "./VideoProjet";
 import "./ouverture.css";
 
@@ -79,6 +81,11 @@ export function OuvertureProvider({
   const { arreter: arreterDefilement, reprendre } = useDefilement();
   const flux = useVideoProjet();
   const router = useRouter();
+  /* La langue est dans l'URL, et toute route interne se préfixe (voir
+     `i18n/langues.ts`). L'ouverture navigue elle-même, donc elle a besoin de la
+     connaître : sans elle, `/projets/<slug>` ne correspond à aucun segment
+     `app/[langue]/…` et la navigation aboutit sur la page d'erreur. */
+  const { langue } = useLangue();
 
   const surfaceRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -152,13 +159,33 @@ export function OuvertureProvider({
       const ligne = gsap.timeline({
         onComplete: () => {
           /* La photographie s'efface une fois le film installé : sous elle, il
-             n'y a plus que la vidéo, qui partira dans le hero. */
-          router.push(`/projets/${slug}`);
+             n'y a plus que la vidéo, qui partira dans le hero.
+
+             Le chemin passe par `chemin()`, comme tous les liens du site : la
+             route réelle est `/[langue]/projets/[slug]`, et une adresse sans
+             segment de langue n'existe pas. */
+          router.push(chemin(langue, `/projets/${slug}`));
         },
       });
+      /* Le cadre plein est **la surface elle-même**, et non `innerWidth` /
+         `innerHeight`. La différence est la barre de défilement : la surface est
+         en `position: fixed; inset: 0`, donc large du bloc conteneur initial,
+         barre exclue — quand les deux globaux, eux, la comptent. Un retrait
+         droit calculé sur `innerWidth` faisait donc partir la fenêtre quinze
+         pixels trop à gauche de la pièce cliquée, et l'ouverture commençait par
+         un saut. C'est le même repère que celui du rig, dont le canvas est posé
+         de la même façon : le morceau d'image montré par la pièce et celui que
+         la surface découvre sont alors le même, au pixel. */
+      const rSurface = surface.getBoundingClientRect();
       ligne.fromTo(
         surface,
-        { autoAlpha: 1, clipPath: fenetre(boite, { largeur: innerWidth, hauteur: innerHeight }) },
+        {
+          autoAlpha: 1,
+          clipPath: fenetre(boite, {
+            largeur: rSurface.width,
+            hauteur: rSurface.height,
+          }),
+        },
         { clipPath: PLEIN, duration: DUREE_CADRE, ease: "power2.inOut" },
         0,
       );
@@ -178,7 +205,7 @@ export function OuvertureProvider({
 
       return true;
     },
-    [arreterDefilement, flux, mouvementReduit, ranger, router],
+    [arreterDefilement, flux, langue, mouvementReduit, ranger, router],
   );
 
   const valeur = useMemo<Ouvreur>(() => ({ ouvrir, ranger }), [ouvrir, ranger]);
