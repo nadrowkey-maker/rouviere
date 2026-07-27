@@ -185,7 +185,7 @@ const SceneBassin = dynamic(() => import("@/components/gl/SceneBassin"), {
  * pas d'environ trente-sept pixels, ce qui donne à la molette un contrôle
  * continu au lieu d'un saut d'image tous les crans.
  */
-const TEMPS = 19;
+const TEMPS = 18;
 
 /**
  * Où s'arrête le plan filmé. **C'est la charnière du chapitre.**
@@ -198,7 +198,7 @@ const TEMPS = 19;
  * L'index de l'allumage étant mappé linéairement sur `[0, FILM_FIN]`, cette
  * valeur commande aussi l'instant où le mot se lève : `PART_ALLUMAGE × FILM_FIN`.
  */
-const FILM_FIN = 0.437;
+const FILM_FIN = 0.406;
 
 /** L'instant, en part de la course, où la pièce s'allume. Calculé, pas choisi. */
 const ALLUMAGE = PART_ALLUMAGE * FILM_FIN;
@@ -288,13 +288,13 @@ const MINUTAGE = {
    * un rien plus tard : la lumière est la dernière chose qui sort. Le négatif
    * flambe au passage, puisqu'il se calcule sur un fond qui tombe au noir.
    */
-  extinction: [FILM_FIN, FILM_FIN + 0.041],
-  lumiereSortie: [FILM_FIN + 0.011, FILM_FIN + 0.049],
+  extinction: [FILM_FIN, FILM_FIN + 0.043],
+  lumiereSortie: [FILM_FIN + 0.012, FILM_FIN + 0.052],
   /** Dans le noir, et seulement là. */
-  cinqEntree: [0.521, 0.563],
+  cinqEntree: [0.495, 0.539],
   /** Tout disparaît sauf « silence ». */
-  reduction: [0.584, 0.616],
-  eauMontee: [0.626, 0.672],
+  reduction: [0.561, 0.595],
+  eauMontee: [0.605, 0.654],
   /**
    * **Le redressement.** La caméra quitte l'aplomb, et ce qu'on découvre
    * au-dessus de l'eau est le lieu — la villa autour de sa piscine, en plan
@@ -307,10 +307,10 @@ const MINUTAGE = {
    * l'eau et son début, l'écran ne fait rien d'autre que de l'eau. C'est là
    * qu'on joue avec, et c'est la raison d'être de la section.
    */
-  redressement: [0.705, 0.895],
+  redressement: [0.689, 0.889],
   /** « silence » s'en va juste avant que la dernière phrase ne paraisse. */
-  silenceSortie: [0.855, 0.886],
-  septEntree: [0.895, 0.942],
+  silenceSortie: [0.847, 0.880],
+  septEntree: [0.889, 0.939],
   /**
    * **La sortie du chapitre s'éteint, elle ne se coupe pas.**
    *
@@ -323,7 +323,7 @@ const MINUTAGE = {
    * comme on éteint la pièce du quatrième temps : un multiplicateur qui descend,
    * jamais un voile posé par-dessus. La dernière phrase s'en va avec lui.
    */
-  extinctionFinale: [0.958, 1.0],
+  extinctionFinale: [0.956, 1.0],
 } as const;
 
 /**
@@ -337,7 +337,7 @@ const MINUTAGE = {
  * d'intersection suspend la simulation dès que l'ancre quitte l'écran, et
  * `onLeave` rend les nappes au site.
  */
-const EAU_DEBUT = 0.605;
+const EAU_DEBUT = 0.583;
 
 /**
  * Où la nature s'allume.
@@ -347,7 +347,7 @@ const EAU_DEBUT = 0.605;
  * pas d'habitat à illustrer, seulement une surface. Les oiseaux arrivent donc au
  * moment où l'on cesse de ne voir que de l'eau, et repartent avec le chapitre.
  */
-const NATURE_DEBUT = 0.815;
+const NATURE_DEBUT = 0.805;
 
 /**
  * Course verticale d'une phrase, en pixels. Huit — la ligne de base du site,

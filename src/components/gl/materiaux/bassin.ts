@@ -454,6 +454,27 @@ const TRAIT_EAU = new Uint8Array([
   138, 108, 86, 82,
 ]);
 
+/**
+ * **De combien l'eau descend sous la margelle.**
+ *
+ * C'est le réglage à toucher si le niveau ne va pas, et c'est le seul.
+ *
+ * Le trait relevé sur le plan suit la base de la margelle claire — c'est-à-dire
+ * le **haut** de la paroi émergée du bassin. Or l'eau réelle commence à son
+ * **bas** : entre les deux court une bande sombre de treize à quinze pixels sur
+ * une image de 1080, la paroi que l'eau ne recouvre pas. Sans cette descente,
+ * l'eau calculée arrive à hauteur du sol au lieu de se tenir sous le bord.
+ *
+ * La valeur est en part de hauteur d'image : 0,013 vaut quatorze pixels sur
+ * 1080. **L'augmenter fait descendre l'eau, la diminuer la fait monter.**
+ *
+ * Elle est constante, et c'est une approximation assumée : la bande est plus
+ * haute au premier plan qu'au fond, puisque c'est une hauteur réelle vue en
+ * perspective. La corriger vraiment demande de reposer le plan d'eau à la bonne
+ * altitude dans la scène, ce qui est un recalage de caméra et non un réglage.
+ */
+const TRAIT_DESCENTE = 0.020;
+
 /** Demi-largeur du fondu de la lisière, en part de hauteur d'image. */
 const LISIERE = 0.022;
 
@@ -999,6 +1020,7 @@ const FRAGMENT_FOND = /* glsl */ `
   uniform vec3 uCielHaut;
   uniform vec3 uEclat;
   uniform vec3 uSoleil;
+  uniform float uExtinction;
 
   ${CHUNK_PLAN}
 
@@ -1030,7 +1052,7 @@ const FRAGMENT_FOND = /* glsl */ `
       vec3 plan = texture2D(uPlan, uv).rgb * uPlanExposition;
       fond = mix(fond, mix(uCielBas, plan, couverture), uPlanForce);
     }
-    gl_FragColor = vec4(fond, 1.0);
+    gl_FragColor = vec4(mix(fond, uCielBas, uExtinction), 1.0);
   }
 `;
 
@@ -1074,6 +1096,8 @@ const FRAGMENT_SURFACE = /* glsl */ `
   uniform float uClapot;
   uniform float uTraitBase;
   uniform float uTraitPlage;
+  uniform float uDescente;
+  uniform float uExtinction;
 
   ${CHUNK_CUBE}
   ${CHUNK_ETENDUE}
@@ -1212,12 +1236,18 @@ const FRAGMENT_SURFACE = /* glsl */ `
       vec2 uvPlan = cp.xy / cp.w * 0.5 + 0.5;
       float trait = uTraitBase
         + texture2D(uTrait, vec2(clamp(uvPlan.x, 0.0, 1.0), 0.5)).r * uTraitPlage;
+      /* Le trait suit la base de la margelle ; l'eau, elle, commence au bas de
+         la paroi émergée. On descend donc d'autant. Voir TRAIT_DESCENTE. */
+      trait -= uDescente;
       trait += info.r * uClapot;
       float masque = smoothstep(trait + uLisiere, trait - uLisiere, uvPlan.y);
       alpha = mix(1.0, masque, uPlanForce);
     }
 
-    gl_FragColor = vec4(couleur, alpha);
+    /* La sortie du chapitre éteint le cadre vers l'encre du site — la couleur
+       de la page — et non vers le noir : c'est ce qui rend le raccord avec le
+       chapitre suivant invisible. */
+    gl_FragColor = vec4(mix(couleur, uCielBas, uExtinction), alpha);
   }
 `;
 
@@ -1773,6 +1803,8 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
         uClapot: { value: CLAPOT },
         uTraitBase: { value: TRAIT_BASE },
         uTraitPlage: { value: TRAIT_PLAGE },
+        uDescente: { value: TRAIT_DESCENTE },
+        uExtinction: { value: 0 },
       },
       vertexShader: SOMMET_SURFACE,
       fragmentShader: FRAGMENT_SURFACE,
@@ -1795,6 +1827,7 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
       uniforms: {
         ...uniformsPlan(),
         uCadreVersMonde: { value: cadreVersMonde },
+        uExtinction: { value: 0 },
         uMargeFond: { value: margeFond },
         uTanDemiCadre: { value: tanDemiCadre },
         uCielBas: { value: cielBas },
@@ -2220,13 +2253,17 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
         /* L'exposition du plan. Elle ne passe pas par `poserCamera` : elle ne
            descend pas du redressement mais du minutage du texte, et les deux ne
            se recouvrent qu'en partie. Voir `EtatBassin.exposition`. */
-        /* L'extinction du chapitre. Le plan d'affichage est un
-           `MeshBasicMaterial` : sa couleur multiplie sa carte, donc éteindre le
-           cadre entier tient en une ligne et ne coûte pas une passe. */
+        /* **L'extinction va vers l'encre du site, pas vers le noir.**
+           Elle multipliait la couleur du plan d'affichage, ce qui la menait au
+           noir pur — plus sombre que le fond de page. Le cadre s'éteignait donc
+           sur du noir, et le chapitre suivant reprenait sur l'encre : une marche
+           de couleur franche, exactement là où le raccord devait être invisible.
+           Les deux shaders mélangent maintenant leur sortie vers `uCielBas`,
+           c'est-à-dire vers la couleur même de la page. */
         const extinction = reglages.etat.current.extinction ?? 0;
-        const reste = 1 - extinction;
-        if (materiauAffichage.color.r !== reste) {
-          materiauAffichage.color.setScalar(reste);
+        if (materiauFond.uniforms.uExtinction!.value !== extinction) {
+          materiauFond.uniforms.uExtinction!.value = extinction;
+          materiauSurface.uniforms.uExtinction!.value = extinction;
           cadreAJour = false;
         }
 
@@ -2330,6 +2367,14 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
       },
 
       visibilite: (visible) => {
+        if (visible) {
+          /* **On revient dans la section.** La pose est inchangée, donc le
+             garde-fou de `poserCamera` la considérerait comme déjà appliquée et
+             ne rejouerait rien — dont la remise en lecture du plan filmé, qui
+             restait alors en pause. On invalide donc la pose : la prochaine
+             frame réapplique tout. */
+          redressementPose = -1;
+        }
         if (!visible) {
           /* Le chapitre sort de l'écran : le plan filmé n'a plus personne pour
              le regarder, et un décodage vidéo qui continue en arrière-plan est
