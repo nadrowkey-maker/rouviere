@@ -74,57 +74,24 @@ const FERME = "inset(0% 0% 100% 0%)";
 const OUVERT = "inset(0% 0% 0% 0%)";
 
 /**
- * L'apparition du premier nom.
+ * **Le premier nom n'a pas d'arrivée**, et c'est un retrait, pas un oubli.
  *
- * Les deux autres matières n'en ont pas besoin : elles arrivent derrière un
- * masque, et leur nom est peint dans le plan — il est découvert du même geste
- * qu'elles. **Le premier nom, lui, n'a aucun masque pour le porter** : il se
- * pose sur la photographie que l'enfilade vient de laisser ouverte, et rien
- * d'autre ne se produit à cet instant. Il paraissait donc d'un coup, avec le
- * cadre. C'était brutal, et il fallait le composer.
+ * Les deux autres matières n'en ont jamais eu besoin : elles arrivent derrière
+ * un masque, et leur nom est peint dans le plan — il est découvert du même geste
+ * qu'elles. Le premier, lui, n'a aucun masque pour le porter : il se pose sur la
+ * photographie que l'enfilade vient de laisser ouverte. On lui avait donc écrit
+ * une composition à lui — un mot par ligne, monté derrière une arête, flou qui
+ * se résorbe.
  *
- * La composition est un reveal ligne par ligne : chaque mot monte de 110 %
- * derrière une arête, son flou se résorbe, sur neuf dixièmes de seconde en
- * `--e-sortie`. Trois précisions comptent :
+ * Elle a été retirée parce qu'elle **décalait la photographie** : animer un
+ * `filter` sous un nœud en `mix-blend-mode` force le fond à basculer sur une
+ * autre surface de rendu, et l'image se rééchantillonne. `matiere.css` le
+ * raconte en détail, à l'endroit où vivaient ses styles.
  *
- * — **Le décalage est écrit, pas calculé.** Un stagger régulier est la
- *   signature d'un générateur. Les valeurs ci-dessous ne suivent aucune raison ;
- *   c'est le propos.
- * — **Rien n'anime l'opacité.** Le nom vit en `mix-blend-mode: difference`, et
- *   une densité intermédiaire posée sur un nœud qui se mélange ne donne pas la
- *   moitié du négatif : elle donne la couleur source, c'est-à-dire un blanc
- *   pâle. C'est le défaut qu'on avait, et c'est la raison pour laquelle le nom
- *   ne s'animait plus du tout. Une arête et une translation n'ont pas ce
- *   problème : à tout instant, ce qui est visible est du négatif plein.
- * — **La course est réversible.** Elle est jouée et rembobinée par la même
- *   bascule que la pose du cadre : on remonte dans le couloir, le nom se
- *   retire derrière son arête.
- *
- * ## Le réglage de la courbe, et pourquoi elle a changé
- *
- * L'arrivée était en `expo.out` sur neuf dixièmes de seconde. Sur le papier
- * c'est une seconde entière ; à l'écran, une exponentielle sortante a rendu les
- * quatre cinquièmes de sa course dans son premier cinquième de temps — le mot
- * était en place au bout de deux dixièmes, et les sept dixièmes restants ne
- * faisaient plus rien. On voyait donc un mot qui claque, pas un mot qui monte.
- *
- * C'est la même leçon que l'ignition du vestibule, payée au même prix : **la
- * plage ne fait pas la douceur, la courbe la fait.** Trois corrections, et
- * aucune n'est cosmétique.
- *
- * — `power2.out` au lieu de `expo.out` : la vitesse initiale est finie, donc le
- *   mot part au lieu de surgir.
- * — La durée passe à `--d-chapitre`. C'est un changement de monde qui a lieu ici
- *   — l'enfilade rend la main —, pas une entrée d'objet.
- * — **Une avance avant le premier mot.** Il partait à l'instant exact où le
- *   cadre se pose, c'est-à-dire dans la frame où le couloir rend la main : deux
- *   événements dans la même image, dont l'un masquait l'autre. Le nom laisse
- *   maintenant passer la reprise avant de monter.
+ * Le nom paraît donc avec le cadre, sans rien jouer. C'est ce que le chapitre
+ * demandait de toute façon : il dit qu'ici on regarde la matière, et un nom qui
+ * se compose est déjà quelque chose d'autre à regarder.
  */
-const NOM_DUREE = 1.15;
-const NOM_DECALAGES = [0.24, 0.41, 0.32];
-const NOM_FLOU = 7;
-
 
 /**
  * Le minutage de la traversée, en fractions de la progression.
@@ -186,59 +153,6 @@ export function Matiere() {
 
       const departs = minutage(matieres.length);
 
-      /* ---- L'apparition du premier nom ----
-         Montée avant le déclencheur qui la joue. Voir `NOM_DUREE` pour le
-         pourquoi de chacun de ses termes. */
-      const lignesNom = gsap.utils.toArray<HTMLElement>(
-        ".matiere__plan:first-child .matiere__ligne",
-        cadre,
-      );
-      const apparition = gsap.timeline({ paused: true });
-      if (lignesNom.length > 0) {
-        gsap.set(lignesNom, { yPercent: 110, filter: `blur(${NOM_FLOU}px)` });
-        lignesNom.forEach((ligne, i) => {
-          apparition.to(
-            ligne,
-            {
-              yPercent: 0,
-              filter: "blur(0px)",
-              duration: NOM_DUREE,
-              ease: "power2.out",
-            },
-            NOM_DECALAGES[i % NOM_DECALAGES.length],
-          );
-        });
-      }
-
-      /**
-       * **La pose du cadre et l'arrivée du nom, en un seul geste idempotent.**
-       *
-       * Les deux étaient écrits dans le `onToggle` du déclencheur, et c'est
-       * fragile pour une raison qui n'a rien de théorique : une bascule ne
-       * signale qu'une **transition**. Si elle n'est pas franchie — parce que le
-       * déclencheur naît déjà actif, parce qu'un `refresh()` recalcule ses
-       * bornes pendant que l'enfilade mesure son épinglage, parce qu'on arrive
-       * dans le chapitre par un saut plutôt que par le défilement —, l'arrivée
-       * du nom n'est jamais jouée. Et comme les lignes partent posées à 110 %
-       * derrière leur arête, ne pas jouer l'arrivée ne veut pas dire « le nom
-       * est là sans animation » : cela veut dire **le nom n'est pas là du tout**.
-       *
-       * On passe donc d'un événement à un état. `poser` peut être appelé autant
-       * de fois qu'on veut, depuis autant d'endroits qu'on veut, et il ne fait
-       * quelque chose que si l'état change réellement. Deux appelants s'en
-       * servent — la bascule du déclencheur, et l'observateur d'intersection du
-       * chapitre —, ce qui suffit à garantir que le nom paraît dès que le
-       * chapitre est là, sans dépendre d'une seule transition.
-       */
-      let nomPose = false;
-      const poser = (dans: boolean) => {
-        cadre.dataset.pose = dans ? "true" : "false";
-        if (dans === nomPose) return;
-        nomPose = dans;
-        if (dans) apparition.play();
-        else apparition.reverse();
-      };
-
       /* ---- Le recouvrement de l'enfilade ----
        *
        * `.matiere` remonte d'un écran sur le chapitre précédent (voir
@@ -252,22 +166,22 @@ export function Matiere() {
        * épinglée, le cadre est déjà dans le viewport et le couvrirait par le bas.
        * Il n'est donc **posé** qu'à partir du moment où le chapitre commence
        * vraiment. Avant, il n'est pas là.
+       *
+       * **Et c'est ce même moment qui donne le premier nom.** Il n'a plus
+       * d'arrivée à lui : il est peint dans le plan comme les deux autres, et
+       * il paraît donc exactement quand le cadre prend le plein écran, sans que
+       * rien n'ait à être joué ni minuté. Voir plus bas pourquoi son animation a
+       * été retirée.
        */
       const pose = ScrollTrigger.create({
         trigger: traversee,
         start: "top top",
         end: "max",
-        onToggle: (self) => poser(self.isActive),
+        onToggle: (self) => {
+          cadre.dataset.pose = self.isActive ? "true" : "false";
+        },
       });
-      /* Rechargement en plein chapitre : le nom est déjà dit, il n'a pas à
-         rejouer son arrivée sous les yeux de quelqu'un qui est déjà là. */
-      if (pose.isActive) {
-        cadre.dataset.pose = "true";
-        nomPose = true;
-        apparition.progress(1);
-      } else {
-        poser(false);
-      }
+      cadre.dataset.pose = pose.isActive ? "true" : "false";
 
       /**
        * Quelle matière occupe l'écran. Le passage de relais est pris à
@@ -455,13 +369,6 @@ export function Matiere() {
           if (visible === aLEcran) return;
           aLEcran = visible;
           appliquer();
-          /* Le second appelant de `poser`. L'observateur dit une chose que le
-             déclencheur ne dit pas : que le chapitre est **réellement** devant
-             les yeux. S'il l'est et que le nom n'est toujours pas venu, c'est
-             qu'une transition a été manquée — on la rattrape ici. C'est
-             idempotent : quand la bascule a fait son travail, cet appel ne fait
-             rien. */
-          if (visible && pose.isActive) poser(true);
           /* On quitte le chapitre : on rend la nappe. Sans cela elle resterait
              coupée sous le chapitre suivant si l'on sort par un plan qui la
              coupait — c'est-à-dire dans les deux cas sur trois. */
@@ -587,25 +494,13 @@ export function Matiere() {
                   fait pour qu'on regarde, et un nom suffit à dire ce qu'on
                   regarde. */}
               <figcaption className="matiere__legende">
-                <h3 className="matiere__nom display">
-                  {index === 0 ? (
-                    <>
-                      {/* Le nom découpé est doublé d'un équivalent lisible : les
-                          mots sont des blocs, et rien ne garantit qu'un lecteur
-                          d'écran restitue l'espace qui les sépare. */}
-                      <span className="sr-only">{dire(matiere.nom)}</span>
-                      <span className="matiere__lignes" aria-hidden="true">
-                        {dire(matiere.nom).split(" ").map((mot) => (
-                          <span className="matiere__mot" key={mot}>
-                            <span className="matiere__ligne">{mot}</span>
-                          </span>
-                        ))}
-                      </span>
-                    </>
-                  ) : (
-                    dire(matiere.nom)
-                  )}
-                </h3>
+                {/* Les trois noms sont rendus de la même façon, et le premier
+                    n'est plus découpé en mots — voir « L'arrivée du premier
+                    nom » dans `matiere.css` pour ce qui a été retiré et
+                    pourquoi. Le découpage n'existait que pour porter une
+                    animation qui n'existe plus ; sans elle il ne restait qu'une
+                    complication et un doublon `sr-only`. */}
+                <h3 className="matiere__nom display">{dire(matiere.nom)}</h3>
               </figcaption>
             </figure>
           ))}

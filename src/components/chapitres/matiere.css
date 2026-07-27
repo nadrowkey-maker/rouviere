@@ -36,24 +36,30 @@
 
 /* ---- La traversée ---- */
 
-/* La course. `--matieres` vient du manifeste.
+/* La course, et le rythme du chapitre. `--matieres` vient du manifeste.
 
-   **Elle ne fait plus un écran plein par matière**, et le calcul de ce qu'on
-   traverse vraiment explique pourquoi. Le cadre est collé : il tient le viewport
-   pendant `course − 100vh`, puisque le dernier écran de la course sert à le
-   décoller. À trois écrans pleins, cela faisait 200 vh de défilement pour trois
-   plans qui, eux, ne bougent pas — on tenait la molette longtemps devant une
-   image fixe, et le chapitre traînait.
+   **Le calcul à avoir en tête, parce qu'il n'est pas celui qu'on croit :** le
+   cadre est collé, donc il tient le viewport pendant `course − 100vh` — le
+   dernier écran de la course sert à le décoller et ne se traverse pas. Un écran
+   plein par matière ne donne donc pas trois écrans de défilement, il en donne
+   deux.
 
-   À 70 vh par matière, la course fait 210 vh et le collage en dure 110 : la
-   traversée est presque deux fois plus courte, et chaque plan garde tout de même
-   une bonne demi-hauteur d'écran de palier. Les passages de masque suivent
-   d'eux-mêmes — ils sont une fraction de la course (`PASSAGE`), pas une durée.
+   Ici on ne cherche pas à raccourcir mais à **ralentir** : c'est le seul
+   chapitre du site où rien ne se déplace, et où l'on est censé s'arrêter sur ce
+   qu'on voit. Une course courte y produit l'effet inverse de celui qu'on veut —
+   les masques balaient au moindre cran de molette, et une matière défile au lieu
+   de se laisser regarder.
 
-   La valeur est ici, seule, et c'est le seul endroit à toucher pour régler le
-   rythme du chapitre. */
+   À 130 vh par matière, la course fait 390 vh et le collage en dure 290. Chaque
+   plan tient alors une bonne demi-page de molette en palier, et chaque masque en
+   prend un tiers pour balayer. Le contenu bouge donc **moins** pour un même
+   geste, ce qui est la définition de ralentir.
+
+   Les passages suivent d'eux-mêmes : ils sont une fraction de la course
+   (`PASSAGE`), jamais une durée. C'est ce qui fait de cette seule valeur le
+   réglage complet du rythme — il n'y a rien d'autre à toucher. */
 .matiere__traversee {
-  --matiere-ecran: 70vh;
+  --matiere-ecran: 130vh;
   position: relative;
   height: calc(var(--matieres) * var(--matiere-ecran));
 }
@@ -132,40 +138,28 @@
   mix-blend-mode: difference;
 }
 
-/* ---- L'arête du premier nom ----
+/* ---- L'arrivée du premier nom, et pourquoi elle a été retirée ----
 
    Le premier nom est le seul qu'aucun masque ne porte : il se pose sur la
-   photographie que l'enfilade vient d'ouvrir, et rien d'autre ne bouge à cet
-   instant. Il a donc sa propre arrivée — un mot par ligne, chacun monté de
-   110 % derrière son arête, flou qui se résorbe (voir `Matiere.tsx`).
+   photographie que l'enfilade vient d'ouvrir. Il avait donc sa propre arrivée —
+   un mot par ligne, monté de 110 % derrière une arête, flou qui se résorbe.
 
-   Le blend reste sur le nom ; la translation et le flou vivent deux crans plus
-   bas. C'est ce qui permet de composer cette apparition sans jamais toucher à
-   l'opacité, qui est exactement ce que ce nom ne supporte pas.
+   **Elle décalait l'image.** Le nom vit en `mix-blend-mode: difference`, ce qui
+   oblige le navigateur à isoler ce qu'il y a dessous pour calculer le mélange.
+   Tant que rien ne bouge, cette isolation est gratuite. Mais animer un `filter`
+   — et déclarer `will-change` — sous un nœud qui se mélange force la promotion
+   d'une couche de composition et le basculement du fond sur une **autre surface
+   de rendu** : la photographie est rééchantillonnée, et elle se déplace d'un
+   demi-pixel à l'instant précis où le texte paraît. C'est ce qu'on voyait.
 
-   Les retraits compensés donnent de l'air à l'arête : une ligne à 0,82
-   d'interligne laisse dépasser ses jambages, et le flou déborde le glyphe de
-   dix pixels. Le padding les laisse passer, la marge négative rend la position
-   exacte — le nom reste calé au pixel où il était. */
-/* Le porteur des lignes est un bloc : une boîte en ligne qui contient des blocs
-   se fait couper en boîtes anonymes, et l'arête n'a plus de hauteur sûre. */
-.matiere__lignes {
-  display: block;
-}
+   C'était la même faute que celle déjà notée pour l'opacité, sous une autre
+   forme : *sous un blend, on ne compose pas.* L'opacité était bannie ici ; le
+   flou l'est maintenant aussi, et pour la même raison.
 
-.matiere__mot {
-  display: block;
-  overflow: hidden;
-  padding-bottom: 0.16em;
-  margin-bottom: -0.16em;
-  padding-inline: 0.06em;
-  margin-inline: -0.06em;
-}
-
-.matiere__ligne {
-  display: block;
-  will-change: transform, filter;
-}
+   Le nom est donc simplement là, comme les deux autres, dès que le cadre prend
+   le plein écran. C'est aussi ce qui était demandé — qu'il paraisse
+   automatiquement — et cela supprime du même geste la classe de bug où une
+   bascule manquée laissait les lignes cachées derrière leur arête. */
 
 /* ---- Mouvement réduit : trois plans posés, un par écran ---- */
 
