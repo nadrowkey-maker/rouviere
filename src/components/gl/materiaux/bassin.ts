@@ -1449,7 +1449,7 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
     /* ---- Les couleurs, lues ici et non à l'évaluation du module ---------
        Un jeton lu au chargement du fichier peut l'être avant que la feuille de
        style ne soit appliquée. Voir `scripts/verifier-jetons.mjs`. */
-    const cielBas = couleurJeton("encre");
+    const cielBas = new THREE.Color("#0e1317");
     const cielHaut = couleurJeton("sel");
     const eclat = couleurJeton("craie");
     const teinteSousEau = couleurJeton("sel");
