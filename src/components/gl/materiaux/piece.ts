@@ -15,6 +15,14 @@
  *   proprement sur le cercle, et c'est précisément ce qui donne son grain au
  *   flou. Corrigé, l'effet perd ce qu'on est venu chercher.
  *
+ *   **Une seule chose y a été changée, et elle ne touche pas au grain :** la
+ *   seconde prise de chaque répétition part maintenant dans le sens opposé à la
+ *   première. La source les envoyait toutes deux du même côté, ce qui donnait au
+ *   noyau un centre de gravité décalé — inoffensif dans une galerie où le flou
+ *   ne varie pas, désastreux ici où il tombe à zéro quand la pièce arrive au
+ *   centre : l'image se déplaçait à mesure qu'elle se faisait nette. Voir le
+ *   commentaire de `flou()`.
+ *
  * — **`horizontal-parallax-gallery`** (`src/shaders/mediaFragment.glsl`) donne
  *   le `coverUv` et le parallaxe d'UV : la texture est réduite (`uEchelleUv`,
  *   0.85 à la source) pour ménager la marge dans laquelle elle glisse. L'image
@@ -81,6 +89,36 @@ const FRAGMENT = /* glsl */ `
     return texture2D(image, uv).rgb;
   }
 
+  /* ---- Le noyau est centré, et il ne l'était pas ----
+
+     Les deux prises d'une répétition partaient **dans le même sens**. Comme
+     hasard() rend une valeur positive et que RAYON s'y ajoute, chaque
+     déplacement valait direction × (positif) : le noyau n'échantillonnait
+     qu'un demi-plan par direction.
+
+     Cela n'aurait rien coûté si les directions se répartissaient sur le cercle.
+     Elles ne s'y répartissent pas — c'est tout le propos du degrees() de trop,
+     qui les disperse (voir l'en-tête). Leur somme vectorielle ne s'annule donc
+     pas : sur vingt-huit directions, elle vaut encore 0,78 unité. Le noyau avait
+     un **premier moment non nul**, c'est-à-dire un centre de gravité décalé du
+     point qu'il floute.
+
+     Conséquence, et c'est le défaut qu'on corrige : **l'image floutée était
+     déplacée**, d'un vecteur proportionnel à la quantité de flou. Or cette
+     quantité tombe à zéro quand la pièce arrive au centre du cadre. Le
+     déplacement tombait avec elle — quelques pixels qui se résorbaient pendant
+     que la pièce se faisait nette. On voyait donc l'image *glisser* juste avant
+     que son cadre ne s'ouvre, alors que rien, ni dans la géométrie du plan ni
+     dans sa fenêtre, ne la déplaçait. Et le doublon DOM qui prend le relais,
+     lui, est net — donc non déplacé : l'échange se faisait sur un écart résiduel.
+
+     La correction ne touche ni aux directions, ni aux rayons, ni au nombre de
+     prises : **la seconde prise de chaque répétition part dans le sens
+     opposé.** Le noyau devient symétrique par construction, son premier moment
+     est nul quelles que soient les directions, et le grain reste exactement ce
+     qu'il était — ce sont les mêmes deux hasard(), dont la différence ne
+     produit plus qu'une gigue symétrique. Le degrees() est intact, et l'effet
+     avec lui. */
   vec3 flou(vec2 uv, sampler2D image, float quantite) {
     vec3 accumule = vec3(0.0);
 
@@ -94,7 +132,7 @@ const FRAGMENT = /* glsl */ `
       accumule += prise(image, uv + q * RAYON * quantite) / 2.0;
 
       q = direction * (hasard(vec2(i + 2.0, uv.x + uv.y + 24.0)) + RAYON);
-      accumule += prise(image, uv + q * RAYON * quantite) / 2.0;
+      accumule += prise(image, uv - q * RAYON * quantite) / 2.0;
     }
 
     return accumule / REPETITIONS;
@@ -199,6 +237,29 @@ const TEMOIN = process.env.NODE_ENV !== "production";
       flou de base : il le divise sur la pièce qu'on regarde et l'augmente d'un
       cran sur les autres. Sans lui, la règle est déjà là ; avec lui, elle se
       creuse.
+
+   ------------------------------------------------------------------
+   Et ce qui est rattrapé, ce qui ne l'est pas
+   ------------------------------------------------------------------
+   Le flou entier passait par un rattrapage exponentiel — huit dixièmes de
+   seconde pour aller du bord au net. C'était juste pour le pointeur et faux pour
+   le reste, et la différence se paie au bout du couloir.
+
+   **Le premier étage n'a aucun besoin d'être rattrapé** : il est une fonction de
+   la position, donc il varie déjà continûment avec le défilement. L'amortir
+   n'ajoute pas de douceur, il ajoute du **retard** — et un retard, ici, veut
+   dire que la dernière pièce est encore floue quand son cadre s'ouvre. Sur une
+   molette lancée, la traversée franchit la plage nette en quelques frames là où
+   le rattrapage en demandait cinquante : le doublon DOM, net par nature, prenait
+   la place d'un plan qui l'était à moitié.
+
+   **Le second étage, lui, en a besoin** : une désignation est un événement
+   discret — le pointeur entre dans une pièce, le parcours en fige une —, et sans
+   amortissement elle claquerait.
+
+   D'où la séparation : la position s'écrit, la désignation se rattrape. La pièce
+   centrée est donc nette **à l'image près**, quelle que soit la vitesse du
+   geste, et le relais du plan WebGL vers son doublon n'a plus rien à masquer.
    ------------------------------------------------------------------ */
 
 /** Flou de repos d'une pièce sortie du centre, en unités du shader. */
@@ -289,7 +350,18 @@ export function fabriquerPiece(reglages: ReglagesPiece): Fabrique {
       );
     });
 
-    let flouActuel = mouvementReduit ? 0 : FLOU_BORD;
+    /**
+     * L'accent de désignation, de −1 à 1, et **la seule quantité rattrapée**.
+     *
+     *   −1 — cette pièce est celle qu'on désigne : elle est franchement nette.
+     *    0 — personne n'est désigné : le flou est celui de la position seule.
+     *    1 — une autre est désignée : celle-ci prend un cran de plus.
+     *
+     * Il part à zéro : au montage, personne n'a rien désigné.
+     */
+    let accent = 0;
+    /** Dernière valeur écrite, pour le témoin de développement. */
+    let flouActuel = 0;
 
     return {
       objet: maillage,
@@ -336,26 +408,34 @@ export function fabriquerPiece(reglages: ReglagesPiece): Fabrique {
         /* Premier étage : la position dans le cadre. Plage nette au centre,
            plage floue aux bords, courbe en S entre les deux. C'est la seule
            chose qui joue tant que personne n'a bougé la souris — et elle
-           suffit à ce qu'on voie la règle. */
-        let cible =
-          adoucir(Math.abs(ecart), NET_JUSQUA, FLOU_DES) * FLOU_BORD;
+           suffit à ce qu'on voie la règle.
+
+           Elle s'écrit sans rattrapage : c'est déjà une fonction continue du
+           défilement. Voir l'en-tête pour ce que coûtait l'amortissement. */
+        const base = adoucir(Math.abs(ecart), NET_JUSQUA, FLOU_DES) * FLOU_BORD;
 
         /* Second étage : le pointeur — ou le parcours, quand il fige une pièce
            pour conclure — désigne une pièce. Elle se fait nette, les autres
-           prennent un cran de plus. */
-        const survol = reglages.etat.current.fige ?? reglages.etat.current.survol;
-        if (survol !== null) {
-          cible =
-            survol === reglages.index
-              ? cible * ACCENT_NETTETE
-              : cible + ACCENT_VOISINE;
-        }
+           prennent un cran de plus. C'est un événement discret, donc c'est lui,
+           et lui seul, qu'on rattrape. */
+        const designee =
+          reglages.etat.current.fige ?? reglages.etat.current.survol;
+        const accentCible =
+          designee === null ? 0 : designee === reglages.index ? -1 : 1;
 
         if (mouvementReduit) {
-          flouActuel = cible;
+          accent = accentCible;
         } else {
-          flouActuel = rattraper(flouActuel, cible, 0.12, delta);
+          accent = rattraper(accent, accentCible, 0.12, delta);
         }
+
+        /* De −1 à 0, on descend du flou de position vers la netteté demandée ;
+           de 0 à 1, on y ajoute le cran des voisines. Continu et dérivable en
+           zéro, donc rien ne se voit au franchissement. */
+        flouActuel =
+          accent <= 0
+            ? base * (1 + accent * (1 - ACCENT_NETTETE))
+            : base + accent * ACCENT_VOISINE;
         materiau.uniforms.uFlou!.value = flouActuel;
 
         if (TEMOIN) {
