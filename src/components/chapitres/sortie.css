@@ -271,6 +271,15 @@
   display: inline-block;
 }
 
+/* La mention de fiction prend sa propre ligne sous la signature. Elle hérite du
+   corps, de l'interlettrage et du zinc du colophon : rien ne la distingue, elle
+   se lit dans la même respiration. Le colophon étant ancré par le bas, la ligne
+   pousse le filet vers le haut de huit pixels — la bande basse a la place. */
+.sortie__fiction {
+  display: block;
+  margin-top: calc(var(--spacing) * 2);
+}
+
 .sortie__colophon .sortie__lien {
   color: var(--color-pierre);
   pointer-events: auto;

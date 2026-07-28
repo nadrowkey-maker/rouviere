@@ -51,8 +51,11 @@ import "./sortie.css";
  * continue sans nous. C'est ce qui en fait une fin et pas un dernier écran.
  */
 
-const ADRESSE = "atelier@rouviere.fr";
-const TELEPHONE = "+33 1 42 61 08 11";
+/* Coordonnées volontairement inopérantes : l'atelier est une fiction, et un
+   numéro ou une adresse qui auraient l'air vrais finiraient par sonner chez
+   quelqu'un. Le colophon le dit en toutes lettres, ces deux lignes le montrent. */
+const ADRESSE = "contact@exemple-fictif.fr";
+const TELEPHONE = "+33 1 00 00 00 00";
 
 /** L'auteur du site. Pas l'atelier — voir le colophon, plus bas. */
 const AUTEUR = "contact.flaviengaude@gmail.com";
@@ -339,6 +342,10 @@ export function Sortie() {
             {AUTEUR}
           </a>
         </span>
+        {/* La fiction levée, sur sa propre ligne et sous la signature : c'est
+            l'auteur qui la déclare, pas l'atelier. Même corps, même zinc — elle
+            n'attire pas l'œil, elle est là pour qui la cherche. */}
+        <span className="sortie__fiction">{t("colophonFiction")}</span>
       </p>
     </section>
   );

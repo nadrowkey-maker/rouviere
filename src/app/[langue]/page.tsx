@@ -24,8 +24,11 @@ const ORGANISATION = {
     postalCode: "75007",
     addressCountry: "FR",
   },
-  telephone: "+33142610811",
-  email: "atelier@rouviere.fr",
+  /* Les mêmes coordonnées inopérantes que la sortie. Les données structurées
+     sortent du site — un moteur les recopie, un annuaire les indexe — donc elles
+     ne peuvent pas dire autre chose que le pied de page. */
+  telephone: "+33100000000",
+  email: "contact@exemple-fictif.fr",
 };
 
 /**

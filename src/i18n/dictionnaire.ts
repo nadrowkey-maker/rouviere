@@ -170,6 +170,14 @@ export const INTERFACE = {
     en: "Site designed and built by Flavien Gaudé.",
   },
   colophonInvite: { fr: "Pour le vôtre —", en: "For yours —" },
+
+  /* La ligne qui lève la fiction. Elle appartient au colophon et non à la voix
+   * de Rouvière — un atelier ne dit pas qu'il n'existe pas. Même registre sec
+   * que la signature au-dessus : une phrase, un fait, rien de plus. */
+  colophonFiction: {
+    fr: "Rouvière est un atelier fictif, imaginé pour cette démonstration.",
+    en: "Rouvière is a fictional practice, imagined for this demonstration.",
+  },
 } as const satisfies Record<string, Texte>;
 
 export type Cle = keyof typeof INTERFACE;
