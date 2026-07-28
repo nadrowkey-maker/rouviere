@@ -31,7 +31,7 @@ type Defilement = {
 const ContexteDefilement = createContext<Defilement | null>(null);
 
 export function LenisProvider({ children }: { children: React.ReactNode }) {
-  const { mouvementReduit } = useMouvement();
+  const { mouvementReduit, capacites } = useMouvement();
   const [lenis, setLenis] = useState<Lenis | null>(null);
   const verrous = useRef<Set<string>>(new Set());
   /* L'instance vit aussi dans une ref : les deux rappels ci-dessous restent
@@ -102,13 +102,65 @@ export function LenisProvider({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   useEffetVisuel(() => {
-    /* En mouvement réduit, Lenis reste en place — il porte les verrous et
-       l'événement de défilement — mais il ne lisse plus rien : la molette et
-       le tactile repassent au natif. */
+    /* ------------------------------------------------------------------
+       Le tremblement du swipe, et pourquoi il n'était pas une animation
+       ------------------------------------------------------------------
+       `syncTouch` valait `false` : sur un appareil tactile, le défilement était
+       donc **natif**, c'est-à-dire porté par le fil de composition du
+       navigateur, à côté du fil principal.
+
+       Or tout ce qui, dans ce site, doit rester immobile ou se déplacer avec la
+       page est repositionné par JavaScript, sur le fil principal, une fois par
+       frame :
+
+         — les six sections épinglées, dont `pinType: "transform"` écrit à chaque
+           frame la translation qui **annule** le défilement pour tenir la scène
+           en place ;
+         — les plans WebGL, calés sur des `getBoundingClientRect` lus dans la
+           passe de mesure ;
+         — les parallaxes des vues d'une chambre, les masques, les jauges.
+
+       Le compositeur déplace le contenu immédiatement ; la correction arrive une
+       frame plus tard. L'écart est exactement le delta de défilement de la
+       frame — quelques dizaines de pixels à la vitesse d'un swipe —, appliqué
+       puis repris, soixante fois par seconde. **C'est ça, le tremblement**, et
+       c'est pour cette raison qu'il touchait tout à la fois : ce n'est pas un
+       défaut d'animation, c'est un défaut de synchronisation. Aucun réglage de
+       courbe, de durée ou de `scrub` ne pouvait l'atteindre. Sur iOS, où le
+       ticker est affamé pendant l'inertie, les corrections arrivent en paquets
+       et le tremblement devient une secousse.
+
+       `syncTouch` rend le geste tactile à Lenis : c'est lui qui pose la position
+       de défilement, sur le fil principal, dans la frame où tout le reste est
+       calculé. Le défilement et ce qui s'y accroche ne peuvent plus diverger
+       d'une frame, parce qu'ils sont écrits dans la même.
+
+       Deux bénéfices viennent avec, et ils ne sont pas mineurs : le geste ne
+       défile plus la page nativement, donc la barre d'URL cesse d'entrer et de
+       sortir — `innerHeight` devient constant pour toute la visite —, et le
+       « tirer pour recharger » ne peut plus se déclencher au milieu du parcours.
+
+       En mouvement réduit, rien de tout cela : il n'y a plus ni épinglage ni
+       scène animée à synchroniser, et le défilement natif est ce qu'on doit à
+       quelqu'un qui a demandé qu'on lui fiche la paix.
+       ------------------------------------------------------------------ */
+
+    /* Lu directement, et non pris au provider : `MotionProvider` est un parent,
+       son effet court **après** celui-ci, et sa valeur est encore la supposition
+       du rendu serveur au moment où l'on construit l'instance. La dépendance,
+       elle, reste la valeur du provider : si la mesure change pour de bon, on
+       reconstruit. */
+    const tactile = matchMedia("(pointer: coarse)").matches;
+    const synchroniser = tactile && !mouvementReduit;
+
     const instance = new Lenis({
       autoRaf: false,
       smoothWheel: !mouvementReduit,
-      syncTouch: false,
+      syncTouch: synchroniser,
+      /* La même inertie que la molette. Le défaut de Lenis (0,075) décolle le
+         contenu du doigt d'un cran de trop : sur un site qui ne fait que du
+         défilement, on veut sentir qu'on tient la page. */
+      syncTouchLerp: 0.1,
       lerp: 0.1,
       overscroll: false,
       anchors: true,
@@ -155,7 +207,14 @@ export function LenisProvider({ children }: { children: React.ReactNode }) {
       instanceCourante.current = null;
       setLenis(null);
     };
-  }, [mouvementReduit]);
+    /* `capacites.pointeurGrossier` n'est pas lu dans le corps — c'est
+       `matchMedia` qui donne la valeur au bon moment, le provider étant un
+       parent dont l'effet court après celui-ci. Il est ici comme déclencheur, et
+       lui seul : quand la nature du pointeur change pour de bon (un clavier
+       branché sur une tablette, un écran tactile débranché), l'instance doit se
+       refaire avec ou sans `syncTouch`. Même motif que `pathname` plus haut. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mouvementReduit, capacites.pointeurGrossier]);
 
   const arreter = useCallback((raison: string) => {
     verrous.current.add(raison);

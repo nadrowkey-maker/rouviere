@@ -691,6 +691,12 @@ export function Menu() {
         className="menu__contenu"
         aria-label={t("menu")}
         onMouseLeave={quitterApercu}
+        /* La colonne défile pour elle-même quand elle déborde (voir
+           `menu.css`). Lenis prend maintenant le geste tactile du site entier —
+           il annule l'événement pour poser lui-même la position — et cette
+           zone-ci doit lui échapper, sinon un écran court garde son menu
+           tronqué et immobile. */
+        data-lenis-prevent
       >
         <ul className="menu__liste menu__liste--projets">
           {entreesProjets.map((entree) => rendreEntree(entree, true))}

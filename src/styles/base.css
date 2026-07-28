@@ -69,6 +69,40 @@
       brightness(calc(1 - 0.22 * var(--recul)));
   }
 
+  /* ------------------------------------------------------------------
+     Pas de filtre sur pointeur grossier
+     ------------------------------------------------------------------
+     La règle ci-dessus déclare un `filter` **en permanence** sur `.scene-page`,
+     c'est-à-dire sur le conteneur des neuf écrans du parcours. Au repos il ne
+     fait rien de visible — `blur(0px) saturate(1) brightness(1)` —, mais un
+     `filter`, fût-il neutre, n'est jamais gratuit : il force son porteur dans
+     une surface de rendu à part, que le navigateur doit re-tramer à chaque
+     frame de défilement. Sur un GPU de bureau cela se perd dans le bruit ; sur
+     un téléphone, c'est une surface de la taille de l'écran repeinte à chaque
+     geste, et elle sort le parcours du chemin rapide du compositeur.
+
+     Le recul du menu perd donc son flou et sa désaturation sur tactile. Ce
+     n'est pas une amputation : sur un téléphone, le menu couvre l'écran entier,
+     et ce qu'on apercevait derrière lui tenait dans quelques pixels de bord.
+
+     L'échelle reste, seule : elle porte le geste de profondeur, elle est
+     composée sur le GPU sans rien re-tramer, et c'est elle qui fait de
+     `.scene-page` le bloc conteneur dont tous les épinglages du site dépendent
+     (d'où leur `pinType: "transform"`, qui ne change pas d'un iota).
+     ------------------------------------------------------------------ */
+  @media (pointer: coarse) {
+    .scene-page {
+      filter: none;
+    }
+
+    /* Et l'on n'annonce pas au compositeur un filtre qui n'existe plus : un
+       `will-change: filter` réserve la surface de rendu qu'on vient justement
+       de supprimer. */
+    html.menu-ouvert .scene-page {
+      will-change: transform;
+    }
+  }
+
   /* Pendant l'ouverture du menu : la scène est mise à distance et rendue
      inerte au pointeur, sans jamais bloquer le défilement par `overflow`. */
   html.menu-ouvert .scene-page {
