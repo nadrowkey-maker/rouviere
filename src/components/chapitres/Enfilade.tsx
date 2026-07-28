@@ -9,7 +9,11 @@ import { projets } from "@/data/projets";
 import { visuelsDe, PLANCHE_SORTIE } from "@/data/visuels";
 import { useRig } from "@/components/gl/Rig";
 import { type EtatEnfilade } from "@/components/gl/materiaux/piece";
-import { fenetre, PLEIN, type Boite } from "@/components/motion/plongee";
+import {
+  fenetreEntrouverte,
+  type Boite,
+  type Cadre,
+} from "@/components/motion/plongee";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon } from "@/components/chrome/SonProvider";
 import { useLangue } from "@/i18n/LangueProvider";
@@ -88,6 +92,39 @@ import "./enfilade.css";
  *
  * Tout est en scrub, donc réversible comme le reste : on remonte, la fenêtre se
  * referme sur la dernière pièce et le couloir repart.
+ *
+ * ## Pourquoi le plan de sortie ne vit pas sur la ligne de temps
+ *
+ * Il y vivait, et c'est ce qui **dédoublait l'image**.
+ *
+ * La ligne est en `scrub: 1` : elle rattrape le défilement en une seconde au lieu
+ * de lui coller, et c'est cette inertie qui donne au couloir son travelling. Mais
+ * l'épinglage, lui, rend la main sur le **défilement réel**, pas sur la ligne. Sur
+ * une molette lancée, l'écart entre les deux se compte en centaines de pixels —
+ * sept cent soixante-douze, mesuré sur une chiquenaude de trois mille. La course
+ * du pin s'achevait donc, *La Matière* se posait avec sa copie de la photographie
+ * en plein écran, et la fenêtre de l'enfilade **était encore à mi-ouverture** :
+ * deux fois la même image à l'écran, dont une petite qui finissait de s'ouvrir
+ * sous l'autre. La tenue réservée à la fin de la course (trois centièmes, cent
+ * douze pixels) n'avait aucune chance d'absorber un tel retard, et aucune valeur
+ * constante ne l'aurait : le retard est proportionnel à la vitesse du geste.
+ *
+ * Le plan de sortie est donc **calé sur la progression réelle du déclencheur** —
+ * `self.progress`, que le `scrub` n'affecte pas —, et non sur `tl.progress()`. Il
+ * est ainsi entièrement ouvert avant que le pin ne rende la main, quelle que soit
+ * la vitesse du geste, et le relais entre les deux chapitres se fait sur deux
+ * copies rigoureusement superposées.
+ *
+ * Reste que le couloir, lui, garde son retard. La fenêtre ne peut donc pas partir
+ * de la boîte où la dernière pièce *finira* : elle part de celle où la pièce **est
+ * vraiment**, lue sur la translation vive du couloir. C'est gratuit — la pièce est
+ * une fenêtre sur la même image plein écran immobile, si bien que son plan WebGL
+ * et le doublon DOM montrent les mêmes pixels partout où ils se touchent. Le
+ * couloir peut finir de glisser sous une fenêtre déjà grande ouverte : il n'y a
+ * rien à voir.
+ *
+ * Les noms, eux, restent sur la ligne : ils sont calés sur des pièces, et ce sont
+ * les pièces qui traînent. Un nom d'aplomb sur une pièce en retard serait faux.
  */
 
 /** La couche technique traîne : elle avance à sept dixièmes du couloir. */
@@ -101,21 +138,26 @@ const RYTHME_TECHNIQUE = 0.72;
 const PART_SORTIE = 0.3;
 
 /**
- * Les deux temps du plan de sortie, en parts de `PART_SORTIE`. Ils somment à 1.
+ * Le premier des deux temps du plan de sortie, en part de `PART_SORTIE` :
  *
- *   `OUVERTURE` — la fenêtre s'ouvre jusqu'aux quatre bords de l'écran. L'image,
- *                 elle, ne bouge pas d'un pixel.
- *   `TENUE`     — plus rien ne se passe. L'image est installée, et c'est dans cet
- *                 état que le chapitre suivant la reprend.
+ *   `PART_OUVERTURE` — la fenêtre s'ouvre jusqu'aux quatre bords de l'écran.
+ *                      L'image, elle, ne bouge pas d'un pixel.
+ *   ce qui reste     — la tenue : plus rien ne se passe. L'image est installée,
+ *                      et c'est dans cet état que le chapitre suivant la reprend.
  *
  * Le relais du plan WebGL vers le doublon DOM n'a pas de durée : il est **sec**,
  * et il est invisible. Les pièces étant des fenêtres sur leur image plein écran,
  * le doublon part exactement du morceau que la pièce montrait, à la même taille :
  * il n'y a ni saut d'échelle à masquer, ni surimpression à fondre. Un fondu
  * n'aurait rien à fondre.
+ *
+ * La tenue vaut le tiers du plan de sortie, et non plus le dixième. Elle n'a plus
+ * à rattraper quoi que ce soit — le plan de sortie est calé sur le défilement réel
+ * (voir l'en-tête) —, mais elle donne au plein écran le temps de s'installer avant
+ * que le chapitre ne change. Un cadre qui s'ouvre et cède aussitôt la main n'a
+ * jamais été vu ouvert.
  */
-const PART_OUVERTURE = 0.7;
-const PART_TENUE = 1 - PART_OUVERTURE;
+const PART_OUVERTURE = 0.62;
 
 /** Demi-largeur de la plage où un nom est pleinement dominant, en fraction de cadre. */
 const NOM_PLEIN = 0.06;
@@ -257,11 +299,15 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
 }
 
 /**
- * D'où part le plan de sortie, mesuré au rafraîchissement : la fenêtre découpée
- * dans le cadre plein, sur la boîte exacte de la dernière pièce. Il n'y a rien
- * d'autre à mesurer — l'image, elle, ne bouge jamais.
+ * D'où part le plan de sortie, mesuré au rafraîchissement : la boîte de la
+ * dernière pièce en fin de traversée, et le cadre plein dans lequel elle se
+ * découpe. Il n'y a rien d'autre à mesurer — l'image, elle, ne bouge jamais.
+ *
+ * On garde la **boîte** et non plus la chaîne `clip-path` qu'elle donne : la
+ * fenêtre est recalculée à chaque cadre, sur la translation vive du couloir, et
+ * non une fois pour toutes en fin de course. Voir l'en-tête du module.
  */
-type Sortie = { clip: string };
+type Sortie = { boite: Boite; cadre: Cadre };
 
 export function Enfilade() {
   const { mouvementReduit, degrade } = useMouvement();
@@ -311,10 +357,12 @@ export function Enfilade() {
       poserOpacite: gsap.quickSetter(element, "opacity") as (v: number) => void,
     }));
 
-    /* Le départ du plan de sortie. Muté au rafraîchissement, lu par les valeurs
-       fonctionnelles du tween — d'où l'objet plutôt que des variables : GSAP les
-       relit après `invalidate`. */
-    const sortie: Sortie = { clip: PLEIN };
+    /* Le départ du plan de sortie. Muté au rafraîchissement, lu à chaque cadre
+       par `poserSortie` — d'où l'objet plutôt que des variables. */
+    const sortie: Sortie = {
+      boite: { gauche: 0, haut: 0, largeur: 0, hauteur: 0 },
+      cadre: { largeur: 0, hauteur: 0 },
+    };
 
     /**
      * Toutes les lectures de mise en page du chapitre, en un seul endroit et à
@@ -403,11 +451,77 @@ export function Enfilade() {
       const rScene = scene.getBoundingClientRect();
       const cadre = { largeur: rScene.width, hauteur: rScene.height };
 
-      /* La seule mesure du plan de sortie : la fenêtre de départ. Il n'y a pas
-         de cadrage à calculer — l'image reste à son cadrage plein écran, et c'est
-         justement ce qui fait que le geste est une ouverture de cadre et non un
+      /* Les deux seules mesures du plan de sortie. Il n'y a pas de cadrage à
+         calculer — l'image reste à son cadrage plein écran, et c'est justement ce
+         qui fait que le geste est une ouverture de cadre et non un
          grossissement. */
-      sortie.clip = fenetre(boite, cadre);
+      sortie.boite = boite;
+      sortie.cadre = cadre;
+    };
+
+    /**
+     * Le plan de sortie, posé à la main, une fois par cadre, sur la
+     * **progression réelle du déclencheur** — celle que le `scrub` n'affecte pas.
+     *
+     * C'est ce qui garantit que la fenêtre est grande ouverte avant que
+     * l'épinglage ne rende la main, quelle que soit la vitesse du geste : sans
+     * cela, *La Matière* posait sa copie de la photographie en plein écran par
+     * -dessus une fenêtre encore à mi-course, et l'image se dédoublait. Voir
+     * l'en-tête du module.
+     *
+     * La boîte de départ suit la translation vive du couloir, et non celle où la
+     * ligne de temps finira par l'amener : la fenêtre s'ouvre donc toujours sur
+     * la pièce là où elle est, même si le couloir traîne encore.
+     */
+    const poserSortie = (avanceeReelle: number) => {
+      if (final === null) return;
+
+      const p = borner(
+        (avanceeReelle - (1 - PART_SORTIE)) / (PART_SORTIE * PART_OUVERTURE),
+        0,
+        1,
+      );
+
+      /* Avant le plan de sortie, le doublon n'est pas là : le couloir se suffit.
+         On rend la propriété à la feuille de style plutôt que d'écrire
+         `hidden` — c'est le même résultat et cela laisse le CSS seul maître de
+         l'état de repos. */
+      if (avanceeReelle < 1 - PART_SORTIE) {
+        final.style.removeProperty("visibility");
+        final.style.removeProperty("opacity");
+        final.style.removeProperty("clip-path");
+        etat.current.fige = null;
+        return;
+      }
+
+      final.style.visibility = "visible";
+      final.style.opacity = "1";
+
+      /* Ce qui reste de course au couloir, en pixels : zéro quand il est arrivé,
+         positif tant qu'il traîne. `gsap.getProperty` lit la transformation déjà
+         analysée par GSAP — aucune lecture de mise en page ici. */
+      const derive = (gsap.getProperty(couloir, "x") as number) + distance();
+      const boite: Boite = {
+        ...sortie.boite,
+        gauche: sortie.boite.gauche + derive,
+      };
+
+      /* `adoucir` sur [0, 1] est le smoothstep : dérivée nulle aux deux bornes.
+         Le cadre ne part donc pas d'un coup et n'arrive pas en butée — c'est ce
+         que faisait le `power1.inOut` du tween qu'il remplace, en un peu plus
+         doux aux extrémités. */
+      final.style.clipPath = fenetreEntrouverte(
+        boite,
+        sortie.cadre,
+        adoucir(p, 0, 1),
+      );
+
+      /* Dès que le plan de sortie prend la main, la dernière pièce est désignée
+         par le parcours lui-même : elle se fait franchement nette, ses voisines
+         reculent d'un cran. On ne conclut pas un chapitre sur une image trouble —
+         et le doublon DOM qui la relaie, lui, est net : sans cela l'échange se
+         verrait comme une mise au point. */
+      etat.current.fige = projets.length - 1;
     };
 
     /** Répartit les noms pour une progression de la traversée donnée. */
@@ -444,15 +558,7 @@ export function Enfilade() {
            ligne est en retard d'une inertie sur le défilement, et c'est cette
            position-là que les pièces occupent réellement à l'écran. */
         onUpdate: () => {
-          const avancee = tl.progress();
-          distribuer(Math.min(1, avancee / (1 - PART_SORTIE)));
-          /* Dès que le plan de sortie prend la main, la dernière pièce est
-             désignée par le parcours lui-même : elle se fait franchement nette,
-             ses voisines reculent d'un cran. On ne conclut pas un chapitre sur
-             une image trouble — et le doublon DOM qui la relaie, lui, est net :
-             sans cela l'échange se verrait comme une mise au point. */
-          etat.current.fige =
-            avancee >= 1 - PART_SORTIE ? projets.length - 1 : null;
+          distribuer(Math.min(1, tl.progress() / (1 - PART_SORTIE)));
         },
       });
 
@@ -477,35 +583,19 @@ export function Enfilade() {
       /* Le troisième rythme est celui des noms : il n'est pas un tween, c'est
          la loi de dominance appliquée à chaque cadre par `distribuer`. */
 
-      /* Le plan de sortie. Le couloir est arrêté depuis le début de cette part,
-         et il ne se passe que deux choses :
+      /* Le plan de sortie **n'est pas sur cette ligne**, et c'est tout l'objet du
+         correctif : il est posé par `poserSortie` sur la progression réelle du
+         déclencheur, que le `scrub` n'affecte pas. Voir l'en-tête du module pour
+         ce que son séjour ici coûtait — une image dédoublée à chaque geste vif.
 
-           1. sec, sans durée, le plan DOM prend la place du plan WebGL, sur le
-              cadre exact de la dernière pièce ;
-           2. la fenêtre s'ouvre jusqu'aux quatre bords de l'écran. L'image reste
-              exactement où elle est, à l'échelle où elle est — aucune
-              transformation ne lui est appliquée, nulle part.
+         La ligne, elle, ne porte plus que ce qui doit garder l'inertie du
+         travelling : le couloir, la couche technique, et la loi de dominance des
+         noms qui se cale sur eux. */
 
-         Puis la tenue, où plus rien n'arrive. */
-      if (final !== null) {
-        const ouverture = PART_SORTIE * PART_OUVERTURE;
-
-        /* L'état de départ, posé au début de la ligne : c'est lui que la marche
-           arrière retrouve, et c'est ce qui rend la coupe réversible. */
-        tl.set(final, { autoAlpha: 0, clipPath: () => sortie.clip }, 0);
-        tl.set(final, { autoAlpha: 1 }, traversee);
-        tl.to(
-          final,
-          { clipPath: PLEIN, duration: ouverture, ease: "power1.inOut" },
-          traversee,
-        );
-      }
-
-      /* La tenue est la part qui reste, et c'est cette borne qui la fait
-         exister : sans elle, GSAP clôturerait la ligne sur la fin de l'ouverture
-         et l'image n'aurait pas le temps de s'installer. La somme vaut exactement
-         1, par construction des trois parts. */
-      tl.set(scene, {}, traversee + PART_SORTIE * (PART_OUVERTURE + PART_TENUE));
+      /* La borne de la ligne. Sans elle, GSAP la clôturerait sur la fin de la
+         traversée, et la part de sortie ne ferait plus partie de la course : le
+         couloir la parcourrait à la vitesse de la traversée seule. */
+      tl.set(scene, {}, 1);
 
       declencheurRef.current = ScrollTrigger.create({
         trigger: section,
@@ -533,6 +623,14 @@ export function Enfilade() {
         /* Toutes les mesures avant que GSAP ne réévalue ses valeurs
            fonctionnelles : `onRefreshInit` est la première étape du cycle. */
         onRefreshInit: mesurer,
+        /* Le plan de sortie est posé ici, et nulle part ailleurs : `self.progress`
+           est la progression du **défilement**, sans l'inertie du `scrub`. C'est
+           ce qui le désolidarise du couloir, et c'est le correctif tout entier. */
+        onUpdate: (self) => poserSortie(self.progress),
+        /* Un rafraîchissement change la course, donc la progression : le plan de
+           sortie se repose dessus. Sans cela, un redimensionnement au milieu de
+           l'ouverture laisserait la fenêtre sur ses retraits d'avant. */
+        onRefresh: (self) => poserSortie(self.progress),
         /* Épinglage par transformation, et non par `position: fixed`.
            `.scene-page` — la surface qui recule derrière le menu — porte en
            permanence un `transform` et un `filter`, fût-ce à l'identité. L'un
@@ -548,9 +646,12 @@ export function Enfilade() {
       /* Créer le déclencheur a déjà provoqué un rafraîchissement, donc une
          mesure et un premier rendu de la ligne. On distribue à la progression
          réelle — et non à zéro : une page rechargée au milieu du couloir doit
-         trouver ses noms en place dès la première peinture. */
+         trouver ses noms en place dès la première peinture. Le plan de sortie
+         suit, pour la même raison : rechargée dans la tenue, la page doit
+         s'ouvrir sur l'image en plein écran, pas sur le couloir. */
       mesurer();
       distribuer(Math.min(1, tl.progress() / (1 - PART_SORTIE)));
+      poserSortie(declencheurRef.current?.progress ?? 0);
     }, section);
 
     return () => {
@@ -562,6 +663,14 @@ export function Enfilade() {
         noms.map((nom) => nom.element),
         { clearProps: "transform,opacity" },
       );
+      /* Le plan de sortie est écrit à la main, hors de tout contexte GSAP :
+         `revert()` ne le défait pas. On lui rend ses trois propriétés. */
+      if (final !== null) {
+        final.style.removeProperty("visibility");
+        final.style.removeProperty("opacity");
+        final.style.removeProperty("clip-path");
+      }
+      etat.current.fige = null;
       declencheurRef.current = null;
     };
   }, [mouvementReduit]);

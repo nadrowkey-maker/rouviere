@@ -27,18 +27,19 @@ import "./matiere.css";
  * chapitre commence donc sans qu'aucune image ne change. Il y avait ici un plan
  * macro de bois qui venait la recouvrir — on ouvrait un cadre sur une image, puis
  * on la remplaçait aussitôt par une autre du même bois, ce qui annulait le geste
- * par lequel on venait d'arriver. Le nom *Noyer fumé* et sa couche technique se
- * posent maintenant **sur elle**, et c'est la seule chose qui arrive.
+ * par lequel on venait d'arriver. Le nom *Noyer fumé* monte maintenant **sur
+ * elle**, au défilement, et c'est la seule chose qui arrive.
  *
  * Le raccord est exact au pixel : les deux chapitres montrent le même fichier
  * (`PLANCHE_SORTIE`), en `cover` sur le même cadre plein, et le relais se fait à
  * l'instant précis où l'épinglage de l'enfilade rend la main — voir plus bas la
  * mécanique du recouvrement et de la pose.
  *
- * Rien d'autre ne bouge. Le nom et la couche technique des deux autres matières
- * sont peints *dans* le plan : ils sont découverts par le même masque que la
- * matière, du même geste. Aucun reveal typographique, aucun décalage, aucune
- * entrée d'objet. Le mouvement du chapitre, c'est la matière elle-même.
+ * Rien d'autre ne bouge. Les noms des deux autres matières sont peints *dans* le
+ * plan : ils sont découverts par le même masque que la matière, du même geste.
+ * Aucun reveal typographique, aucun décalage, aucune entrée d'objet — le premier
+ * nom lui-même ne fait que monter en densité. Le mouvement du chapitre, c'est la
+ * matière elle-même.
  *
  * **Le bassin n'est plus ici.** Il a rejoint le vestibule, où il est le sixième
  * temps du manifeste — l'eau derrière le mot *silence*. Il n'existe donc
@@ -74,24 +75,49 @@ const FERME = "inset(0% 0% 100% 0%)";
 const OUVERT = "inset(0% 0% 0% 0%)";
 
 /**
- * **Le premier nom n'a pas d'arrivée**, et c'est un retrait, pas un oubli.
+ * **L'arrivée du premier nom.**
  *
- * Les deux autres matières n'en ont jamais eu besoin : elles arrivent derrière
- * un masque, et leur nom est peint dans le plan — il est découvert du même geste
+ * Les deux autres matières n'en ont pas besoin : elles arrivent derrière un
+ * masque, et leur nom est peint dans le plan — il est découvert du même geste
  * qu'elles. Le premier, lui, n'a aucun masque pour le porter : il se pose sur la
- * photographie que l'enfilade vient de laisser ouverte. On lui avait donc écrit
- * une composition à lui — un mot par ligne, monté derrière une arête, flou qui
- * se résorbe.
+ * photographie que l'enfilade vient de laisser ouverte.
  *
- * Elle a été retirée parce qu'elle **décalait la photographie** : animer un
- * `filter` sous un nœud en `mix-blend-mode` force le fond à basculer sur une
- * autre surface de rendu, et l'image se rééchantillonne. `matiere.css` le
- * raconte en détail, à l'endroit où vivaient ses styles.
+ * Il n'avait donc **rien** : il paraissait avec le cadre, d'un seul coup, à
+ * l'instant où l'épinglage du couloir rendait la main. Un mot monumental qui
+ * s'allume sur une image ne se lit pas comme une arrivée, il se lit comme un
+ * défaut d'affichage.
  *
- * Le nom paraît donc avec le cadre, sans rien jouer. C'est ce que le chapitre
- * demandait de toute façon : il dit qu'ici on regarde la matière, et un nom qui
- * se compose est déjà quelque chose d'autre à regarder.
+ * Il monte maintenant en densité **au défilement**, sur les treize premiers
+ * centièmes de la course, puis l'écran se tient : la photographie occupe tout le
+ * cadre, le nom a fini de venir, et il reste autant de molette avant que le
+ * premier masque ne s'ouvre. C'est la respiration que le chapitre réclamait — on
+ * regarde la matière, puis on la nomme, puis on attend, puis on continue.
+ *
+ * **Sur l'opacité, et sur ce qui était écrit ici.** Une note de ce fichier et de
+ * `matiere.css` interdisait toute composition sous ce nom : il vit en
+ * `mix-blend-mode: difference`, et l'on avait attribué à cette isolation le
+ * demi-pixel dont la photographie se déplaçait quand le nom paraissait. Mesure
+ * faite — nom retiré, nom à mi-densité, nom flouté avec `will-change`, nom
+ * découpé —, **la photographie ne bouge d'aucun pixel** dans aucun de ces cas.
+ * Le déplacement venait d'ailleurs : de la relève entre les deux copies de
+ * l'image, dont l'une défilait déjà quand l'autre se posait. Il est corrigé dans
+ * `Enfilade.tsx`, et l'interdit tombe avec sa cause.
+ *
+ * Ce qui reste vrai, et qui n'a rien à voir avec le blend : **il n'y a ni
+ * découpage en mots, ni décalage, ni flou.** Le nom monte en densité, un point.
+ * Une composition typographique serait une seconde chose à regarder dans le seul
+ * chapitre qui n'en veut qu'une.
  */
+/**
+ * Part de la course prise par la montée du premier nom.
+ *
+ * Treize centièmes de 390 vh font quatre cent cinquante pixels de molette : une
+ * demi-page pour que le mot vienne. Le premier palier en compte huit cent
+ * quarante ; il reste donc autant de pause, l'image installée et nommée, avant
+ * que le premier masque ne s'ouvre. C'est le rythme du chapitre — on regarde, on
+ * nomme, on attend, on continue.
+ */
+const ARRIVEE_NOM = 0.13;
 
 /**
  * Le minutage de la traversée, en fractions de la progression.
@@ -167,11 +193,11 @@ export function Matiere() {
        * Il n'est donc **posé** qu'à partir du moment où le chapitre commence
        * vraiment. Avant, il n'est pas là.
        *
-       * **Et c'est ce même moment qui donne le premier nom.** Il n'a plus
-       * d'arrivée à lui : il est peint dans le plan comme les deux autres, et
-       * il paraît donc exactement quand le cadre prend le plein écran, sans que
-       * rien n'ait à être joué ni minuté. Voir plus bas pourquoi son animation a
-       * été retirée.
+       * **Et c'est ce même moment qui ouvre la course.** Le déclencheur du masque
+       * ci-dessous part sur la même ligne (`top top`) : la progression zéro est
+       * donc exactement l'instant où la photographie prend le plein écran. C'est
+       * de là que part la montée du premier nom, et c'est pourquoi elle n'a besoin
+       * d'aucun minutage propre.
        */
       const pose = ScrollTrigger.create({
         trigger: traversee,
@@ -386,6 +412,48 @@ export function Matiere() {
         else appliquer();
       };
       document.addEventListener("visibilitychange", surVisibilite);
+
+      /* La montée du premier nom, sur la photographie que l'enfilade vient
+         d'ouvrir. C'est la seule chose que ce chapitre joue en dehors des
+         masques, et elle est délibérément la plus simple possible : une densité
+         qui monte au défilement, rien d'autre. Voir « L'arrivée du premier nom ».
+
+         L'ease est celui du chapitre, `power1.inOut`, et il compte ici plus
+         qu'ailleurs. Un `out` avait été essayé : il porte le nom à la moitié de sa
+         densité dans le premier cinquième de la course, si bien que le mot **est
+         là** presque tout de suite et passe le reste du temps à finir — ce qu'on
+         voulait éviter était précisément cela. La courbe en S le fait émerger du
+         néant sans le poser d'un coup, franchir le milieu vite, et se stabiliser
+         sans butée. C'est la seule des trois formes qui se lise comme une
+         apparition et non comme un allumage.
+
+         ---- La densité se pose sur le nom, jamais sur sa légende ----
+
+         C'est `.matiere__nom` qu'on anime, et le choix n'a rien d'indifférent :
+         c'est **le nœud qui porte le `mix-blend-mode`**.
+
+         La densité vivait sur `.matiere__legende`, son parent. Or une opacité
+         inférieure à un fait de l'élément qui la porte un contexte
+         d'empilement — donc un groupe isolé —, et un `mix-blend-mode` ne se
+         mélange qu'avec le fond de *son* groupe. Le nom ne voyait plus la
+         photographie : il se peignait en craie pleine, blanc sur l'image. Puis
+         l'opacité atteignait exactement un, l'isolation disparaissait avec elle,
+         et le mot basculait d'un coup dans son négatif. C'est ce qu'on a vu.
+
+         Posée sur le nom lui-même, l'opacité ne l'isole plus de quoi que ce
+         soit : l'élément est mélangé à la photographie, *puis* composé avec son
+         alpha. Chaque état intermédiaire est donc un vrai négatif, simplement
+         moins dense — le mot est le négatif de ce qu'il traverse dès son premier
+         pixel, comme le logotype, et comme le veut le Livre I. */
+      const premierNom = plans[0]?.querySelector<HTMLElement>(".matiere__nom");
+      if (premierNom != null) {
+        ligne.fromTo(
+          premierNom,
+          { opacity: 0 },
+          { opacity: 1, duration: ARRIVEE_NOM, ease: "power1.inOut" },
+          0,
+        );
+      }
 
       /* Un palier, un passage, un palier… Le masque s'ouvre par le haut : le
          plan qui arrive descend sur celui qui part, dans le sens du

@@ -62,6 +62,41 @@ export function fenetre(boite: Boite, cadre: Cadre): string {
 }
 
 /**
+ * La fenêtre à mi-course : les quatre retraits de `fenetre()`, ramenés vers zéro
+ * en proportion de `avancee`. À zéro c'est la boîte, à un c'est le cadre plein.
+ *
+ * Elle existe parce qu'une ouverture de fenêtre **ne peut pas** être confiée à
+ * l'interpolation d'un `clip-path` par GSAP quand la boîte de départ bouge d'une
+ * frame à l'autre : il faudrait réécrire la valeur de départ du tween à chaque
+ * cadre, donc l'invalider, donc le rejouer. On calcule la fenêtre à la main, ce
+ * qui coûte quatre soustractions et ne dépend d'aucun état accumulé — la valeur
+ * d'un cadre ne se déduit que de la boîte de ce cadre-là et de l'avancée.
+ *
+ * C'est ce qui permet à l'enfilade d'ouvrir son cadre sur la pièce **là où elle
+ * est vraiment**, et non là où la ligne de temps finira par l'amener.
+ */
+export function fenetreEntrouverte(
+  boite: Boite,
+  cadre: Cadre,
+  avancee: number,
+): string {
+  const reste = 1 - Math.min(1, Math.max(0, avancee));
+  const haut = Math.max(0, boite.haut) * reste;
+  const gauche = Math.max(0, boite.gauche) * reste;
+  const droite =
+    Math.max(0, cadre.largeur - (boite.gauche + boite.largeur)) * reste;
+  const bas = Math.max(0, cadre.hauteur - (boite.haut + boite.hauteur)) * reste;
+  /* Deux décimales, et pas la représentation par défaut : en fin d'ouverture les
+     retraits valent quelques cent-millièmes de pixel, que `String` écrit en
+     notation exponentielle — `4.1946e-05px`. Les navigateurs l'acceptent, mais
+     c'est un coin de la grammaire CSS qu'on n'a aucune raison d'aller chercher
+     pour une quantité invisible. Le centième de pixel est déjà sous le seuil de
+     ce que le compositeur distingue. */
+  const px = (v: number) => v.toFixed(2);
+  return `inset(${px(haut)}px ${px(droite)}px ${px(bas)}px ${px(gauche)}px)`;
+}
+
+/**
  * Le cadrage de départ d'une image en `object-fit: cover` sur le cadre plein,
  * pour qu'elle montre dans la fenêtre le même morceau que la boîte d'origine.
  *

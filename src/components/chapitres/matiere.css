@@ -4,8 +4,9 @@
    du manifeste. Il n'y a plus qu'une scène d'eau dans tout le site.
 
    Le chapitre est contemplatif : il n'y a dans ce fichier aucune transition,
-   aucune animation, aucun survol. La seule chose qui change à l'écran est le
-   masque, et il est piloté au défilement depuis le composant. */
+   aucune animation, aucun survol. Deux choses seulement changent à l'écran — le
+   masque, et la densité du premier nom —, et toutes deux sont pilotées au
+   défilement depuis le composant. */
 
 .matiere {
   position: relative;
@@ -138,28 +139,41 @@
   mix-blend-mode: difference;
 }
 
-/* ---- L'arrivée du premier nom, et pourquoi elle a été retirée ----
+/* ---- L'arrivée du premier nom ----
 
    Le premier nom est le seul qu'aucun masque ne porte : il se pose sur la
-   photographie que l'enfilade vient d'ouvrir. Il avait donc sa propre arrivée —
-   un mot par ligne, monté de 110 % derrière une arête, flou qui se résorbe.
+   photographie que l'enfilade vient d'ouvrir. Il paraissait donc avec le cadre,
+   d'un seul coup. Il monte maintenant en densité au défilement, sur les treize
+   premiers centièmes de la course du chapitre — c'est `Matiere.tsx` qui la joue,
+   ici on ne fait que poser le point de départ.
 
-   **Elle décalait l'image.** Le nom vit en `mix-blend-mode: difference`, ce qui
-   oblige le navigateur à isoler ce qu'il y a dessous pour calculer le mélange.
-   Tant que rien ne bouge, cette isolation est gratuite. Mais animer un `filter`
-   — et déclarer `will-change` — sous un nœud qui se mélange force la promotion
-   d'une couche de composition et le basculement du fond sur une **autre surface
-   de rendu** : la photographie est rééchantillonnée, et elle se déplace d'un
-   demi-pixel à l'instant précis où le texte paraît. C'est ce qu'on voyait.
+   Il vit dessous, et non dans le composant, pour une raison : le cadre est
+   `visibility: hidden` avant d'être posé, mais la ligne de temps ne rend sa
+   première frame qu'au premier rafraîchissement de ScrollTrigger. Sans cette
+   règle, un nom à pleine densité existerait entre les deux — invisible ici, mais
+   c'est le genre d'état qu'on ne laisse pas au hasard du calendrier.
 
-   C'était la même faute que celle déjà notée pour l'opacité, sous une autre
-   forme : *sous un blend, on ne compose pas.* L'opacité était bannie ici ; le
-   flou l'est maintenant aussi, et pour la même raison.
+   **La densité se pose sur le nom, pas sur la légende qui le contient.** Une
+   opacité inférieure à un fait de son porteur un contexte d'empilement, et un
+   `mix-blend-mode` ne se mélange qu'avec le fond de son propre groupe : sur le
+   parent, elle isolait le nom de la photographie, qui se peignait alors en craie
+   pleine puis basculait d'un coup dans son négatif en atteignant un. Sur le nœud
+   mélangé lui-même, l'élément est mélangé au fond *puis* composé avec son alpha —
+   chaque état intermédiaire est un vrai négatif, simplement moins dense.
 
-   Le nom est donc simplement là, comme les deux autres, dès que le cadre prend
-   le plein écran. C'est aussi ce qui était demandé — qu'il paraisse
-   automatiquement — et cela supprime du même geste la classe de bug où une
-   bascule manquée laissait les lignes cachées derrière leur arête. */
+   Il n'y avait à cet endroit une note qui interdisait toute composition sous ce
+   nom : le `mix-blend-mode: difference` isolant ce qu'il y a dessous, on tenait
+   l'opacité et le flou pour responsables du demi-pixel dont la photographie se
+   déplaçait quand le texte paraissait. Mesure faite, aucun des deux n'y est pour
+   rien : le déplacement venait de la relève entre les deux copies de l'image, et
+   il est corrigé dans `Enfilade.tsx`. L'interdit tombe avec sa cause.
+
+   Ce qui reste vrai : pas de découpage en mots, pas de décalage, pas de flou. Une
+   densité qui monte, un point. */
+.matiere__traversee[data-reduit="false"] .matiere__plan:first-child
+  .matiere__nom {
+  opacity: 0;
+}
 
 /* ---- Mouvement réduit : trois plans posés, un par écran ---- */
 
