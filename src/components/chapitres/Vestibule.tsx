@@ -108,7 +108,9 @@ import "./vestibule.css";
  *             dans lequel l'eau calculée occupe exactement la place de l'eau
  *             réelle. « silence » s'en va juste avant la fin du mouvement.
  *   **Sept.** « Le reste appartient aux gens qui vivent là. » paraît en haut à
- *             gauche, par-dessus le lieu, pendant que sa lumière baisse.
+ *             gauche, par-dessus le lieu, pendant que sa lumière baisse — et
+ *             **elle lui survit** : elle passe par-dessus le noir de sortie et
+ *             ne quitte l'écran qu'avec le cadre, en montant.
  *
  * ## Le redressement, et pourquoi un plan fixe peut servir de décor
  *
@@ -330,7 +332,7 @@ const MINUTAGE = {
    * L'extinction ci-dessus vit *dans* le shader : elle mélange la sortie des
    * deux matériaux vers l'encre du site. C'est la bonne façon d'éteindre le
    * lieu, et ce n'est pas suffisante pour éteindre le **chapitre** — le cadre
-   * porte aussi le mot « silence » et la dernière phrase, qui sont du DOM, et
+   * porte aussi le mot « silence », qui est du DOM, et
    * l'eau elle-même est retirée d'un coup dès que la course rend la main
    * (`data-actif`, qui met l'ancre en `display: none` pour suspendre la
    * simulation). Il restait donc, entre le dernier pixel de villa et le premier
@@ -342,6 +344,9 @@ const MINUTAGE = {
    * même noir. C'est le seul raccord du site entre deux chapitres qui ne
    * partagent pas d'image — il se fait donc par la seule couleur qu'ils ont en
    * commun.
+   *
+   * Une seule chose passe par-dessus : la dernière phrase. Elle est ce que le
+   * chapitre laisse, et le noir est fait pour éteindre le décor, pas la voix.
    *
    * Ce n'est pas un dégradé et ce n'est pas une ombre : c'est `--encre`, à plat,
    * dont seule la densité bouge.
@@ -839,22 +844,26 @@ export function Vestibule() {
       entree(sept, MINUTAGE.septEntree);
 
       /* Et le chapitre s'éteint. Le lieu descend au noir sur la dernière portion
-         de la course, la dernière phrase s'en va avec lui, et le cadre se
-         décolle sur une image déjà éteinte — plus de raccord franc entre la
-         villa et l'encre. */
+         de la course, et le cadre se décolle sur une image déjà éteinte — plus
+         de raccord franc entre la villa et l'encre.
+
+         **La dernière phrase, elle, ne s'en va pas avec lui.** Elle le faisait,
+         et c'était une phrase de plus qu'on éteignait : tout le chapitre sortait
+         au même instant, et il ne restait rien de ce qu'on venait de lire. Elle
+         est ce qu'on emporte — elle tient donc en craie pleine par-dessus le
+         noir (voir le `z-index` de `.vestibule__bloc--lieu`), pendant que le
+         lieu, l'eau et « silence » s'éteignent dessous.
+
+         Ce n'est pas pour autant un texte qui reste collé à l'écran : le cadre
+         n'est épinglé que le temps de la course. Elle sort avec lui, en montant,
+         quand la page reprend sa descente vers l'enfilade — c'est-à-dire par le
+         mouvement du parcours et non par un fondu. */
       const [xfd, xff] = MINUTAGE.extinctionFinale;
       tl.to(
         etatBassin.current,
         { extinction: 1, duration: xff - xfd, ease: "power2.inOut" },
         xfd,
       );
-      if (sept !== null) {
-        tl.to(
-          sept,
-          { opacity: 0, duration: (xff - xfd) * 0.8, ease: "power2.in" },
-          xfd,
-        );
-      }
 
       /* Et le cadre entier passe à l'encre. L'extinction du shader éteint le
          lieu ; ce voile-ci éteint le **chapitre** — le lieu, le mot qui tient

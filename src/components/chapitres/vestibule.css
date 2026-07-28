@@ -306,6 +306,20 @@
 .vestibule__bloc--lieu {
   align-content: start;
   padding-top: clamp(6rem, 16vh, 10rem);
+
+  /* **Le seul nœud du chapitre qui passe par-dessus le noir de sortie.**
+
+     Le voile est le dernier enfant du cadre, donc au-dessus de tout ce qui le
+     précède — cette phrase comprise. C'est juste pour le lieu, pour l'eau et
+     pour « silence », qui doivent tous s'éteindre ; ça ne l'est pas pour elle,
+     qui est ce qu'on emporte du chapitre. Elle reste donc en craie pleine
+     pendant que le monde s'éteint dessous, et elle ne s'en va qu'avec le cadre,
+     quand la page reprend sa descente.
+
+     Un cran suffit : le voile est en `z-index: auto`, aucun autre nœud du
+     cadre n'est empilé. Le contexte que ce `z-index` crée ne contient aucun
+     mode de fusion — la phrase est en craie franche, elle ne se mélange pas. */
+  z-index: 1;
 }
 
 /* Les phrases restent en craie pleine, et **ne se mélangent pas.**
