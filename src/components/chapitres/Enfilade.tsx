@@ -306,8 +306,17 @@ function Piece({ index, etat, onFocusPiece }: ProprietesPiece) {
  * On garde la **boîte** et non plus la chaîne `clip-path` qu'elle donne : la
  * fenêtre est recalculée à chaque cadre, sur la translation vive du couloir, et
  * non une fois pour toutes en fin de course. Voir l'en-tête du module.
+ *
+ * `distance` est la course horizontale du couloir, retenue ici pour la même
+ * raison que les deux autres : `poserSortie` tourne à chaque cadre, et
+ * `distance()` lit `scrollWidth` — une lecture de mise en page, donc un calcul de
+ * disposition forcé, soixante fois par seconde. La règle du projet est qu'aucun
+ * rect ne se lit dans la boucle ; elle vaut aussi pour `scrollWidth`, qui est le
+ * même piège sous un autre nom. Retenue au rafraîchissement, la valeur est en
+ * prime **exactement celle que GSAP a figée dans le tween du couloir** : les deux
+ * ne peuvent plus diverger.
  */
-type Sortie = { boite: Boite; cadre: Cadre };
+type Sortie = { boite: Boite; cadre: Cadre; distance: number };
 
 export function Enfilade() {
   const { mouvementReduit, degrade } = useMouvement();
@@ -362,6 +371,7 @@ export function Enfilade() {
     const sortie: Sortie = {
       boite: { gauche: 0, haut: 0, largeur: 0, hauteur: 0 },
       cadre: { largeur: 0, hauteur: 0 },
+      distance: 0,
     };
 
     /**
@@ -457,6 +467,7 @@ export function Enfilade() {
          grossissement. */
       sortie.boite = boite;
       sortie.cadre = cadre;
+      sortie.distance = distance();
     };
 
     /**
@@ -499,8 +510,9 @@ export function Enfilade() {
 
       /* Ce qui reste de course au couloir, en pixels : zéro quand il est arrivé,
          positif tant qu'il traîne. `gsap.getProperty` lit la transformation déjà
-         analysée par GSAP — aucune lecture de mise en page ici. */
-      const derive = (gsap.getProperty(couloir, "x") as number) + distance();
+         analysée par GSAP, et la distance vient de la mesure — aucune lecture de
+         mise en page ici, ni rect ni `scrollWidth`. */
+      const derive = (gsap.getProperty(couloir, "x") as number) + sortie.distance;
       const boite: Boite = {
         ...sortie.boite,
         gauche: sortie.boite.gauche + derive,

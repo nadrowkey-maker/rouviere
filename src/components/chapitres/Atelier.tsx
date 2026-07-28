@@ -445,7 +445,22 @@ function construirePlongee(
     const g = decalageDans(guichet, section);
     const t = decalageDans(temps, section);
 
-    const ecran = { largeur: innerWidth, hauteur: innerHeight };
+    /* ---- Le cadre plein est le plan lui-même, jamais la fenêtre ----
+     *
+     * `innerWidth` / `innerHeight` étaient lus ici, et c'était faux sur mobile.
+     * Le plan de plongée est dimensionné par la feuille de style
+     * (`width: 100vw; height: var(--ecran)`), c'est-à-dire sur la **grande**
+     * fenêtre ; `innerHeight`, lui, rend la fenêtre du moment — barre d'URL
+     * déployée, il est plus court d'une centaine de pixels. La fenêtre de départ
+     * du `clip-path` était donc calculée dans un repère qui n'était pas celui du
+     * cadre qu'elle découpe : le guichet ne coïncidait pas avec la boîte
+     * annoncée, et le relais entre la planche et le plein cadre se voyait comme
+     * un saut.
+     *
+     * On mesure donc l'élément qui porte la découpe. C'est la même règle que
+     * l'enfilade applique déjà à son plan de sortie : le cadre plein est mesuré
+     * sur le nœud qui le porte, jamais sur un global. */
+    const ecran = { largeur: cadre.offsetWidth, hauteur: cadre.offsetHeight };
     /* Coin haut-gauche du plan plein cadre, dans le repère du temps. */
     const originX = temps.offsetWidth / 2 - ecran.largeur / 2;
     const originY = temps.offsetHeight / 2 - ecran.hauteur / 2;

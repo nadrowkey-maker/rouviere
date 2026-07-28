@@ -7,12 +7,29 @@
    élément fixe donne exactement l'espace de coordonnées de
    `getBoundingClientRect`, barre de défilement exclue. */
 
+/* ---- Pourquoi la hauteur est un jeton et non `100%` ----
+
+   Elle valait `100%`, donc la fenêtre du moment. Sur Chrome Android, replier la
+   barre d'URL redimensionne le bloc conteneur des éléments fixes : le canvas
+   changeait donc de hauteur **à chaque changement de sens du défilement**. Or
+   une hauteur de canvas qui change, c'est une réallocation du tampon de rendu,
+   la reprojection de la caméra et la remise à l'échelle de toutes les scènes —
+   au milieu d'un geste. C'était une des sources de saccade du parcours mobile,
+   et elle ne se voyait dans aucun profil d'animation puisque le coût est dans le
+   pilote graphique.
+
+   `--ecran` est la grande fenêtre : elle ne bouge ni au repli de la barre, ni à
+   son déploiement. Le canvas garde donc une taille constante pendant toute la
+   visite, et il est **exactement** le repère des cadres du parcours, qui lisent
+   le même jeton. Ce qu'il peint sous la barre est ce que les cadres y cachent
+   déjà : rien n'est perdu, et plus rien n'est réalloué. */
+
 .rig-canvas {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto 0;
   z-index: 0;
   display: block;
   width: 100%;
-  height: 100%;
+  height: var(--ecran);
   pointer-events: none;
 }

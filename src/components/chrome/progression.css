@@ -7,6 +7,13 @@
    recolorée. Le `transform` de la jauge est posé sur l'enfant — il ne groupe
    donc pas le nœud qui se mélange. */
 
+/* La hauteur est celle de la fenêtre **visible**, et non celle de la grande
+   fenêtre comme partout ailleurs. C'est le seul endroit du site où l'exception
+   se justifie : la jauge est une lecture, pas un cadre. Écrite en `--ecran`,
+   elle passait sous la barre du navigateur, si bien qu'arrivé au bas du parcours
+   son dernier dixième restait invisible — elle n'avait jamais l'air pleine, ce
+   qui est précisément la seule chose qu'on lui demande de dire. `dvh` la fait
+   suivre la barre ; un filet d'un pixel n'a pas de mise en page à refluer. */
 .progression {
   position: fixed;
   top: 0;
@@ -14,6 +21,7 @@
   z-index: 55;
   width: 1px;
   height: 100vh;
+  height: 100dvh;
   background-color: var(--color-plomb);
   pointer-events: none;
   mix-blend-mode: difference;

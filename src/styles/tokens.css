@@ -97,6 +97,44 @@
 }
 
 /* ------------------------------------------------------------------
+   L'écran, et la barre du navigateur.
+   ------------------------------------------------------------------
+   **`--ecran` est la seule hauteur de référence du parcours.** Le site est bâti
+   sur des recouvrements exacts : le vestibule remonte d'un écran sur le seuil,
+   *La Matière* remonte d'un écran sur l'enfilade. Ces soustractions ne tiennent
+   que si les deux termes sont écrits dans la même unité — et c'est exactement ce
+   qui manquait sur mobile.
+
+   Le hero portait `height: 100svh`, le vestibule `margin-top: -100vh`. Sur un
+   ordinateur les deux valent la même chose et rien ne se voyait. Sur un
+   téléphone, `svh` est la fenêtre barre d'URL **déployée** et `vh` la fenêtre
+   barre **repliée** : le vestibule remontait donc de la hauteur de la barre en
+   trop, son cadre se collait avant que le voile du hero ne soit plein, et l'on
+   voyait les deux chapitres en même temps. Un seul jeton, écrit une fois,
+   supprime la classe entière de ce défaut.
+
+   La valeur retenue est `100vh`, c'est-à-dire la **grande** fenêtre :
+   c'est la seule qui soit à la fois stable pendant le défilement — `dvh` change
+   à chaque repli de la barre et fait sauter toute la page — et assez haute pour
+   qu'un cadre plein écran ne découvre jamais de bande sous lui.
+
+   `--barre-mobile` est ce que la barre du navigateur mange en bas quand elle est
+   déployée : nul sur un ordinateur, une centaine de pixels sur un téléphone.
+   Tout ce qui est ancré au bord bas d'un cadre plein écran l'ajoute à son
+   retrait, faute de quoi il se lit sous la barre — c'est-à-dire pas du tout.
+   ------------------------------------------------------------------ */
+:root {
+  --ecran: 100vh;
+  --barre-mobile: 0px;
+}
+
+@supports (height: 100svh) {
+  :root {
+    --barre-mobile: calc(100vh - 100svh);
+  }
+}
+
+/* ------------------------------------------------------------------
    Les scalaires animés, déclarés.
    ------------------------------------------------------------------
    Trois propriétés personnalisées du site sont écrites par GSAP à chaque

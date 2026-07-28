@@ -8,6 +8,7 @@
    marquer par une teinte — il se marque par la densité. */
 
 .son {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: calc(var(--spacing) * 1.25);
@@ -16,6 +17,18 @@
   padding: 0;
   color: currentColor;
   cursor: pointer;
+}
+
+/* La cible du pointeur déborde le bouton sans occuper de place dans la mise en
+   page, et sans rien peindre — même dispositif que le burger, et pour la même
+   raison : trois barres de deux pixels et un mot de onze ne font pas une cible
+   tactile. Le bouton mesure quatorze pixels de haut ; la zone en fait
+   quarante-quatre, ce qui est le minimum d'une main. La ligne du chrome, elle,
+   n'en sait rien : le pseudo-élément est hors flux. */
+.son::before {
+  content: "";
+  position: absolute;
+  inset: -15px -12px;
 }
 
 .son__barres {

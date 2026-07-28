@@ -29,6 +29,7 @@
 }
 
 .langue__code {
+  position: relative;
   text-decoration: none;
   color: currentColor;
   cursor: pointer;
@@ -47,6 +48,17 @@
   opacity: 1;
   cursor: default;
   pointer-events: none;
+}
+
+/* La cible tactile : deux capitales de onze pixels séparées d'un filet ne se
+   visent pas au doigt. La zone déborde le code sans peindre ni pousser quoi que
+   ce soit, comme celle du burger et celle du son. Le retrait horizontal s'arrête
+   à la moitié de l'écart entre les deux codes : les deux cibles se touchent sans
+   jamais se recouvrir, sinon FR prendrait les appuis destinés à EN. */
+.langue__code::before {
+  content: "";
+  position: absolute;
+  inset: -15px calc(var(--spacing) * -0.6);
 }
 
 /* ------------------------------------------------------------------

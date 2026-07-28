@@ -73,16 +73,50 @@
   opacity: 1;
 }
 
+/* ---- Le contenu, et pourquoi il défile ----
+
+   Il portait `min-height: 100%` et `justify-content: center`, sans jamais
+   pouvoir défiler. Sur un téléphone bas — un SE, un vieil Android —, les cinq
+   projets, les entrées de parcours, le pied et les retraits dépassent la
+   fenêtre : le contenu débordait alors **par les deux bouts**, comme le fait
+   toujours un `center` en flexbox, et le premier projet devenait
+   inatteignable. Le menu est `position: fixed` et le défilement de la page est
+   verrouillé par `lenis.stop()` : il n'y avait aucun geste pour aller le
+   chercher. Le menu était donc, sur ces appareils, partiellement inutilisable.
+
+   Trois lignes le règlent, et aucune ne change quoi que ce soit là où le contenu
+   tient :
+
+     `height: 100%` + `overflow-y: auto` — la colonne défile d'elle-même quand
+     elle déborde. Le défilement est natif : Lenis ne lisse que la fenêtre, et le
+     tactile lui est de toute façon rendu (`syncTouch: false`).
+
+     `overscroll-behavior: contain` — arrivé en bout de liste, le geste ne se
+     propage pas au parcours qui attend derrière, et ne déclenche pas le
+     « tirer pour recharger ».
+
+     `safe center` — le centrage tient tant qu'il y a la place, et cède au bord
+     haut dès qu'il n'y en a plus. C'est la valeur qui existe exactement pour ce
+     cas, et elle rend le `center` inoffensif. */
 .menu__contenu {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: safe center;
   gap: clamp(1.5rem, 4vh, 3rem);
-  min-height: 100%;
+  height: 100%;
+  /* L'axe horizontal est fermé explicitement. Un `overflow` non visible sur un
+     seul axe fait passer l'autre de `visible` à `auto` : sans cette ligne, le
+     décalage de survol d'une entrée — jusqu'à quarante pixels vers la droite —
+     pourrait faire naître une barre de défilement horizontale dans le menu. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   /* Calé à gauche, jamais centré. De l'air pour le logo en haut, la nav à
-     droite, la couche technique en bas. */
-  padding: clamp(6rem, 14vh, 12rem) var(--marge) clamp(4rem, 10vh, 8rem);
+     droite, la couche technique en bas. Le retrait bas passe au-dessus de la
+     barre du navigateur : le pied du menu ne se lit pas dessous. */
+  padding: clamp(6rem, 14vh, 12rem) var(--marge)
+    calc(clamp(4rem, 10vh, 8rem) + var(--barre-mobile));
 }
 
 .menu__liste {

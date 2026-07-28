@@ -31,14 +31,17 @@
    Rien du chapitre ne prend le pointeur, sauf l'eau quand elle est là : sans
    cette ligne, la course couvrirait le dernier écran du hero. */
 .vestibule[data-reduit="false"] {
-  margin-top: -100vh;
+  /* `--ecran`, jamais `100vh` écrit à la main : c'est la hauteur du hero qu'on
+     annule, et les deux doivent être le même jeton. Écrites dans deux unités
+     différentes, elles ne s'annulaient plus sur mobile — voir `seuil.css`. */
+  margin-top: calc(var(--ecran) * -1);
   pointer-events: none;
 }
 
 /* La course : un écran par temps, plus l'air. `--temps` vient du composant. */
 .vestibule__course {
   position: relative;
-  height: calc(var(--temps) * 100vh);
+  height: calc(var(--temps) * var(--ecran));
 }
 
 /* Le cadre tient par `sticky`, pas par un `pin` GSAP : rien n'est sorti du
@@ -51,7 +54,7 @@
 .vestibule__cadre {
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: var(--ecran);
   overflow: clip;
 }
 
@@ -223,6 +226,9 @@
   margin: 0;
   display: grid;
   place-content: center;
+  /* Le centrage se fait sur la partie visible du cadre, et non sur la grande
+     fenêtre dont la barre du navigateur mange le bas. Nul sur un ordinateur. */
+  padding-bottom: var(--barre-mobile);
   pointer-events: none;
 
   font-size: var(--text-monument);
@@ -286,6 +292,8 @@
 
 .vestibule__bloc--centre {
   align-content: center;
+  /* Même correction que le mot : on centre dans ce qu'on voit. */
+  padding-bottom: var(--barre-mobile);
 }
 
 /* `--lieu` — la dernière phrase, celle qui se dit sur la villa.
@@ -485,7 +493,7 @@
 /* Les plaques : un plan par écran, avec sa seule ligne de couche technique. */
 .vestibule__plaque {
   position: relative;
-  height: 100vh;
+  height: var(--ecran);
   overflow: clip;
 }
 
@@ -500,7 +508,9 @@
 
 .vestibule__technique {
   position: absolute;
-  bottom: clamp(1.5rem, 5vh, 3rem);
+  /* Le retrait bas passe au-dessus de la barre du navigateur : sans quoi la
+     ligne se peint dessous, c'est-à-dire nulle part. Nul sur un ordinateur. */
+  bottom: calc(clamp(1.5rem, 5vh, 3rem) + var(--barre-mobile));
   left: var(--marge);
   z-index: 2;
   color: var(--color-craie);

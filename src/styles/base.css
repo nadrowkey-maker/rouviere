@@ -12,6 +12,26 @@
     font-size: 100%;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* Le corps du texte ne se fait pas regrossir par le moteur mobile : toute
+       l'échelle typographique est en `clamp()` de `vw`, et une correction
+       automatique par-dessus la désaccorderait de la grille. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* ------------------------------------------------------------------
+     Le tactile
+     ------------------------------------------------------------------
+     Le halo bleu que WebKit peint sous un élément touché n'a rien à faire dans
+     un site dont tout le chrome est en `mix-blend-mode: difference` : c'est une
+     couleur propre, posée par le moteur, sur des nœuds qui n'en ont aucune. Les
+     états de pression sont déjà écrits (densité, contour), il n'y a rien à
+     ajouter — seulement quelque chose à retirer.
+     ------------------------------------------------------------------ */
+  @media (pointer: coarse) {
+    html {
+      -webkit-tap-highlight-color: transparent;
+    }
   }
 
   body {

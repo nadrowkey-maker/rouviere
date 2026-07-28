@@ -9,6 +9,7 @@ import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon, type Lieu } from "@/components/chrome/SonProvider";
 import { useLangue } from "@/i18n/LangueProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
+import { sourcesPlan } from "@/lib/media";
 import "./matiere.css";
 
 /**
@@ -537,7 +538,8 @@ export function Matiere() {
                   ref={(node) => {
                     videosRef.current[index] = node;
                   }}
-                  src={matiere.plan.mp4}
+                  /* Pas d'attribut `src` : il l'emporterait sur les `<source>`
+                     et court-circuiterait le choix de la variante. */
                   poster={matiere.plan.poster}
                   width={LARGEUR_MATIERE}
                   height={HAUTEUR_MATIERE}
@@ -549,7 +551,19 @@ export function Matiere() {
                   loop
                   playsInline
                   aria-label={dire(matiere.plan.alt)}
-                />
+                >
+                  {/* Le master sur grand écran, la variante 720p ailleurs.
+                      Ces deux plans font douze mégaoctets chacun ; sur mobile,
+                      ils en font deux. Voir `lib/media.ts`. */}
+                  {sourcesPlan(matiere.plan.mp4).map((source) => (
+                    <source
+                      key={source.src}
+                      src={source.src}
+                      type={source.type}
+                      media={source.media}
+                    />
+                  ))}
+                </video>
               )}
 
               {/* Le nom est peint dans le plan : le masque le découvre en même

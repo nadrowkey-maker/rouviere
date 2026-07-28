@@ -142,7 +142,8 @@
   /* Le retrait bas dégage deux choses : la ligne du chrome, dont le nom de
      chapitre est fixé au même coin, et le colophon qui ferme le site sous son
      filet. Trois textes empilés dans le même coin ne se lisent pas. */
-  padding: 0 var(--marge) clamp(6rem, 13vh, 8.5rem);
+  padding: 0 var(--marge)
+    calc(clamp(6rem, 13vh, 8.5rem) + var(--barre-mobile));
   pointer-events: none;
   font-style: normal;
 }
@@ -246,7 +247,7 @@
   position: absolute;
   left: var(--marge);
   right: var(--marge);
-  bottom: clamp(1.5rem, 5vh, 3rem);
+  bottom: calc(clamp(1.5rem, 5vh, 3rem) + var(--barre-mobile));
   z-index: 2;
   margin: 0;
   padding-top: calc(var(--spacing) * 2);

@@ -123,11 +123,28 @@ export function Sortie() {
     };
 
     void document.fonts.ready.then(caler);
-    addEventListener("resize", caler, { passive: true });
+
+    /* ---- On ne re-mesure que si la largeur a changé ----
+     *
+     * La loi du logotype ne dépend que de `innerWidth` : re-mesurer sur un
+     * changement de hauteur seule ne peut rien donner d'autre que la valeur
+     * qu'on a déjà. Sur mobile, ce sont pourtant les seuls redimensionnements
+     * qu'on reçoive vraiment — la barre d'URL se replie et se déploie à chaque
+     * changement de sens du défilement —, et chacun déclenchait ici deux
+     * écritures de `font-size` sur un mot de plusieurs centaines de pixels, donc
+     * deux calculs de disposition forcés, en plein geste. Le mot ne bougeait pas
+     * d'un pixel ; seule la fluidité en pâtissait. */
+    let largeurConnue = innerWidth;
+    const surRedimensionnement = () => {
+      if (innerWidth === largeurConnue) return;
+      largeurConnue = innerWidth;
+      caler();
+    };
+    addEventListener("resize", surRedimensionnement, { passive: true });
 
     return () => {
       annule = true;
-      removeEventListener("resize", caler);
+      removeEventListener("resize", surRedimensionnement);
     };
   }, []);
 

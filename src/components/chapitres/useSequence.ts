@@ -97,6 +97,37 @@ export function useSequence(
     const images = new Array<HTMLImageElement | null>(sequence.nombre).fill(null);
     const etat = { dessine: -1, tailleSale: true };
 
+    /* Le plafond de densité et le pas d'échantillonnage lisent la même mesure ;
+       on ne la refait pas soixante fois par seconde. */
+    const grossier = matchMedia("(pointer: coarse)").matches;
+
+    /* ---- Une image sur deux sur un téléphone ----
+     *
+     * Cent quatre-vingt-douze images de 1280 × 720 décodées et gardées en
+     * mémoire, ce sont sept cents mégaoctets de bitmaps. Un ordinateur les
+     * encaisse ; un téléphone déclenche sa pression mémoire, et Safari recharge
+     * l'onglet — le parcours repart au seuil, au milieu du manifeste. C'était le
+     * défaut le plus brutal du chapitre sur mobile, et le plus difficile à
+     * imputer puisqu'il ne ressemble pas à un bug de rendu.
+     *
+     * **On n'échantillonne que le chargement, jamais la course.** L'index reste
+     * mappé sur les 192 images : le minutage du chapitre, l'instant de l'allumage
+     * et les bornes de l'eau ne bougent pas d'un centième. Simplement, une image
+     * sur deux n'est pas là — et `dessiner` sait déjà quoi en faire, puisqu'il
+     * recule jusqu'à la dernière disponible pour survivre à un trou de
+     * chargement. Le scrub passe de 192 à 96 pas sur deux écrans de course : la
+     * cadence reste très au-dessus de ce que l'œil sépare.
+     *
+     * La dernière image est toujours chargée, quel que soit le pas : c'est elle
+     * qu'on regarde à l'arrêt en fin de course, et retomber sur l'avant-dernière
+     * y serait la seule substitution qui se verrait. */
+    const pas = grossier ? 2 : 1;
+    const indices: number[] = [];
+    for (let i = 0; i < sequence.nombre; i += pas) indices.push(i);
+    if (indices[indices.length - 1] !== sequence.nombre - 1) {
+      indices.push(sequence.nombre - 1);
+    }
+
     const charger = (i: number): Promise<void> =>
       new Promise((resoudre) => {
         const image = new Image();
@@ -116,7 +147,12 @@ export function useSequence(
     /** Dimensionne le tampon et invalide le dessin. Phase de mesure. */
     const redimensionner = () => {
       const rect = ancre.getBoundingClientRect();
-      const dpr = Math.min(devicePixelRatio, 2);
+      /* Le plafond de densité du budget : deux sur une machine de bureau, un et
+         demi sur un pointeur grossier. C'est la même règle que le rig applique
+         à son tampon de rendu — un `drawImage` par frame sur un tampon deux fois
+         trop grand est un coût de remplissage pur, et c'est le poste le plus
+         cher d'un scrub d'images sur téléphone. */
+      const dpr = Math.min(devicePixelRatio, grossier ? 1.5 : 2);
       const largeur = Math.round(rect.width * dpr);
       const hauteur = Math.round(rect.height * dpr);
       if (largeur === 0 || hauteur === 0) return;
@@ -158,15 +194,12 @@ export function useSequence(
       if (index.current !== etat.dessine) dessiner(index.current);
     });
 
-    const bloquantes = Math.max(
-      1,
-      Math.round(sequence.nombre * PART_BLOQUANTE),
-    );
+    /* Le premier tiers **de ce qu'on charge**, et non le premier tiers de la
+       séquence : c'est la même part de course couverte dans les deux cas. */
+    const bloquantes = Math.max(1, Math.round(indices.length * PART_BLOQUANTE));
 
     const demarrer = async () => {
-      await Promise.all(
-        Array.from({ length: bloquantes }, (_, i) => charger(i)),
-      );
+      await Promise.all(indices.slice(0, bloquantes).map(charger));
       if (annule) return;
 
       setPrete(true);
@@ -174,9 +207,9 @@ export function useSequence(
       etat.dessine = -1;
       surPretRef.current?.();
 
-      for (let i = bloquantes; i < sequence.nombre; i += 1) {
+      for (let i = bloquantes; i < indices.length; i += 1) {
         if (annule) return;
-        await charger(i);
+        await charger(indices[i]!);
       }
     };
 

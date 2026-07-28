@@ -96,7 +96,7 @@ export function Menu() {
     fermetureImmediate,
   } = useChrome();
   const { lenis, arreter, reprendre } = useDefilement();
-  const { mouvementReduit } = useMouvement();
+  const { mouvementReduit, capacites } = useMouvement();
   const { jouer } = useSon();
   const { t, langue } = useLangue();
   const flux = useVideoProjet();
@@ -177,7 +177,32 @@ export function Menu() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  /* ---- L'aperçu vidéo, posé sec au survol ---- */
+  /* ---- L'aperçu vidéo, posé sec au survol ----
+   *
+   * **Il n'a pas lieu sur un appareil tactile, et c'était le plus lourd des
+   * défauts mobiles du site.**
+   *
+   * L'aperçu est un geste de survol : on désigne une entrée, son plan paraît
+   * derrière le texte. Un doigt ne survole pas. Ce que produisait le dispositif
+   * sur un téléphone n'était donc pas un aperçu mais une facture : à l'ouverture
+   * du menu, `prechauffer()` créait les cinq nœuds vidéo en `preload="auto"` et
+   * lançait leur chargement — une vingtaine de mégaoctets sur une connexion
+   * mobile, en concurrence directe avec la vidéo du hero, pour cinq plans que
+   * personne ne verrait jamais. Puis le `mouseenter` synthétique que le
+   * navigateur émet juste avant le `click` déclenchait la lecture du plan
+   * désigné, une fraction de seconde avant de quitter la page.
+   *
+   * Sur pointeur grossier, le menu montre donc la photographie du projet — le
+   * repli qui existait déjà pour le mouvement réduit et le mode économe — et
+   * aucune vidéo n'est ni créée, ni chargée, ni relevée. La composition ne change
+   * pas : le cadre a toujours son plan derrière les titres.
+   */
+  /* Une fonction et non une valeur : `donneesEconomes` lit `navigator`, qui
+     n'existe pas au rendu serveur. Elle n'est appelée que dans un rappel. */
+  const apercuFilme = useCallback(
+    () => !capacites.pointeurGrossier && !mouvementReduit && !donneesEconomes(),
+    [capacites.pointeurGrossier, mouvementReduit],
+  );
 
   /**
    * Entrée du pointeur (ou focus clavier) sur une entrée de projet.
@@ -205,7 +230,7 @@ export function Menu() {
 
       /* Repli : la photographie du projet, fixe, posée dans la frame même. La
          vidéo n'a alors aucune raison d'être chargée. */
-      if (mouvementReduit || donneesEconomes()) {
+      if (!apercuFilme()) {
         const img = imgRef.current;
         const source = v.planches[0]!.src;
         if (img !== null && img.getAttribute("src") !== source) img.src = source;
@@ -225,7 +250,7 @@ export function Menu() {
         apercu.dataset.mode = "video";
       });
     },
-    [flux, mouvementReduit],
+    [flux, apercuFilme],
   );
 
   /** Sortie de la zone des entrées, ou survol d'une entrée sans projet : le
@@ -478,7 +503,9 @@ export function Menu() {
          faisaient décoder cinq vidéos par-dessus l'animation. On ne perd rien à
          attendre : aucune entrée ne peut être survolée avant d'être arrivée. */
       ouvrir(!mouvementReduit, () => {
-        if (!mouvementReduit && !donneesEconomes()) flux.prechauffer();
+        /* La mise en chauffe des cinq flux — une vingtaine de mégaoctets — n'a
+           lieu que là où un survol pourra les montrer. Voir « L'aperçu vidéo ». */
+        if (apercuFilme()) flux.prechauffer();
       });
 
       const focusables = Array.from(
@@ -603,7 +630,13 @@ export function Menu() {
                  pas et la chambre l'adoptera à cette image-là. Le drapeau du
                  module dit à la chambre quoi adopter ; la ref dit à la fermeture
                  de ne rien couper. */
-              if (entree.slug !== undefined) {
+              /* Rien à relever là où rien ne joue : sur tactile, en mouvement
+                 réduit ou en mode économe, l'aperçu est une photographie et le
+                 nœud vidéo n'a même pas été créé. Armer la relève y ferait
+                 attendre la chambre devant un flux qui n'existe pas — elle
+                 rendrait son hôte à pleine densité sur du noir. Elle repart donc
+                 sur son chemin ordinaire : poster, puis vidéo. */
+              if (entree.slug !== undefined && apercuFilme()) {
                 armerReleve(entree.slug);
                 releveRef.current = true;
               }

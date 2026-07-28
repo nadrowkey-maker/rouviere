@@ -3,14 +3,22 @@
 
 .enfilade {
   position: relative;
+  /* La largeur d'une pièce sur écran étroit. Écrite ici parce que la portée
+     étroite s'en sert deux fois — la pièce elle-même, et les retraits du couloir
+     qui doivent valoir une demi-fenêtre moins une demi-pièce. Les deux ne
+     peuvent pas diverger : c'est cette égalité qui fait passer chaque pièce par
+     le centre du cadre, et toute la loi de dominance des noms en dépend. */
+  --piece-etroite: 78vw;
   /* La scène est épinglée : la hauteur de la section est celle d'un écran,
-     ScrollTrigger fabrique lui-même la course de défilement. */
-  height: 100vh;
+     ScrollTrigger fabrique lui-même la course de défilement.
+     `--ecran` et non `100vh` : c'est cette hauteur-là que *La Matière* annule
+     par son `margin-top` négatif, et les deux doivent lire le même jeton. */
+  height: var(--ecran);
 }
 
 .enfilade__scene {
   position: relative;
-  height: 100vh;
+  height: var(--ecran);
   /* Ce qui sort du couloir sort de l'écran, sans jamais fabriquer de barre
      horizontale. `clip` plutôt que `hidden` : aucun ancêtre défilant parasite. */
   overflow: clip;
@@ -42,6 +50,11 @@
   column-gap: clamp(6rem, 14vw, 18rem);
   width: max-content;
   will-change: transform;
+  /* Le cadre fait une grande fenêtre, dont la barre du navigateur masque le
+     bas : centrer les pièces dans cette hauteur-là les pose une demi-barre trop
+     bas, sous le pouce. Le retrait rend le centrage à la partie **visible** du
+     cadre. Nul sur un ordinateur. */
+  padding-bottom: var(--barre-mobile);
 }
 
 .enfilade__piece {
@@ -152,7 +165,9 @@
 /* La couche technique, au troisième rythme, calée en bas du cadre. */
 .enfilade__bandeau {
   position: absolute;
-  bottom: clamp(1.5rem, 5vh, 3.5rem);
+  /* Le cadre fait une grande fenêtre ; la barre du navigateur en mange le bas.
+     Sans ce terme, la couche technique du couloir se peint dessous. */
+  bottom: calc(clamp(1.5rem, 5vh, 3.5rem) + var(--barre-mobile));
   left: 0;
   display: flex;
   column-gap: clamp(8rem, 22vw, 26rem);
@@ -260,15 +275,56 @@
   white-space: normal;
 }
 
+/* ------------------------------------------------------------------
+   Écran étroit — le couloir garde sa loi, avec la bonne largeur de pièce
+   ------------------------------------------------------------------
+   Trois défauts vivaient ici, et le premier était grave.
+
+   **Les retraits ne centraient plus rien.** Le retrait de fin valait `70vw` et
+   celui de début restait la formule du bureau, calée sur une largeur de pièce
+   (`clamp(18rem, 34vw, 34rem)`) que la règle qui suit remplace par `78vw`. Or
+   toute la mécanique du chapitre repose sur une seule invariante : *chaque pièce
+   passe par le centre du cadre*, parce que la dominance d'un nom est une
+   fonction de la distance de sa pièce à ce centre. Avec un retrait de fin de
+   `70vw` et des pièces de `78vw`, la dernière pièce finissait sa course le bord
+   droit à 30 % du cadre — donc à moitié sortie par la gauche, jamais centrée,
+   son nom jamais lisible. Pire : c'est **de la boîte de cette pièce-là** que
+   part la fenêtre du plan de sortie. Le cadre s'ouvrait donc depuis une position
+   hors champ, et le dernier geste du chapitre — celui qui passe la main à *La
+   Matière* — n'avait plus de point de départ crédible.
+
+   Les deux retraits valent maintenant, comme sur grand écran, une demi-fenêtre
+   moins une demi-pièce. Course à zéro la première est centrée, course à un la
+   dernière l'est aussi.
+
+   **Les noms étaient tous au même endroit.** En `nowrap` et au corps plancher du
+   Livre I (40 px), « Grand Hôtel des Bains » est plus large qu'un téléphone : la
+   borne du composant ne trouvait plus d'intervalle valide (`min > max`) et
+   repliait tous les noms au centre du cadre, où ils se superposaient. Ils
+   passent donc à la ligne dans la colonne de leur pièce — le corps est
+   préservé, la loi de dominance retrouve un intervalle, et un nom reste calé sur
+   sa pièce.
+
+   **La couche technique se lisait sous la barre du navigateur** : traitée plus
+   haut, avec `--barre-mobile`.
+   ------------------------------------------------------------------ */
 @media (max-width: 48rem) {
   .enfilade__couloir {
-    padding-inline-end: 70vw;
+    /* Même loi qu'au-dessus, avec la largeur de pièce de cette portée-là. */
+    padding-inline: calc(50vw - var(--piece-etroite) / 2);
     column-gap: clamp(3rem, 12vw, 8rem);
   }
 
   .enfilade__piece,
   .enfilade__piece:nth-child(2n),
   .enfilade__piece:nth-child(3n) {
-    width: 78vw;
+    width: var(--piece-etroite);
+  }
+
+  .enfilade__nom {
+    /* Il tient dans la colonne de sa pièce plutôt que de déborder le cadre. */
+    white-space: normal;
+    text-wrap: balance;
+    max-width: var(--piece-etroite);
   }
 }

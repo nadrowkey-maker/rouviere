@@ -93,6 +93,7 @@ import * as THREE from "three";
 import type { ContexteRig, Fabrique, PlanScene } from "../moteur";
 import { couleurJeton } from "../couleurs";
 import { aleatoireAGraine } from "@/lib/aleatoire";
+import { varianteMobile } from "@/lib/media";
 import { PLAN_LIEU } from "@/data/manifeste";
 
 /* ==========================================================================
@@ -1548,7 +1549,20 @@ export function fabriquerBassin(reglages: ReglagesBassin): Fabrique {
        pour la texture. Il ne démarre pas tout seul — voir `reglerLecture`, qui
        ne le lance que lorsqu'on le regarde vraiment, et l'arrête sinon. */
     const video = document.createElement("video");
-    video.src = PLAN_SOURCE;
+    /* ---- La variante mobile du plan ----
+     *
+     * `piscine.mp4` est le fichier le plus lourd du site : 27 s à 14,2 Mb/s,
+     * quarante-six mégaoctets. Il est décodé dans une texture, à une résolution
+     * qui n'a rien à voir avec la sienne — le plan occupe une part du cadre, et
+     * la caméra ne s'y approche jamais. Sur un téléphone, la variante 720p en
+     * fait six, pour une différence invisible à travers l'eau.
+     *
+     * Le choix est fait ici en JavaScript, et non par `<source media>` comme
+     * pour les plans du DOM : cet élément-là n'est jamais dans le document, il
+     * n'est qu'une source de décodage. Le rig connaît déjà la grossièreté du
+     * pointeur — c'est la même mesure qui règle le plafond de densité et la
+     * finesse de la grille de simulation, quelques lignes plus haut. */
+    video.src = pointeurGrossier ? varianteMobile(PLAN_SOURCE) : PLAN_SOURCE;
     video.muted = true;
     video.loop = true;
     video.playsInline = true;

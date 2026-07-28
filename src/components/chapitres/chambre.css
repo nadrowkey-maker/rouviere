@@ -11,7 +11,7 @@
 
 .chambre__hero {
   position: relative;
-  height: 100vh;
+  height: var(--ecran);
   overflow: clip;
   background-color: var(--color-encre);
 }
@@ -102,7 +102,7 @@
   --defiler-segment: 1.5rem;
   position: absolute;
   left: 50%;
-  bottom: clamp(1.5rem, 5vh, 3rem);
+  bottom: calc(clamp(1.5rem, 5vh, 3rem) + var(--barre-mobile));
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -237,7 +237,7 @@
 
 .chambre__vues {
   position: relative;
-  height: 100vh;
+  height: var(--ecran);
   overflow: clip;
   background-color: var(--color-encre);
 }
@@ -268,7 +268,7 @@
 .chambre__titre {
   position: absolute;
   left: var(--marge);
-  bottom: clamp(4rem, 12vh, 9rem);
+  bottom: calc(clamp(4rem, 12vh, 9rem) + var(--barre-mobile));
   margin: 0;
   max-width: 14ch;
   font-size: clamp(3rem, 11vw, 11rem);
@@ -281,7 +281,7 @@
 .chambre__technique {
   position: absolute;
   left: var(--marge);
-  bottom: clamp(1.5rem, 5vh, 3rem);
+  bottom: calc(clamp(1.5rem, 5vh, 3rem) + var(--barre-mobile));
   z-index: 20;
   color: var(--color-craie);
   mix-blend-mode: difference;
@@ -296,7 +296,7 @@
 
 .chambre[data-reduit] .chambre__vue {
   position: relative;
-  height: 100vh;
+  height: var(--ecran);
   clip-path: none !important;
 }
 

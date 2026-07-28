@@ -4,7 +4,7 @@
 .sequence {
   position: relative;
   width: 100%;
-  height: 100vh;
+  height: var(--ecran);
   background-color: var(--color-encre);
   overflow: clip;
 }

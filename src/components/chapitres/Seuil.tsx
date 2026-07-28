@@ -10,6 +10,7 @@ import { useMouvement } from "@/components/motion/MotionProvider";
 import { useLangue } from "@/i18n/LangueProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { largeurLogotype } from "@/lib/logotype";
+import { sourcesPlan } from "@/lib/media";
 import "./seuil.css";
 
 /**
@@ -408,7 +409,16 @@ export function Seuil() {
         playsInline
         preload="auto"
       >
-        <source src={HERO_VIDEO} type="video/mp4" />
+        {/* Le master sur grand écran, la variante 720p ailleurs. L'ordre est
+            celui de `lib/media.ts`, et il n'est pas indifférent. */}
+        {sourcesPlan(HERO_VIDEO).map((source) => (
+          <source
+            key={source.src}
+            src={source.src}
+            type={source.type}
+            media={source.media}
+          />
+        ))}
       </video>
       {/* Le voile de sortie : noir, monté en scrub au défilement. */}
       <div className="hero__voile" aria-hidden="true" ref={voileRef} />

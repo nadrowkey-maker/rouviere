@@ -22,6 +22,34 @@ import { SplitText } from "gsap/SplitText";
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger, SplitText);
   gsap.ticker.lagSmoothing(0);
+
+  /* ------------------------------------------------------------------
+     La barre d'URL des navigateurs mobiles, et pourquoi elle cassait tout
+     ------------------------------------------------------------------
+     Sur un téléphone, descendre replie la barre d'adresse et remonter la
+     redéploie. Le navigateur émet un `resize` à chaque fois, et `innerHeight`
+     change d'une centaine de pixels — **en plein geste de défilement**.
+
+     ScrollTrigger se rafraîchit par défaut à chaque `resize` : il re-mesure les
+     neuf chapitres, recalcule les six épinglages et leurs espaceurs, et
+     repositionne le défilement sur les nouvelles bornes. C'est une passe de
+     plusieurs dizaines de millisecondes, déclenchée au moment précis où l'on
+     bouge, et elle se solde par un saut de position parce que les courses
+     `+=innerHeight` viennent de changer de valeur sous la main. C'est
+     l'explication du « ça saute et ça saccade » du parcours mobile, et aucun
+     réglage d'animation ne pouvait le corriger : rien n'était mal animé, tout
+     était re-mesuré au mauvais moment.
+
+     `ignoreMobileResize` dit à ScrollTrigger d'ignorer les `resize` d'un
+     appareil tactile qui ne changent **que** la hauteur — c'est-à-dire
+     exactement la signature de la barre d'URL. Une rotation d'écran change la
+     largeur : elle passe, et le rafraîchissement a bien lieu.
+
+     Les hauteurs de la feuille de style sont écrites en `--ecran`, donc sur la
+     grande fenêtre, qui ne bouge pas non plus : CSS et ScrollTrigger restent
+     d'accord d'un bout à l'autre du parcours.
+     ------------------------------------------------------------------ */
+  ScrollTrigger.config({ ignoreMobileResize: true });
 }
 
 export { gsap, ScrollTrigger, SplitText };

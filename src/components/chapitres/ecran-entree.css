@@ -56,7 +56,11 @@
      géométrique, donc sur le centre optique — celui qu'on regarde vraiment. */
   grid-template-rows: 1fr auto 1.25fr;
   justify-items: center;
-  padding: clamp(2rem, 6vh, 4rem) var(--marge);
+  /* Le plein cadre se cale sur la grande fenêtre : sans le terme du bas, les
+     deux portes tombent une demi-barre de navigateur trop bas — sur un écran
+     court, la seconde passait sous la barre. Nul sur un ordinateur. */
+  padding: clamp(2rem, 6vh, 4rem) var(--marge)
+    calc(clamp(2rem, 6vh, 4rem) + var(--barre-mobile));
   background-color: #000;
 }
 
