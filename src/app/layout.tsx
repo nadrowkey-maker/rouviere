@@ -15,6 +15,28 @@ import { Chrome } from "@/components/chrome/Chrome";
 import "@/styles/base.css";
 
 /**
+ * **Le blindage `setAttribute`, et pourquoi Safari iOS cassait toute la page.**
+ *
+ * Sur iPad/iPhone, GSAP (ScrollTrigger + le calcul de matrice qu'il partage
+ * avec Draggable et Flip) mesure la transformation des éléments en créant des
+ * nœuds SVG de sonde. Sur certaines versions de WebKit, le chemin de repli de
+ * cette mesure aboutit à un appel `setAttribute` dont le nom est littéralement
+ * `"scaleX,scaleY"` — une chaîne invalide pour un nom d'attribut. Le
+ * navigateur lève alors une `DOMException: InvalidCharacterError`, non
+ * rattrapée, qui remonte tout le rendu React et casse la page entière : c'est
+ * exactement l'erreur rapportée par l'iPad.
+ *
+ * Chrome et Firefox ne prennent jamais ce chemin de repli — rien à corriger
+ * côté mesures, le bug est interne à WebKit/GSAP. En attendant un correctif
+ * en amont, on neutralise ici uniquement les appels dont le nom est invalide :
+ * ils échoueraient de toute façon (un nom pareil ne peut rien poser sur le
+ * DOM), on les transforme donc d'un plantage en no-op silencieux. Posé tout
+ * en tête, avant tout autre script et avant l'hydratation, pour intercepter
+ * même les toutes premières mesures.
+ */
+const SCRIPT_BLINDAGE_ATTR = `try{var f=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){try{return f.call(this,n,v)}catch(e){if(e&&e.name==='InvalidCharacterError'){return}throw e}}}catch(e){}`;
+
+/**
  * Décide, avant la première peinture et sans attendre React, si le seuil doit
  * jouer : oui tant que la session ne l'a pas vu. La classe posée ici commande
  * le placement du logo et l'affichage de l'overlay en CSS pur — c'est ce qui
@@ -80,6 +102,7 @@ export default function RootLayout({
        aussi au rendu serveur. */
     <html lang="fr" className={variablesPolices} suppressHydrationWarning>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_BLINDAGE_ATTR }} />
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_SEUIL }} />
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_LANGUE }} />
         <a className="evitement" href="#contenu">
