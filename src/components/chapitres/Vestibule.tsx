@@ -16,6 +16,7 @@ import { useRig } from "@/components/gl/Rig";
 import type { EtatBassin } from "@/components/gl/materiaux/bassin";
 import { useMouvement } from "@/components/motion/MotionProvider";
 import { useSon } from "@/components/chrome/SonProvider";
+import { Defilement } from "@/components/chrome/Defilement";
 import { useLangue } from "@/i18n/LangueProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { useSequence } from "./useSequence";
@@ -298,6 +299,26 @@ const MINUTAGE = {
   reduction: [0.561, 0.595],
   eauMontee: [0.605, 0.654],
   /**
+   * **Le repère de défilement, et pourquoi il revient ici.**
+   *
+   * C'est le seul endroit du chapitre où l'écran ne fait plus rien : l'eau est
+   * montée, la caméra ne s'est pas encore redressée, et il ne reste qu'une
+   * surface qui ondule sous le pointeur. Le temps mort est voulu — c'est là
+   * qu'on joue avec l'eau, et c'est la raison d'être de la section — mais une
+   * surface qui répond au pointeur et rien d'autre ressemble à une fin. On a
+   * fini d'entrer, on croit avoir fini de descendre.
+   *
+   * Le repère du hero revient donc ici, le même, au même endroit, et il repart
+   * avec le mouvement de caméra. Il n'est pas là pour presser : il dit que ce
+   * qu'on est en train de faire n'est pas tout ce qu'il y a à faire.
+   *
+   * L'entrée est franche et la sortie enjambe le début du redressement : dès que
+   * la caméra bouge, l'écran se remet à parler et le repère n'a plus rien à
+   * dire. Il s'en va donc *pendant* le mouvement, jamais avant lui.
+   */
+  defilementEntree: [0.658, 0.672],
+  defilementSortie: [0.696, 0.714],
+  /**
    * **Le redressement.** La caméra quitte l'aplomb, et ce qu'on découvre
    * au-dessus de l'eau est le lieu — la villa autour de sa piscine, en plan
    * filmé, dans lequel le bassin calculé vient prendre la place de l'eau réelle.
@@ -398,6 +419,8 @@ export function Vestibule() {
   const filmRef = useRef<HTMLCanvasElement>(null);
   const lumiereRef = useRef<HTMLParagraphElement>(null);
   const ancreBassin = useRef<HTMLDivElement>(null);
+  /* Le repère de défilement du temps mort. Voir `MINUTAGE.defilementEntree`. */
+  const defilementRef = useRef<HTMLSpanElement>(null);
   /* L'aplat d'encre qui ferme le chapitre. Voir `MINUTAGE.voileSortie`. */
   const voileRef = useRef<HTMLDivElement>(null);
 
@@ -470,6 +493,9 @@ export function Vestibule() {
       if (plan !== null) gsap.set(plan, { opacity: 0 });
       if (voile !== null) gsap.set(voile, { opacity: 0 });
       if (ancre !== null) gsap.set(ancre, { yPercent: 100 });
+      if (defilementRef.current !== null) {
+        gsap.set(defilementRef.current, { opacity: 0 });
+      }
       /* La caméra du bassin repart à l'aplomb. L'état vit dans une ref, donc il
          survit à la reconstruction de la timeline — il faut le remettre à la
          main, sans quoi un rechargement à chaud rouvrirait le chapitre sur une
@@ -776,6 +802,21 @@ export function Vestibule() {
       }
       if (ancre !== null) {
         tl.to(ancre, { yPercent: 0, duration: ef - ed, ease: "none" }, ed);
+      }
+
+      /* Six, fin — le temps mort, et le repère de défilement qui le tient.
+         L'eau est là, la caméra n'a pas encore bougé : c'est le seul moment du
+         chapitre où l'écran attend. Voir `MINUTAGE.defilementEntree`.
+
+         Deux tweens d'opacité sur la course, et rien d'autre : la marque est
+         déjà en mouvement toute seule, en CSS, et lui poser une échelle ou une
+         dérive par-dessus ferait deux gestes là où il n'en faut qu'un. */
+      const repere = defilementRef.current;
+      if (repere !== null) {
+        const [dre, drf] = MINUTAGE.defilementEntree;
+        const [drs, drsf] = MINUTAGE.defilementSortie;
+        tl.to(repere, { opacity: 1, duration: drf - dre, ease: "none" }, dre);
+        tl.to(repere, { opacity: 0, duration: drsf - drs, ease: "none" }, drs);
       }
 
       /* ---- Sept — la caméra se redresse, et le lieu paraît ----
@@ -1133,6 +1174,16 @@ export function Vestibule() {
             <p>{t("margeFondation")}</p>
             <p>{t("margeChantiers")}</p>
           </aside>
+
+          {/* Le repère de défilement, revenu pour le seul temps mort du
+              chapitre. C'est la marque du hero, à l'identique — même dessin,
+              même axe, même bord bas : c'est ce qui la fait reconnaître plutôt
+              que lire. Elle ne dit rien de plus la deuxième fois. Sa présence
+              est en scrub sur la course ; voir `MINUTAGE.defilementEntree`. */}
+          <Defilement
+            className="vestibule__defilement"
+            conteneurRef={defilementRef}
+          />
 
           {/* Le noir de sortie. Dernier nœud du cadre, donc au-dessus de tout ce
               qu'il contient — l'eau, le lieu, le mot, la dernière phrase. Il

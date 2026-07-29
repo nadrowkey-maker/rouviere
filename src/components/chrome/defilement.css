@@ -1,0 +1,111 @@
+/* Le repère de défilement — la marque commune.
+
+   Trois hôtes s'en servent : le hero du parcours (`seuil.css`), le temps mort
+   du vestibule où l'on ne voit que de l'eau (`vestibule.css`), et le hero d'un
+   projet (`chambre.css`), d'où elle vient. Ce fichier tient la marque et son
+   mouvement ; les hôtes tiennent le placement et la présence, et rien d'autre.
+
+   Trois choses la font lire comme un repère et non comme un ornement :
+
+     — **l'échelle** : la piste fait 5 rem, le segment 1,5 ;
+     — **la densité** de la piste, 0,45 ;
+     — **le socle**, un filet horizontal sous la piste. C'est lui qui fait le
+       plus de travail, et pas pour une raison de contraste : une hairline
+       verticale seule n'a pas de forme, alors qu'un trait qui descend **vers**
+       quelque chose en a une, et se lit en vision périphérique. Le segment ne
+       tombe plus dans le vide, il tombe sur un sol. « Il y a en dessous » se
+       comprend alors sans qu'on ait à écrire le mot — ce que ce repère refuse
+       de faire depuis qu'il a cessé d'être un mot.
+
+   Les deux longueurs sont des propriétés personnalisées parce que l'animation
+   les reprend : la course du segment se déduisait d'un `5rem` recopié dans les
+   keyframes, et toute retouche de la hauteur la désaccordait en silence.
+
+   Régime du chrome : `difference`, aucune couleur propre. La craie n'est pas une
+   teinte choisie, c'est la valeur que le blend inverse — la marque est donc
+   claire sur l'encre du hero, sombre sur l'eau du bassin, et jamais recolorée.
+   C'est ce qui lui permet de servir deux mondes sans être réglée deux fois. */
+
+.defilement {
+  --defilement-course: 5rem;
+  --defilement-segment: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: calc(var(--spacing) * 1.5);
+  color: var(--color-craie);
+  mix-blend-mode: difference;
+  /* Il ne se clique pas et ne prend jamais le pointeur à l'eau, qui est en
+     dessous et qui, elle, s'écoute. */
+  pointer-events: none;
+}
+
+@supports not (mix-blend-mode: difference) {
+  .defilement {
+    mix-blend-mode: normal;
+    color: var(--color-pierre);
+  }
+}
+
+/* La piste : le trajet entier. Elle borne le segment, d'où le `overflow`.
+
+   Sa densité est portée par un pseudo-élément et non par elle-même : une
+   opacité posée sur la piste s'appliquerait au groupe entier, segment compris,
+   et le segment perdrait exactement le contraste qu'on est en train de lui
+   donner. */
+.defilement__piste {
+  position: relative;
+  width: 1px;
+  height: var(--defilement-course);
+  overflow: hidden;
+}
+
+.defilement__piste::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: currentColor;
+  opacity: 0.45;
+}
+
+/* Le segment qui descend. Il entre par le haut, sort par le bas, et
+   recommence — c'est le geste, pas son icône.
+
+   `translateY` en longueurs et non en pourcentages : le pourcentage se
+   rapporterait à la hauteur du segment, pas à celle de la piste, et la course
+   serait fausse dès qu'on toucherait à l'une des deux. */
+.defilement__curseur {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: var(--defilement-segment);
+  background-color: currentColor;
+  animation: defilement-descente 2.4s var(--ease-douce) infinite;
+}
+
+/* Le sol. Plus dense que la piste : c'est lui qu'on doit voir en premier. */
+.defilement__socle {
+  width: 1.25rem;
+  height: 1px;
+  background-color: currentColor;
+  opacity: 0.75;
+}
+
+@keyframes defilement-descente {
+  from {
+    transform: translateY(calc(var(--defilement-segment) * -1));
+  }
+  to {
+    transform: translateY(var(--defilement-course));
+  }
+}
+
+/* Mouvement réduit : les hôtes ne rendent pas le repère du tout. La règle est
+   là pour le cas où l'un d'eux le ferait un jour — une marque qui bouge en
+   boucle est exactement ce qu'on ne veut pas là. */
+@media (prefers-reduced-motion: reduce) {
+  .defilement__curseur {
+    animation: none;
+    transform: none;
+  }
+}

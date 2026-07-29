@@ -73,3 +73,34 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* ---- Le repère de défilement ----
+
+   La marque commune (`chrome/defilement.css`) ; ici, seulement où elle se pose
+   et quand elle est là.
+
+   **Au milieu du bord bas**, comme dans le hero d'un projet — et pour la même
+   raison : c'est l'axe de l'image, là où le regard tombe quand il a fini de
+   regarder. Le coin bas gauche est pris en permanence par le nom du chapitre
+   courant. Le Livre I ne concède le centre qu'au logotype du seuil ; ce repère
+   partage son axe pendant les trois secondes où le logotype y est encore, et
+   c'est la seule chose qu'ils aient en commun.
+
+   Le décalage d'entrée ne vit que sur l'état visible : une transition lit son
+   délai dans le style d'arrivée, donc le repère prend son temps pour venir —
+   après le son et le burger, en dernier — et s'en va sans en prendre du tout.
+   C'est ce qu'on veut des deux côtés : on annonce lentement, on obéit tout de
+   suite. */
+.hero__defilement {
+  position: absolute;
+  left: 50%;
+  bottom: calc(clamp(1.5rem, 5vh, 3rem) + var(--barre-mobile));
+  translate: -50% 0;
+  opacity: 0;
+  transition: opacity var(--duree-objet) var(--ease-sortie);
+}
+
+.hero__defilement[data-visible="true"] {
+  opacity: 1;
+  transition-delay: 0.4s;
+}

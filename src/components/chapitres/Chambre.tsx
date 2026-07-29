@@ -15,6 +15,7 @@ import {
   consommerReleve,
 } from "@/components/chrome/VideoProjet";
 import { useOuverture } from "@/components/chrome/Ouverture";
+import { Defilement } from "@/components/chrome/Defilement";
 import { useEffetVisuel } from "@/lib/isomorphe";
 import { lireCouleur, lireDuree } from "@/lib/jetons";
 import "./chambre.css";
@@ -422,31 +423,15 @@ export function Chambre({ projet }: { projet: Projet }) {
         {/* Le repère de défilement. Il ne paraît qu'une fois le plan installé,
             et il s'efface au premier tour de molette.
 
-            **Ce n'est plus un mot, c'est une marque.** « Défiler » disait à voix
-            haute ce que le geste montre : sur un plan qui tient l'écran entier,
-            un impératif écrit est la seule chose qu'on lit, et il devient la
-            seule chose qu'on regarde. La marque, elle, se comprend sans se lire
-            — et elle se comprend dans toutes les langues, ce que le mot ne
-            faisait même pas (il était codé en dur en français).
-
-            Elle reste dans le vocabulaire du site : deux filets d'un pixel,
-            angles vifs, aucune couleur propre. Pas de flèche, pas de rebond, pas
-            de souris arrondie — le Livre I interdit l'un et l'autre. Une piste
-            verticale, et un segment qui la descend : c'est le défilement lui-même,
-            pas son icône.
+            C'est la marque commune du site — sa raison d'être et son dessin sont
+            dans `chrome/Defilement.tsx`. Elle est née ici ; le hero du parcours
+            et le temps mort du vestibule s'en servent aussi, et il n'y en a
+            qu'une pour les trois.
 
             Le centre est demandé, et c'est une exception assumée à « rien n'est
             centré » : le repère est sous le plan, au bord bas, là où le regard
             tombe quand il a fini de regarder. */}
-        {mouvementReduit ? null : (
-          <span className="chambre__defiler" aria-hidden="true">
-            {/* Le segment vit **dans** la piste, qui le borne. */}
-            <span className="chambre__defiler-piste">
-              <span className="chambre__defiler-curseur" />
-            </span>
-            <span className="chambre__defiler-socle" />
-          </span>
-        )}
+        {mouvementReduit ? null : <Defilement className="chambre__defiler" />}
       </section>
 
       {/* ---- Les vues : trois photographies plein cadre ---- */}

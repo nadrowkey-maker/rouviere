@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { gsap } from "@/lib/gsap";
 import { EcranEntree } from "./EcranEntree";
+import { Defilement } from "@/components/chrome/Defilement";
 import { useLogo } from "@/components/chrome/LogoProvider";
 import { useSon } from "@/components/chrome/SonProvider";
 import { useDefilement } from "@/components/motion/LenisProvider";
@@ -74,6 +75,46 @@ export function Seuil() {
 
   const [pret, setPret] = useState(false);
 
+  /**
+   * **Le repère de défilement du hero.**
+   *
+   * La première image du site est une vidéo qui tient l'écran entier, sans un
+   * mot, et le logotype vient d'aller se ranger dans la barre : il ne se passe
+   * plus rien, et rien ne dit qu'il y a une suite. C'est exactement la situation
+   * que la marque commune traite déjà dans le hero d'un projet — on lui donne
+   * donc le même repère, au même endroit, avec le même dessin.
+   *
+   * **Il arrive en dernier.** Pas pendant l'apparition, où il ferait concurrence
+   * au seul mot de l'écran : une fois le logotype posé et le chrome revenu. Le
+   * décalage final est dans le CSS, sur la transition d'entrée seule.
+   *
+   * **Il ne revient pas.** Congédié, il l'est pour de bon — un repère qui
+   * reparaît à chaque remontée en haut de page cesse d'être un repère et devient
+   * un rappel. Deux gestes le congédient, et ce sont les deux façons de répondre
+   * à ce qu'il demande : le premier cran de défilement, et le clic sur le hero.
+   *
+   * **On ne congédie que ce qui a été offert**, et ce n'est pas une précaution
+   * de style. L'écran d'entrée est un enfant du hero : le clic qui choisit le
+   * son ou le silence descend donc jusqu'à l'écouteur du hero. Sans ce verrou,
+   * le premier geste de la visite congédiait pour de bon un repère qui n'était
+   * pas encore né, et il ne paraissait jamais.
+   */
+  const [defilementLa, setDefilementLa] = useState(false);
+  const defilementOffert = useRef(false);
+  const defilementCongedie = useRef(false);
+
+  const congedierDefilement = useCallback(() => {
+    if (!defilementOffert.current || defilementCongedie.current) return;
+    defilementCongedie.current = true;
+    setDefilementLa(false);
+  }, []);
+
+  const offrirDefilement = useCallback(() => {
+    if (defilementCongedie.current) return;
+    defilementOffert.current = true;
+    setDefilementLa(true);
+  }, []);
+
   const heroRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const voileRef = useRef<HTMLDivElement>(null);
@@ -129,7 +170,16 @@ export function Seuil() {
            progression, dans le même sens, réversible de la même façon. C'est
            la seule commande du fondu croisé hero → site — il n'y a nulle part
            de minuterie qui compterait les secondes passées en haut de page. */
-        onUpdate: (self) => reglerSortieHero(self.progress),
+        onUpdate: (self) => {
+          reglerSortieHero(self.progress);
+          /* Le premier cran de molette congédie le repère : il a dit ce qu'il
+             avait à dire. Un seuil, et non `> 0` : au repos la progression
+             oscille au millième près sur un redimensionnement ou un rebond
+             élastique, et le repère partirait sans que personne n'ait rien
+             demandé. Deux centièmes de la course valent une vingtaine de
+             pixels — c'est un geste, plus un tremblement. */
+          if (self.progress > 0.02) congedierDefilement();
+        },
       },
     });
     /* Le hero ne se déplace pas, et ne bouge pas du tout : il s'éteint.
@@ -139,21 +189,36 @@ export function Seuil() {
        durée fixe : la progression suit la main, et se rembobine avec elle. */
     tl.to(voile, { opacity: 1, ease: "none" }, 0);
 
+    /* L'autre geste qui congédie le repère : le clic sur l'image. C'est un
+       écouteur et non un `onClick` en JSX — une section n'est pas un contrôle,
+       et lui accrocher un gestionnaire de clic obligerait à lui inventer un rôle
+       et un équivalent clavier pour rien. Ici il n'y a rien à activer : on
+       observe un geste qui se produit, on ne propose pas une commande.
+       `pointerdown` plutôt que `click` : le repère s'en va sous le doigt, pas au
+       relâchement. */
+    hero.addEventListener("pointerdown", congedierDefilement);
+
     return () => {
+      hero.removeEventListener("pointerdown", congedierDefilement);
       tl.scrollTrigger?.kill();
       tl.kill();
       /* Le seuil se démonte à la navigation : le parcours n'est plus dans le
          hero, la nappe du site prend toute la place. */
       reglerSortieHero(1);
     };
-  }, [reglerSortieHero]);
+  }, [reglerSortieHero, congedierDefilement]);
 
   /* --- L'intro : préchargeur, puis apparition sur choix. --- */
   useEffetVisuel(() => {
     const html = document.documentElement;
     /* Rechargement dans la même session : ni écran d'entrée, ni apparition. Le
-       logo est déjà posé, le hero est là, le défilement n'est pas verrouillé. */
-    if (!html.classList.contains("seuil-a-jouer")) return;
+       logo est déjà posé, le hero est là, le défilement n'est pas verrouillé.
+       Le repère, lui, est offert tout de suite : il n'y a plus d'apparition à
+       attendre, et la question qu'il répond est la même. */
+    if (!html.classList.contains("seuil-a-jouer")) {
+      offrirDefilement();
+      return;
+    }
 
     const logo = logoRef.current;
     const mot = logo?.querySelector<HTMLElement>(".logo__mot") ?? null;
@@ -240,6 +305,9 @@ export function Seuil() {
     const revelerChrome = () => {
       const droite = document.querySelector<HTMLElement>(".barre-nav__droite");
       html.classList.remove("seuil-a-jouer");
+      /* Le repère de défilement arrive avec le chrome, et c'est le dernier
+         élément à se poser sur la première image. */
+      offrirDefilement();
       if (droite === null) return;
       const boutons = Array.from(droite.children) as HTMLElement[];
       if (reduit) return; // la classe ôtée suffit : les commandes sont là.
@@ -420,6 +488,20 @@ export function Seuil() {
           />
         ))}
       </video>
+      {/* Le repère de défilement — la marque commune (voir `chrome/Defilement`).
+
+          Il est **sous le voile** dans l'ordre du DOM, et c'est voulu : le hero
+          s'éteint, et tout ce qu'il porte s'éteint avec lui. Un repère qui
+          survivrait à l'extinction serait la seule chose encore allumée dans une
+          pièce qu'on vient de quitter.
+
+          En mouvement réduit, il n'est pas rendu du tout : une marque qui bouge
+          en boucle est exactement ce qu'on ne veut pas là. Le hero est alors
+          posé, et la barre de défilement native fait le travail. */}
+      {mouvementReduit ? null : (
+        <Defilement className="hero__defilement" visible={defilementLa} />
+      )}
+
       {/* Le voile de sortie : noir, monté en scrub au défilement. */}
       <div className="hero__voile" aria-hidden="true" ref={voileRef} />
       <EcranEntree pret={pret} onEntrer={handleEntrer} conteneurRef={ecranRef} />

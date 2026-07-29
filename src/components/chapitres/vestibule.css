@@ -446,6 +446,29 @@
   will-change: opacity;
 }
 
+/* ---- Le repère de défilement du temps mort ----
+
+   La marque commune (`chrome/defilement.css`), posée exactement là où le hero
+   la pose : même axe, même bord bas. C'est la seule chose qui compte ici — on
+   la reconnaît, on ne la relit pas.
+
+   Elle part à opacité nulle et n'en bouge que par la timeline. La valeur est
+   écrite ici en plus du `gsap.set` de départ, sinon la marque tiendrait le
+   cadre à pleine densité pendant tout le début du chapitre, dans le temps qui
+   sépare la première peinture de la première frame du script.
+
+   Pas de `z-index` : elle se range dans l'ordre du DOM, donc au-dessus de l'eau
+   et sous le noir de sortie, qui est le dernier nœud du cadre. Le repère
+   s'éteint donc avec le chapitre — mais il est parti depuis longtemps quand le
+   noir tombe, et c'est une ceinture, pas un mécanisme. */
+.vestibule__defilement {
+  position: absolute;
+  left: 50%;
+  bottom: calc(clamp(1.5rem, 5vh, 3rem) + var(--barre-mobile));
+  translate: -50% 0;
+  opacity: 0;
+}
+
 /* ------------------------------------------------------------------
    Mouvement réduit — le manifeste posé
    ------------------------------------------------------------------
