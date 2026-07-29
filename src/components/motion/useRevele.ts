@@ -5,6 +5,8 @@ import { gsap, SplitText } from "@/lib/gsap";
 import { useMouvement } from "./MotionProvider";
 import { useEffetVisuel } from "@/lib/isomorphe";
 
+
+
 /**
  * Le reveal typographique retenu — la fiche de projet.
  *
@@ -79,3 +81,4 @@ export function useRevele(
     };
   }, [racine, mouvementReduit]);
 }
+
