@@ -150,7 +150,8 @@ export function Seuil() {
   useEffetVisuel(() => {
     const hero = heroRef.current;
     const voile = voileRef.current;
-    if (hero === null || voile === null) return;
+    const video = videoRef.current;
+    if (hero === null || voile === null || video === null) return;
 
     const tl = gsap.timeline({
       scrollTrigger: {
@@ -186,12 +187,27 @@ export function Seuil() {
         },
       },
     });
-    /* Le hero ne se déplace pas, et ne bouge pas du tout : il s'éteint.
-       Le voile passe de 0 à 1, et c'est tout ce qui se passe — pas de montée
-       d'échelle sur la vidéo, pas de glissement, pas de dérive verticale. On
-       éteint une pièce, on ne fait pas défiler une image. Un scrub, jamais une
-       durée fixe : la progression suit la main, et se rembobine avec elle. */
-    tl.to(voile, { opacity: 1, ease: "none" }, 0);
+    /* Le hero ne se déplace pas, et ne bouge pas du tout : il s'éteint. Pas de
+       montée d'échelle sur la vidéo, pas de glissement, pas de dérive
+       verticale. On éteint une pièce, on ne fait pas défiler une image. Un
+       scrub, jamais une durée fixe : la progression suit la main, et se
+       rembobine avec elle.
+
+       **L'extinction est une multiplication, pas une superposition**, et c'est
+       tout le sujet. Le facteur tombe de 1 à 0 et le `calc()` de `seuil.css`
+       le répercute sur la luminosité du plan : les ombres s'éteignent bien
+       avant les hautes lumières, comme le fait la vraie lumière. Un voile noir
+       monté en opacité aurait terni l'image uniformément, ce qui ne ressemble
+       à rien qu'on ait déjà vu ailleurs que sur un site.
+
+       `ease: "none"` sur les deux : la courbe est déjà dans la physique de la
+       multiplication, en ajouter une seconde la déformerait.
+
+       Le voile n'entre que sur le dernier quart. Il ne fait pas la sortie, il
+       la pose : il amène le noir pur de l'extinction sur l'`--encre` du reste
+       du site, et il tient le rendez-vous du vestibule à la progression 1. */
+    tl.to(video, { "--extinction": 0, duration: 1, ease: "none" }, 0);
+    tl.to(voile, { opacity: 1, duration: 0.25, ease: "none" }, 0.75);
 
     /* L'autre geste qui congédie le repère : le clic sur l'image. C'est un
        écouteur et non un `onClick` en JSX — une section n'est pas un contrôle,
@@ -206,6 +222,11 @@ export function Seuil() {
       hero.removeEventListener("pointerdown", congedierDefilement);
       tl.scrollTrigger?.kill();
       tl.kill();
+      /* Le facteur revient à sa valeur de repos. Sans cette ligne, un effet qui
+         se remonterait laisserait la vidéo à l'extinction où la timeline a été
+         tuée, et la nouvelle animerait 0 vers 0 : le hero rouvrirait éteint,
+         définitivement. */
+      gsap.set(video, { "--extinction": 1 });
       /* Le seuil se démonte à la navigation : le parcours n'est plus dans le
          hero, la nappe du site prend toute la place. */
       reglerSortieHero(1);

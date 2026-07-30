@@ -6,6 +6,30 @@
    L'écran d'entrée, lui, est un plein cadre noir posé au-dessus (voir
    `ecran-entree.css`), qui ne vit que sous `seuil-a-jouer`. */
 
+/* ---- Le facteur d'extinction ----
+
+   La sortie du hero n'est pas un voile qui se pose : c'est le plan lui-même qui
+   perd sa lumière. La différence n'est pas théorique. Un noir en opacité pose
+   une couche grise uniforme, et l'image se **ternit** — clairs et sombres
+   perdent la même chose, ce qui ne ressemble à aucune lumière réelle. Une
+   multiplication, elle, **éteint** : à mi-course une ombre à 0,1 est déjà noire
+   quand un ciel à 0,9 est encore parfaitement lisible.
+
+   Les ombres partent donc en premier, les hautes lumières meurent en dernier.
+   C'est ce que fait l'œil qui entre dans un bâtiment sombre, et la dernière
+   chose qu'on y voit est la clarté qu'on vient de quitter.
+
+   Le facteur est déclaré en `@property` et non en simple variable : sans
+   syntaxe typée, un navigateur traite une propriété personnalisée comme une
+   chaîne, ne l'interpole pas, et la valeur saute d'un état à l'autre au lieu de
+   descendre. Avec `<number>`, elle est un nombre et le `calc()` en dessous
+   suit le défilement en continu. */
+@property --extinction {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
 /* ---- La hauteur du hero est celle du parcours, et pas une autre ----
 
    Elle portait `100svh`, c'est-à-dire la fenêtre barre d'URL déployée, et
@@ -35,10 +59,15 @@
   object-fit: cover;
   display: block;
   /* La vidéo n'est jamais à pleine lumière : le blend du logo garde ainsi du
-     contraste sur toute sa surface. */
-  filter: saturate(0.9) brightness(0.92);
+     contraste sur toute sa surface.
+
+     L'extinction **multiplie** cet étalonnage au lieu de le remplacer. Écrite
+     en dur par l'animation, la ligne `filter` aurait emporté avec elle la
+     désaturation et le demi-diaphragme dès la première image de la sortie, et
+     le plan aurait sauté à pleine saturation avant de s'éteindre. */
+  filter: saturate(0.9) brightness(calc(0.92 * var(--extinction)));
   /* Aucun `transform`, aucun `will-change` : le hero ne bouge pas. Sa sortie
-     est le voile, et rien d'autre. */
+     est une extinction, pas un déplacement. */
 }
 
 /* Le voile de sortie : un plein que le défilement fait monter de 0 à 1.
@@ -66,6 +95,14 @@
    trois valeurs de ce jeton. Le noir pur était la seule valeur hors jetons du
    parcours.
    ------------------------------------------------------------------ */
+/* Le voile ne fait plus la sortie — l'extinction s'en charge. Il ne fait plus
+   que la **poser** sur le dernier quart de la course.
+
+   Il reste pour deux raisons. Une extinction complète rend un noir pur, alors
+   que le site est en `--encre`, un noir bleuté : sans lui, le hero se
+   refermerait sur une teinte qui n'appartient à aucun autre écran du parcours.
+   Et le vestibule en dessous cale sa couture sur l'instant où ce voile est
+   plein — ce rendez-vous, à la progression 1, ne bouge pas. */
 .hero__voile {
   position: absolute;
   inset: 0;
