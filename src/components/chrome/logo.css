@@ -1,10 +1,15 @@
 /* Le logotype. Le fil rouge du site : toute la hardiesse est dépensée ici.
 
-   Deux placements sur un seul nœud, animés par un vol pur (échelle + translation
-   posées en JS par le seuil). Aucun des deux n'utilise `transform` en CSS : la
-   propriété reste libre pour le seuil, qui s'en sert pour faire voler le logo du
-   centre au coin. Le repos se cale au top-left ; le seuil pose la transformation
-   qui le rend géant et centré, puis l'efface pour le ramener à sa boîte. */
+   Deux placements sur un seul nœud, animés par un vol posé en JS par le seuil.
+   Aucun des deux n'utilise `transform` en CSS : la propriété reste libre pour le
+   seuil, qui s'en sert pour faire voler le logo du centre au coin. Le repos se
+   cale au top-left ; le seuil écrit un corps de monument en inline et translate
+   le mot au centre, puis le réduit jusqu'à cette boîte-ci et rend le corps.
+
+   Le monument est un corps et non une échelle, et ce n'est pas un détail
+   d'implémentation : le blend et le `will-change` ci-dessous font de ce nœud un
+   calque composé à part, que Safari trame une fois pour toutes: un mot grossi
+   par transformation y reste tramé à dix-sept pixels. Voir la note du seuil. */
 
 .logo {
   /* Repos : coin haut-gauche, à la place de la barre de navigation. */
@@ -58,9 +63,10 @@
 
 /* -------- Pendant le seuil -------- */
 
-/* Le logo garde sa mise en page de repos du début à la fin : c'est la clé du
-   CLS à zéro. Son passage du centre géant au coin n'est pas un changement de
-   layout mais une transformation pure, qui n'entraîne aucun recalcul de flux. */
+/* Le logo est en position fixe du début à la fin : c'est la clé du CLS à zéro.
+   Le corps de monument que le seuil lui écrit fait grandir sa boîte vers le bas
+   et la droite, sans déplacer son coin d'ancrage ni rien d'autre sur la page, et
+   son passage du centre au coin est une transformation pure. */
 .seuil-a-jouer .logo {
   /* Pas de navigation accidentelle pendant l'intro : le clic ne compte pas. */
   pointer-events: none;

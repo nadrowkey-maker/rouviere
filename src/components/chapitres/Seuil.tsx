@@ -39,9 +39,13 @@ import "./seuil.css";
  *      l'apparition.
  *
  * Le logo est un nœud partagé (monté dans le layout) : c'est le même qui paraît
- * au centre et se range dans la barre. Son placement « centre géant » est une
- * transformation pure (échelle + translation) qui n'entraîne aucun reflux —
- * CLS à zéro. La séquence ne joue qu'une fois par session : un script en tête de
+ * au centre et se range dans la barre. Son placement « centre géant » est un
+ * corps écrit sur un nœud en position fixe — il grandit vers le bas et la
+ * droite, son coin haut-gauche ne bouge pas, donc aucun élément instable et CLS
+ * à zéro — et le vol jusqu'à la barre est une translation doublée d'une
+ * réduction. Jamais un grossissement : c'est ce qui tenait le mot pixelisé sur
+ * iOS (la note du corps de monument, plus bas, dit tout).
+ * La séquence ne joue qu'une fois par session : un script en tête de
  * `<body>` pose `seuil-a-jouer` sur `<html>` tant que `sessionStorage` ne l'a
  * pas vue. Au rechargement, la classe est absente : ni écran d'entrée, ni
  * apparition, le logo est déjà dans la barre et le hero est là.
@@ -330,17 +334,20 @@ export function Seuil() {
       );
     };
 
-    const rangerDansNav = (duree: number) => {
-      /* Le vol du centre au coin : on efface la transformation qui tenait le
-         logo géant et centré, il reprend sa boîte de repos. Rien ne reflue. */
+    const rangerDansNav = (duree: number, reduction: number) => {
+      /* Le vol du centre au coin : le mot **rétrécit** jusqu'à sa boîte de
+         repos, il ne redescend pas d'un grossissement. Arrivé, on échange en un
+         seul tick le corps de monument réduit contre le corps de repos à
+         l'identité — même largeur, même coin, rien ne reflue. */
       gsap.to(logo, {
         x: 0,
         y: 0,
-        scale: 1,
+        scale: reduction,
         duration: duree,
         ease: "power4.inOut",
         onComplete: () => {
           gsap.set(logo, { clearProps: "transform,transformOrigin" });
+          logo.style.removeProperty("font-size");
           revelerChrome();
           reprendre("seuil");
           fini = true;
@@ -372,21 +379,58 @@ export function Seuil() {
       void document.fonts.ready.then(() => {
         if (annule) return;
 
-        /* On mesure la boîte de repos (petite, en haut à gauche), puis on pose
-           la transformation qui rend le logo géant et centré : origine au coin,
-           échelle pour couvrir la largeur voulue, translation vers le centre.
-           Le mot est encore à opacité 0 — rien de visible ne saute. */
+        /**
+         * **Le monument est un corps, pas un grossissement.**
+         *
+         * Le mot était peint à son corps de repos — dix-sept pixels — et
+         * multiplié par la transformation : deux fois et demie sur un
+         * téléphone, près de dix sur un grand écran. Sur iOS, c'est un mot
+         * pixelisé, et la cause n'est pas le facteur mais le calque : `.logo`
+         * porte `mix-blend-mode: difference` et un `will-change: transform`
+         * permanent (voir `logo.css`), donc Safari le compose à part, le
+         * tramant **une fois** à l'échelle où il l'a trouvé, et ne le retrame
+         * pas tant que le hint est là. Le compositeur étirait donc une texture
+         * de dix-sept pixels, et la tenait ainsi pendant la pose d'une seconde
+         * et demie. Les moteurs de bureau retrament à l'arrêt du tween : le
+         * défaut ne se voyait que sur iOS.
+         *
+         * On fait donc ici ce que la sortie fait déjà à l'autre bout du
+         * parcours (`Sortie.tsx`) : on écrit un **corps**, et le mot est peint
+         * net à sa taille de monument. La transformation ne sert plus qu'à le
+         * centrer, puis à le réduire jusqu'à la barre — et une réduction, elle,
+         * ne pixelise sur aucun moteur.
+         *
+         * Le corps n'est pas décidé ici : la largeur vient de la loi commune de
+         * `lib/logotype.ts`, et le corps s'en déduit par mesure. Les deux
+         * extrémités du fil restent le même mot à la même échelle.
+         */
         const repos = logo.getBoundingClientRect();
-        /* La largeur du monument n'est pas décidée ici : elle vient de la loi
-           commune, que la sortie applique à l'autre bout du parcours. Voir
-           `lib/logotype.ts` — les deux extrémités du fil sont le même mot. */
+        const corpsRepos = parseFloat(getComputedStyle(logo).fontSize);
         const largeurCible = largeurLogotype(innerWidth);
-        const echelle = largeurCible / repos.width;
+        /* Mot non peint (onglet ouvert en arrière-plan) : pas de monument
+           plutôt qu'une division par zéro qui emporterait toute la séquence —
+           et le défilement resterait verrouillé. */
+        const facteur =
+          repos.width > 0 && corpsRepos > 0 ? largeurCible / repos.width : 1;
+
+        logo.style.fontSize = `${corpsRepos * facteur}px`;
+        /* La boîte a grandi vers le bas et la droite : son coin haut-gauche n'a
+           pas bougé d'un pixel — `.logo` est calé en `top`/`left` —, donc pas
+           d'élément instable, donc CLS toujours à zéro. */
+        const monument = logo.getBoundingClientRect();
+        /* La réduction qui rend exactement la boîte de repos, mesurée et non
+           supposée : `1 / facteur` ne serait juste qu'à l'arrondi près. */
+        const reduction =
+          monument.width > 0 ? repos.width / monument.width : 1;
+
+        /* Reste à le centrer. Origine au coin pour que la réduction du vol
+           ramène le mot sur le coin de la barre, translation vers le centre de
+           l'écran. Le mot est encore à opacité 0 — rien de visible ne saute. */
         gsap.set(logo, {
           transformOrigin: "0 0",
-          scale: echelle,
-          x: (innerWidth - repos.width * echelle) / 2 - repos.left,
-          y: (innerHeight - repos.height * echelle) / 2 - repos.top,
+          scale: 1,
+          x: (innerWidth - monument.width) / 2 - monument.left,
+          y: (innerHeight - monument.height) / 2 - monument.top,
         });
 
         if (reduit) {
@@ -397,7 +441,7 @@ export function Seuil() {
           sonnerTitre(0);
           sequence = gsap
             .timeline({ delay: 0.4 })
-            .add(() => rangerDansNav(0.3));
+            .add(() => rangerDansNav(0.3, reduction));
           return;
         }
 
@@ -412,7 +456,17 @@ export function Seuil() {
         sequence
           .fromTo(
             mot,
-            { opacity: 0, scale: 1.06, filter: "blur(10px)" },
+            {
+              opacity: 0,
+              scale: 1.06,
+              /* Le flou était écrit en pixels avant la transformation, donc
+                 multiplié par elle : dix pixels devenaient vingt-sept sur un
+                 téléphone et près de cent sur un grand écran. Le monument étant
+                 désormais peint à son corps, la transformation ne multiplie plus
+                 rien — on porte le facteur ici, et le générique garde à l'écran
+                 exactement le flou qu'il avait. */
+              filter: `blur(${(10 * facteur).toFixed(2)}px)`,
+            },
             {
               opacity: 1,
               scale: 1,
@@ -422,7 +476,7 @@ export function Seuil() {
             },
           )
           .to({}, { duration: 1.5 })
-          .add(() => rangerDansNav(1.15));
+          .add(() => rangerDansNav(1.15, reduction));
       });
     };
     entrerRef.current = demarrer;
@@ -451,6 +505,10 @@ export function Seuil() {
            doit changer la langue de l'écran d'entrée, et rien d'autre. */
         gsap.set(logo, { clearProps: "transform,transformOrigin" });
         gsap.set(mot, { clearProps: "opacity,transform,filter" });
+        /* Le corps de monument est écrit en inline sur un nœud qui, lui, ne se
+           démonte pas : sans cette ligne, le logotype partait géant à la page
+           suivante. */
+        logo.style.removeProperty("font-size");
         reprendre("seuil");
       }
     };
